@@ -1,0 +1,42 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+indent_style = space
+trim_trailing_whitespace = true
+
+[*.{cs,csx}]
+indent_size = 4
+
+# Microsoft .NET coding conventions.
+csharp_new_line_before_open_brace = all
+csharp_prefer_braces = true:warning
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_prefer_primary_constructors = true:suggestion
+dotnet_style_readonly_field = true:warning
+dotnet_diagnostic.IDE0055.severity = warning
+
+# UI-facing numeric text intentionally follows the user's current culture.
+dotnet_diagnostic.CA1305.severity = suggestion
+# UI composition methods intentionally expose Avalonia base abstractions.
+dotnet_diagnostic.CA1859.severity = suggestion
+# SysEx is the MIDI-standard name, not an "Ex" version suffix.
+dotnet_diagnostic.CA1711.severity = none
+
+[PresetMaestro/MainWindow*.cs]
+# Avalonia owns Window lifetime; MainWindow releases its fields from OnClosed.
+dotnet_diagnostic.CA1001.severity = none
+
+[**/*Tests.cs]
+# Method_Name_Expectation is the established xUnit test naming convention here.
+dotnet_diagnostic.CA1707.severity = none
+# One-off expected arrays improve assertion readability and are not hot-path allocations.
+dotnet_diagnostic.CA1861.severity = none
+
+[*.{axaml,xml,csproj,props,targets,slnx}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false

@@ -1,0 +1,23 @@
+# Build outputs
+bin/
+obj/
+
+# Publish output
+publish/
+build_test/
+.test-results/
+
+# User-specific files
+*.user
+*.suo
+.vs/
+
+# NuGet
+*.nupkg
+packages/
+
+# OS
+Thumbs.db
+.DS_Store
+mockups/
+prototype-screenshots/

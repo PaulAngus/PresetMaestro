@@ -1,0 +1,82 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
+        mc:Ignorable="d"
+        x:Class="PresetNameSyncProbe.MainWindow"
+        x:CompileBindings="False"
+        Width="1180"
+        Height="760"
+        MinWidth="980"
+        MinHeight="620"
+        Title="Preset Name Sync Probe">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="*" Margin="12">
+    <Border Grid.Row="0" Background="#222831" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+      <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,Auto,Auto" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="MIDI Input" />
+        <ComboBox Grid.Column="1" x:Name="InputComboBox" MinWidth="260" HorizontalAlignment="Stretch" Margin="10,0,0,0" />
+
+        <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="MIDI Output" Margin="10,0,0,0" />
+        <ComboBox Grid.Column="3" x:Name="OutputComboBox" MinWidth="260" HorizontalAlignment="Stretch" Margin="10,0,0,0" />
+
+        <Button Grid.Column="4" x:Name="RefreshPortsButton" Content="Refresh Ports" Width="120" Click="RefreshPortsButton_OnClick" Margin="10,0,0,0" />
+        <Button Grid.Column="5" x:Name="ConnectButton" Content="Connect" Width="100" Click="ConnectButton_OnClick" Margin="10,0,0,0" />
+        <Button Grid.Column="6" x:Name="DisconnectButton" Content="Disconnect" Width="100" Click="DisconnectButton_OnClick" Margin="10,0,0,0" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Background="#303841" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto">
+        <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Preset Slot (0-511)" />
+        <NumericUpDown Grid.Column="1" x:Name="SlotNumeric" Minimum="0" Maximum="511" Increment="1" Width="120" Value="0" Margin="10,0,0,0" />
+        <Button Grid.Column="2" x:Name="QueryPresetNameButton" Content="Query Preset Name" Width="150" Click="QueryPresetNameButton_OnClick" Margin="10,0,0,0" />
+        <Button Grid.Column="3" x:Name="ScanAllButton" Content="Scan All Preset Names" Width="170" Click="ScanAllButton_OnClick" Margin="10,0,0,0" />
+        <Button Grid.Column="4" x:Name="CancelScanButton" Content="Cancel Scan" Width="110" Click="CancelScanButton_OnClick" Margin="10,0,0,0" />
+        <Button Grid.Column="5" x:Name="ExportCsvButton" Content="Export CSV" Width="100" Click="ExportCsvButton_OnClick" Margin="10,0,0,0" />
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+          <Button x:Name="QueryLiveScenesButton" Content="Read current scene names" Click="QueryLiveScenesButton_OnClick" />
+          <Button x:Name="QueryStoredScenesButton" Content="Read stored slot scene names" Click="QueryStoredScenesButton_OnClick" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" Background="#393E46" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Status" FontWeight="Bold" />
+        <TextBlock Grid.Column="1" x:Name="StatusTextBlock" VerticalAlignment="Center" Text="Idle" Margin="10,0,0,0" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="3" Background="#1F242A" CornerRadius="8" Padding="8" Margin="0,0,0,10">
+      <dg:DataGrid x:Name="ResultsDataGrid"
+                   AutoGenerateColumns="False"
+                   IsReadOnly="True"
+                   GridLinesVisibility="Horizontal"
+                   HeadersVisibility="Column"
+                   SelectionMode="Single">
+        <dg:DataGrid.Columns>
+          <dg:DataGridTextColumn Header="Slot" Binding="{Binding Slot}" Width="120" />
+          <dg:DataGridTextColumn Header="Preset Name" Binding="{Binding PresetName}" Width="*" />
+        </dg:DataGrid.Columns>
+      </dg:DataGrid>
+    </Border>
+
+    <ProgressBar Grid.Row="4" x:Name="ScanProgressBar" Minimum="0" Maximum="512" Height="16" Margin="0,0,0,10" />
+
+    <Border Grid.Row="5" Background="#111418" CornerRadius="8" Padding="8">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0" Text="Raw MIDI / SysEx Log" FontWeight="Bold" />
+        <TextBox Grid.Row="1"
+                 x:Name="LogTextBox"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 Margin="0,6,0,0"
+                 Height="190" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>
