@@ -397,6 +397,29 @@ public partial class FavoriteEditorTests
     }
 
     [AvaloniaFact]
+    public void DiagnosticsBackButtonReturnsToConfig()
+    {
+        var window = CreateWindow();
+        try
+        {
+            window.Show();
+            Click(Find<Button>(window, "NavConfig"));
+            Dispatcher.UIThread.RunJobs();
+
+            Click(Find<Button>(window, "OpenDiagnostics"));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Diagnostics", Field<object>(window, "_currentPage").ToString());
+
+            Click(Find<Button>(window, "BackToConfig"));
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("Config", Field<object>(window, "_currentPage").ToString());
+            Assert.NotNull(Find<Button>(window, "OpenDiagnostics"));
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void ActionsRenderAsOneThreeColumnRowInsideEditorAtMinimumWidthAndRemainAccessible()
     {
         var favorite = Clone(Sample);

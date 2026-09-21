@@ -187,6 +187,7 @@ public partial class MainWindow
                 _currentFavoriteName = fav.Name;
                 _currentFavoriteScene = fav.Scene;
                 PresetSent(t.MidiPreset, fav.Scene);
+                ShowFavoriteSentFeedback();
                 AppendLog($"RESULT: Favorite '{fav.Name}' -> device display {t.DisplayedPreset}, " +
                           $"Bank {t.Bank}, PC {t.ProgramChange}, Scene {fav.Scene}");
             }
@@ -242,6 +243,13 @@ public partial class MainWindow
     }
 
     // ── UI update ────────────────────────────────────────────────
+    private void ShowFavoriteSentFeedback()
+    {
+        _favoriteSentTimer.Stop();
+        _favoriteSentLabel.IsVisible = true;
+        _favoriteSentTimer.Start();
+    }
+
     private void UpdateDisplay()
     {
         string text;
@@ -654,15 +662,26 @@ public partial class MainWindow
     // ── Settings helpers ───────────────────────────────────────────
     private void ApplySettingsToUI()
     {
+        ApplyProfileSettingsToUI();
+        ApplyComputerSettingsToUI();
+    }
+
+    private void ApplyProfileSettingsToUI()
+    {
+        int maxPreset = _settings.MaxDisplayedPreset;
         _channelCombo.SelectedIndex = Math.Clamp(_settings.MidiChannel, 0, 16);
         _offsetCombo.SelectedIndex = Math.Clamp(_settings.DisplayOffset, 0, 1);
-        _maxPresetSpinner.Value = Math.Clamp(_settings.MaxDisplayedPreset, 1, 512);
+        _maxPresetSpinner.Value = Math.Clamp(maxPreset, 1, 512);
+        _sceneCcSpinner.Value = Math.Clamp(_settings.SceneCc, 0, 127);
+    }
+
+    private void ApplyComputerSettingsToUI()
+    {
         _autoSendCheck.IsChecked = _settings.AutoSend;
         _autoSendDelaySpinner.Value = Math.Clamp(_settings.AutoSendDelayMs, 10, 2000);
         _keyboardEntryCheck.IsChecked = _settings.KeyboardEntryEnabled;
         _midiEntryCheck.IsChecked = _settings.MidiEntryEnabled;
         _debugCheck.IsChecked = _settings.DebugMode;
-        _sceneCcSpinner.Value = Math.Clamp(_settings.SceneCc, 0, 127);
 
         bool isLight = string.Equals(_settings.Theme, "Light", StringComparison.OrdinalIgnoreCase);
         _lightThemeRadio.IsChecked = isLight;

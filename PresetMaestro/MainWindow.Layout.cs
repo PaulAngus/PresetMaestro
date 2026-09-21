@@ -12,6 +12,7 @@ public partial class MainWindow
     // ── Preset Sender tab ────────────────────────────────────────────
     private TextBlock _displayLabel = null!;
     private TextBlock _favoritesDisplayLabel = null!;
+    private TextBlock _favoriteSentLabel = null!;
     private CheckBox _autoSendCheck = null!;
     private NumericUpDown _autoSendDelaySpinner = null!;
     private CheckBox _keyboardEntryCheck = null!;

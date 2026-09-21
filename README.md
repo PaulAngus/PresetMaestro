@@ -12,6 +12,23 @@ A Windows desktop controller for selecting presets and scenes, saving favorites,
 
 You do **not** need to scan all presets before using scenes. For everyday use, just connect and select a preset.
 
+## Profiles
+
+Use **Config → Profiles** to select a profile, or enter a name and click **Create**, **Copy** or **Rename**. **Copy** duplicates the active profile's saved favorites, current preset mapping and cached names, then selects the independent copy. **Delete** removes the active profile after confirmation and selects another; at least one profile must remain. New profiles created with **Create** start with default preset mapping and empty favorites and caches. Switching saves the current profile, clears the current selection, and loads the selected profile. Finish or cancel a name sync before changing profiles.
+
+Each profile has two files in `%APPDATA%\PresetMaestro`:
+
+- `<profile>-favorites.json`: favorite slots, preset/scene mappings, collections and tags.
+- `<profile>-settings.json`: MIDI channel, display offset, maximum preset, Scene CC, collection order, and cached preset/scene names.
+
+`settings.json` keeps computer settings: MIDI input/output and thru ports, debug mode, entry options and note mappings, appearance, the available profile names (`Profiles`), and the last selected profile (`ActiveProfile`). Startup restores that profile. If its files are missing or unreadable, the app reports this and loads another readable profile, creating a new default profile if needed while preserving the original files.
+
+**Rescan** checks `%APPDATA%\PresetMaestro` for new matching `<name>-settings.json` / `<name>-favorites.json` pairs and refreshes the saved profile list. Incomplete or unreadable pairs are skipped and counted in the status message. Adding files manually requires a rescan; creating, copying, renaming, deleting and importing through the app update the list immediately.
+
+**Export…** saves the active profile as a ZIP containing its two JSON files, including cached names and saved favorites. **Import…** accepts that ZIP, or either file of a matching JSON pair in the same folder. Enter an optional new name before importing; otherwise the source name is used. A number is appended when the name already exists, so existing profiles are preserved. Import adds the profile to the list; select it when ready. Computer settings are never included in exports or replaced by imports.
+
+Existing data migrates automatically to **Default** on first launch. The original settings are retained as `settings.json.pre-profiles.bak`; the original `favorites.json` is also retained. Deleted profile file pairs are recoverable from the `DeletedProfiles` subfolder.
+
 ## What happens automatically?
 
 - After connecting, the app checks which preset and scene are active.

@@ -31,7 +31,7 @@ public partial class MainWindow
 
         _presetNamesProgress = new ProgressBar { Minimum = 0, Maximum = 512, Height = 8 };
         stack.Children.Add(_presetNamesProgress);
-        _presetNamesStatus = new TextBlock { Name = "PresetSyncStatus", Text = "No synchronized names yet.", Foreground = SecondaryBrush };
+        _presetNamesStatus = new TextBlock { Name = "PresetSyncStatus", Text = $"{_settings.PresetNameCache.Count} cached preset names in this profile.", Foreground = SecondaryBrush };
         stack.Children.Add(_presetNamesStatus);
 
         SetApprovedCardContent(card, stack);

@@ -1306,7 +1306,8 @@ public partial class MainWindow
         {
             Title = title,
             Width = 360,
-            Height = 140,
+            MinHeight = 140,
+            SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new StackPanel

@@ -2,6 +2,8 @@ namespace PresetMaestro.Core;
 
 public class AppSettings
 {
+    public string ActiveProfile { get; set; } = "Default";
+    public List<string> Profiles { get; set; } = [];
     public string MidiInputPort { get; set; } = string.Empty;
     public string MidiOutputPort { get; set; } = string.Empty;
     public List<string> ThruInputPorts { get; set; } = [];

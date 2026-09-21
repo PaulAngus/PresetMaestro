@@ -88,7 +88,7 @@ public partial class MainWindow
         clear.Click += (_, _) =>
         {
             _sceneSyncCts?.Cancel(); _sceneCts?.Cancel(); _favoriteSceneCts?.Cancel(); _sceneGeneration++;
-            SceneCache.Clear(); SettingsManager.Save(_settings); UpdateDisplay(); RenderScenes();
+            SceneCache.Clear(); _saveSettings(_settings); UpdateDisplay(); RenderScenes();
             _sceneStatus.Text = "Scene-name cache cleared for these MIDI ports.";
         };
         stack.Children.Add(clear);
@@ -211,10 +211,11 @@ public partial class MainWindow
         }
 
         _favoriteUseCurrentButton.IsEnabled = false;
+        int profileGeneration = _profileGeneration;
         try
         {
             var state = await _presetNameClient.CurrentStateAsync(CancellationToken.None);
-            if (_favEditingId == null || _sceneClosing)
+            if (_favEditingId == null || _sceneClosing || profileGeneration != _profileGeneration)
             {
                 return;
             }
@@ -312,7 +313,7 @@ public partial class MainWindow
                 : await _presetNameClient.StoredScenesAsync(slot, cts.Token);
             cts.Token.ThrowIfCancellationRequested();
             CacheScenes(result, slot == _sceneSlot ? "live" : "stored", key);
-            SettingsManager.Save(_settings); PopulateFavoriteScenes(); RenderScenes();
+            _saveSettings(_settings); PopulateFavoriteScenes(); RenderScenes();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { AppendLog($"SCENES: {ex.Message}"); }
@@ -342,7 +343,7 @@ public partial class MainWindow
                 return;
             }
 
-            CacheScenes(result, "live", key); SettingsManager.Save(_settings); RenderScenes();
+            CacheScenes(result, "live", key); _saveSettings(_settings); RenderScenes();
             _sceneStatus.Text = $"{result.PresetName} · eight scenes · refreshed";
         }
         catch (OperationCanceledException) { }
@@ -459,7 +460,7 @@ public partial class MainWindow
                 CacheScenes(result, "stored", key); count++;
                 if (count % 16 == 0)
                 {
-                    SettingsManager.Save(_settings);
+                    _saveSettings(_settings);
                 }
 
                 RenderScenes();
@@ -476,7 +477,7 @@ public partial class MainWindow
         catch (Exception ex) { _sceneStatus.Text = $"Stopped after {count} presets: {ex.Message}. Cached names retained."; }
         finally
         {
-            SettingsManager.Save(_settings);
+            _saveSettings(_settings);
             if (ReferenceEquals(_sceneSyncCts, cts))
             {
                 _sceneSyncCts = null;

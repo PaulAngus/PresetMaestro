@@ -40,10 +40,13 @@ public partial class MainWindow : Window
     private readonly Func<PresetSelectionWindow, Task<int?>>? _presetPickerOverride;
     private readonly Func<SceneSelectionWindow, Task<int?>>? _scenePickerOverride;
     private readonly DispatcherTimer _autoSendTimer;
+    private readonly DispatcherTimer _favoriteSentTimer;
 
-    public MainWindow() : this(SettingsManager.Load(), FavoritesManager.Load(), new MidiManager())
+    public MainWindow() : this(new ProfileStore(Path.GetDirectoryName(SettingsManager.SettingsPath)!))
     {
     }
+
+    private MainWindow(ProfileStore profiles) : this(profiles.LoadSettings(), [], new MidiManager(), profileStore: profiles) { }
 
     internal MainWindow(
         AppSettings settings,
@@ -54,12 +57,21 @@ public partial class MainWindow : Window
         Action<List<Favorite>>? saveFavorites = null,
         Func<string, string, string, string, Task<bool>>? confirm = null,
         Func<PresetSelectionWindow, Task<int?>>? presetPicker = null,
-        Func<SceneSelectionWindow, Task<int?>>? scenePicker = null)
+        Func<SceneSelectionWindow, Task<int?>>? scenePicker = null,
+        ProfileStore? profileStore = null,
+        Func<bool, Task<string?>>? profileFilePicker = null)
     {
         _settings = settings;
         _favorites = favorites;
-        _saveSettings = saveSettings ?? SettingsManager.Save;
-        _saveFavorites = saveFavorites ?? FavoritesManager.Save;
+        _profileStore = profileStore;
+        _profileFilePickerOverride = profileFilePicker;
+        if (profileStore is not null)
+        {
+            _favorites.AddRange(profileStore.LoadFavorites(settings.ActiveProfile));
+        }
+
+        _saveSettings = saveSettings ?? (profileStore is null ? SettingsManager.Save : profileStore.SaveSettings);
+        _saveFavorites = saveFavorites ?? (profileStore is null ? FavoritesManager.Save : values => profileStore.SaveFavorites(_settings.ActiveProfile, values));
         _confirmOverride = confirm;
         _presetPickerOverride = presetPicker;
         _scenePickerOverride = scenePicker;
@@ -73,6 +85,15 @@ public partial class MainWindow : Window
 
         _autoSendTimer = new DispatcherTimer();
         _autoSendTimer.Tick += (_, _) => { _autoSendTimer.Stop(); ExecuteSend(); };
+        _favoriteSentTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _favoriteSentTimer.Tick += (_, _) =>
+        {
+            _favoriteSentTimer.Stop();
+            if (_favoriteSentLabel is not null)
+            {
+                _favoriteSentLabel.IsVisible = false;
+            }
+        };
 
         InitializeComponent();
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);

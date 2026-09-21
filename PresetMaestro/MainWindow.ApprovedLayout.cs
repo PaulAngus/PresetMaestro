@@ -70,9 +70,14 @@ public partial class MainWindow
         var favorites = BuildApprovedFavorites();
         AttachFavoritePresetPicker();
         AttachFavoriteScenePicker();
-        var diagnostics = BuildApprovedDiagnosticsPage();
         var host = new ContentControl();
-        var config = BuildApprovedConfig(() => { _currentPage = AppPage.Diagnostics; host.Content = diagnostics; });
+        Control config = null!;
+        var diagnostics = BuildApprovedDiagnosticsPage(() =>
+        {
+            _currentPage = AppPage.Config;
+            host.Content = config;
+        });
+        config = BuildApprovedConfig(() => { _currentPage = AppPage.Diagnostics; host.Content = diagnostics; });
         host.Content = _currentPage switch
         {
             AppPage.Favorites => favorites,
@@ -141,14 +146,21 @@ public partial class MainWindow
         return page;
     }
 
-    private Control BuildApprovedDiagnosticsPage()
+    private Control BuildApprovedDiagnosticsPage(Action showConfig)
     {
-        var page = new Grid { Margin = new Thickness(24), ColumnDefinitions = new ColumnDefinitions("*,16,*") };
+        var page = new Grid { Margin = new Thickness(24), RowDefinitions = new RowDefinitions("Auto,16,*") };
+        var back = new Button { Name = "BackToConfig", Content = "← Back", HorizontalAlignment = HorizontalAlignment.Left };
+        back.Click += (_, _) => showConfig();
+        page.Children.Add(back);
+
+        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("*,16,*") };
         var diagnostics = ApprovedDiagnostics();
-        page.Children.Add(diagnostics);
+        content.Children.Add(diagnostics);
         var log = ApprovedLog();
         Grid.SetColumn(log, 2);
-        page.Children.Add(log);
+        content.Children.Add(log);
+        Grid.SetRow(content, 2);
+        page.Children.Add(content);
         return page;
     }
 
@@ -264,6 +276,22 @@ public partial class MainWindow
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(0, 6, 0, 0)
         });
+        var headerTitle = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        Grid.SetColumn(title, 0);
+        headerTitle.Children.Add(title);
+        _favoriteSentLabel = new TextBlock
+        {
+            Text = "SENT",
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = AccentBrush,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            IsVisible = false,
+            Margin = new Thickness(12, 0, 20, 0),
+        };
+        Grid.SetColumn(_favoriteSentLabel, 1);
+        headerTitle.Children.Add(_favoriteSentLabel);
         _favNewBtn = new Button
         {
             Name = "FavoriteAdd",
@@ -302,7 +330,7 @@ public partial class MainWindow
             VerticalContentAlignment = VerticalAlignment.Center,
         };
         _favNewBtn.Click += OnFavNew;
-        header.Children.Add(title);
+        header.Children.Add(headerTitle);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
         actions.Children.Add(_favNewBtn);
         actions.Children.Add(new Border { Width = 84, Height = 36, Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Child = _favoritesDisplayLabel });
@@ -563,7 +591,7 @@ public partial class MainWindow
     {
         var page = new Grid { Margin = new Thickness(24) };
         var connection = new StackPanel { Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), BuildPresetNameSyncCard(), ApprovedEntryOptions() } };
-        var mapping = new StackPanel { Spacing = 16, Children = { BuildApprovedMapping(), BuildApprovedAppearance() } };
+        var mapping = new StackPanel { Spacing = 16, Children = { BuildProfileCard(), BuildApprovedMapping(), BuildApprovedAppearance() } };
         page.Children.Add(connection); page.Children.Add(mapping);
 
         void Arrange()
