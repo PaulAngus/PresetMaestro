@@ -9,6 +9,8 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Styling;
+using Avalonia.Controls.Templates;
+using Avalonia.VisualTree;
 
 namespace PresetMaestro;
 
@@ -240,7 +242,7 @@ public partial class MainWindow
         _favCategoryTree.AddHandler(InputElement.PointerMovedEvent, OnFavCategoryPointerMoved, RoutingStrategies.Bubble, handledEventsToo: true);
         _favCategoryTree.AddHandler(InputElement.PointerReleasedEvent, OnFavCategoryPointerReleased, RoutingStrategies.Bubble, handledEventsToo: true);
         _favCategoryTree.AddHandler(InputElement.PointerCaptureLostEvent, OnFavCategoryPointerCaptureLost, RoutingStrategies.Bubble, handledEventsToo: true);
-        var categories = ApprovedCard("Collections", "Favorites", titleFontWeight: FontWeight.Bold);
+        var categories = ApprovedCard("Collections", titleFontWeight: FontWeight.Bold);
         categories.Padding = new Thickness(16, 17);
         SetApprovedCardContent(categories, _favCategoryTree); _favoritesPage.Children.Add(categories);
         var library = BuildApprovedFavoriteLibrary(); Grid.SetColumn(library, 2); _favoritesPage.Children.Add(library); BuildApprovedFavoriteEditor(); return _favoritesPage;
@@ -250,7 +252,7 @@ public partial class MainWindow
     {
         _favoritesDisplayLabel = new TextBlock { Text = "---", FontFamily = new FontFamily("Bahnschrift"), FontSize = 24, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var card = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(16, 11, 12, 17), BoxShadow = Elevation };
-        var content = new StackPanel { Spacing = 11 };
+        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,11,*") };
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         title.Children.Add(new TextBlock
@@ -343,12 +345,121 @@ public partial class MainWindow
         header.Children.Add(actions);
         content.Children.Add(header);
         var layout = new Grid { RowDefinitions = new RowDefinitions("40,32,*") };
-        _favSearchBox = new TextBox { Watermark = "Search name / category / tag...", MinHeight = 34, Padding = new Thickness(14, 0, 36, 0), CornerRadius = new CornerRadius(5) };
+        _favSearchBox = new TextBox { Watermark = "Search name / collection / tag...", MinHeight = 34, Padding = new Thickness(14, 0, 36, 0), CornerRadius = new CornerRadius(5) };
         _favSearchBox.TextChanged += OnFavFilterChanged;
-        var search = new Grid(); search.Children.Add(_favSearchBox); search.Children.Add(new PathIcon { Data = Geometry.Parse("M9.5,3 C5.91,3 3,5.91 3,9.5 C3,13.09 5.91,16 9.5,16 C10.9,16 12.2,15.55 13.25,14.78 L18.47,20 L20,18.47 L14.78,13.25 C15.55,12.2 16,10.9 16,9.5 C16,5.91 13.09,3 9.5,3 Z"), Width = 17, Height = 17, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), IsHitTestVisible = false }); layout.Children.Add(search);
-        var headings = BuildFavColumnGrid(FavColumns.Select((column, index) => { var button = new Button { Content = column.Header, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(11, 0), Foreground = SecondaryBrush, FontSize = 11, FontWeight = FontWeight.Normal, HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 0 }; button.Click += (_, _) => OnFavColumnClick(index); return (Control)button; }).ToArray()); Grid.SetRow(headings, 1); layout.Children.Add(headings);
-        _favListBox = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), ItemContainerTheme = CompactListItemTheme() }; _favListBox.SelectionChanged += OnFavListSelectionChanged; _favListBox.DoubleTapped += OnFavListDoubleClick; _favListBox.AddHandler(InputElement.PointerPressedEvent, OnFavListPointerPressed, RoutingStrategies.Bubble, handledEventsToo: true); _favListBox.AddHandler(InputElement.PointerMovedEvent, OnFavListPointerMoved, RoutingStrategies.Bubble, handledEventsToo: true); _favListBox.AddHandler(InputElement.PointerReleasedEvent, OnFavListPointerReleased, RoutingStrategies.Bubble, handledEventsToo: true); _favListBox.AddHandler(InputElement.PointerCaptureLostEvent, OnFavListPointerCaptureLost, RoutingStrategies.Bubble, handledEventsToo: true); Grid.SetRow(_favListBox, 2); layout.Children.Add(_favListBox);
+        var search = new Grid(); search.Children.Add(_favSearchBox); search.Children.Add(new PathIcon { Data = Geometry.Parse("M9.5,3 C5.91,3 3,5.91 3,9.5 C3,13.09 5.91,16 9.5,16 C10.9,16 12.2,15.55 13.25,14.78 L18.47,20 L20,18.47 L14.78,13.25 C15.55,12.2 16,10.9 16,9.5 C16,5.91 13.09,3 9.5,3 Z"), Width = 17, Height = 17, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), IsHitTestVisible = false });
+        var filters = new Grid { ColumnDefinitions = new ColumnDefinitions("3*,10,1.1*"), Margin = new Thickness(0, 0, 6, 0) };
+        filters.Children.Add(search);
+        _favTagFilter = new ComboBox
+        {
+            Name = "FavoriteTagFilter",
+            MinHeight = 34,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            FontWeight = FontWeight.Normal,
+            ItemTemplate = new FuncDataTemplate<FavoriteTagOption>((option, _) => new TextBlock { Text = option?.Label, FontSize = 14 }),
+            SelectionBoxItemTemplate = new FuncDataTemplate<FavoriteTagOption>((option, _) => new TextBlock
+            {
+                Text = $"Tags: {option?.Label ?? "All tags"}",
+                FontSize = 10,
+                FontWeight = FontWeight.Normal,
+                Foreground = SecondaryBrush,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            }),
+        };
+        AutomationProperties.SetName(_favTagFilter, "Filter favorites by tag");
+        _favTagFilter.SelectionChanged += (_, _) =>
+        {
+            if (_refreshingTagOptions)
+            {
+                return;
+            }
+
+            _favSelectedTag = (_favTagFilter.SelectedItem as FavoriteTagOption)?.Tag;
+            RefreshFavoritesList(refreshCategories: false);
+        };
+        Grid.SetColumn(_favTagFilter, 2);
+        filters.Children.Add(_favTagFilter);
+        layout.Children.Add(filters);
+        var headings = BuildFavColumnGrid(FavColumns.Select((column, index) => { var button = new Button { Content = column.Header, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(11, 0), Foreground = SecondaryBrush, FontSize = 11, FontWeight = FontWeight.Normal, HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 0 }; button.Click += (_, _) => OnFavColumnClick(index); return (Control)button; }).ToArray());
+        foreach (ColumnDefinition columnDefinition in headings.ColumnDefinitions)
+        {
+            columnDefinition.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == ColumnDefinition.WidthProperty)
+                {
+                    SynchronizeFavoriteColumnWidths(headings);
+                }
+            };
+        }
+        for (int index = 0; index < FavColumns.Length - 1; index++)
+        {
+            int boundary = index;
+            var visibleSeparator = new Border
+            {
+                Name = $"FavoriteHeaderColumnSeparator{boundary}",
+                Width = 1,
+                Background = ThemeBrush("RowSeparatorBrush"),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                IsHitTestVisible = false,
+            };
+            Grid.SetColumn(visibleSeparator, boundary);
+            headings.Children.Add(visibleSeparator);
+            var resizeHandle = new GridSplitter
+            {
+                Name = $"FavoriteColumnResize{boundary}",
+                Width = 8,
+                Background = Brushes.Transparent,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                ResizeDirection = GridResizeDirection.Columns,
+                ResizeBehavior = GridResizeBehavior.CurrentAndNext,
+                ShowsPreview = false,
+                Cursor = new Cursor(StandardCursorType.SizeWestEast),
+            };
+            AutomationProperties.SetName(resizeHandle, $"Resize {FavColumns[boundary].Header} column");
+            Grid.SetColumn(resizeHandle, boundary);
+            headings.Children.Add(resizeHandle);
+        }
+        Grid.SetRow(headings, 1); layout.Children.Add(headings);
+        _favListBox = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), ItemContainerTheme = CompactListItemTheme() }; _favListBox.SelectionChanged += OnFavListSelectionChanged; _favListBox.DoubleTapped += OnFavListDoubleClick; _favListBox.AddHandler(InputElement.PointerPressedEvent, OnFavListPointerPressed, RoutingStrategies.Bubble, handledEventsToo: true); _favListBox.AddHandler(InputElement.PointerMovedEvent, OnFavListPointerMoved, RoutingStrategies.Bubble, handledEventsToo: true); _favListBox.AddHandler(InputElement.PointerReleasedEvent, OnFavListPointerReleased, RoutingStrategies.Bubble, handledEventsToo: true); _favListBox.AddHandler(InputElement.PointerCaptureLostEvent, OnFavListPointerCaptureLost, RoutingStrategies.Bubble, handledEventsToo: true);
+        ScrollViewer.SetHorizontalScrollBarVisibility(_favListBox, ScrollBarVisibility.Disabled);
+        ScrollViewer.SetVerticalScrollBarVisibility(_favListBox, ScrollBarVisibility.Auto);
+        ScrollViewer.SetAllowAutoHide(_favListBox, false);
+        _favListBox.Resources["ScrollBarSize"] = 6d;
+        _favListBox.Styles.Add(new Style(selector => selector.OfType<ScrollBar>())
+        {
+            Setters = { new Setter(ScrollBar.WidthProperty, 6d), new Setter(ScrollBar.MinWidthProperty, 6d), new Setter(ScrollBar.BackgroundProperty, InsetBrush) },
+        });
+        _favListBox.Styles.Add(new Style(selector => selector.OfType<ScrollBar>().Template().OfType<Thumb>())
+        {
+            Setters = { new Setter(Thumb.WidthProperty, 6d), new Setter(Thumb.MinHeightProperty, 20d), new Setter(Thumb.CornerRadiusProperty, new CornerRadius(3)), new Setter(Thumb.BackgroundProperty, SecondaryBrush), new Setter(Thumb.OpacityProperty, 0.5d) },
+        });
+        foreach (string name in new[] { "PART_LineUpButton", "PART_LineDownButton" })
+        {
+            _favListBox.Styles.Add(new Style(selector => selector.OfType<ScrollBar>().Template().OfType<RepeatButton>().Name(name))
+            {
+                Setters = { new Setter(RepeatButton.IsVisibleProperty, false) },
+            });
+        }
+        headings.Name = "FavoriteTableHeader";
+        headings.HorizontalAlignment = HorizontalAlignment.Left;
+        _favListBox.LayoutUpdated += (_, _) =>
+        {
+            var viewer = _favListBox.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+            if (viewer?.Viewport.Width > 0 && headings.Width != viewer.Viewport.Width)
+            {
+                headings.Width = viewer.Viewport.Width;
+            }
+        };
+        var body = new Grid();
+        body.Children.Add(_favListBox);
+        _favEmptyResults = new TextBlock { Name = "FavoriteEmptyResults", Text = "No favorites match these filters.", Foreground = SecondaryBrush, Margin = new Thickness(12, 20), IsHitTestVisible = false, IsVisible = false };
+        body.Children.Add(_favEmptyResults);
+        Grid.SetRow(body, 2);
+        layout.Children.Add(body);
         _favSendBtn = new Button { IsVisible = false }; _favSendBtn.Click += OnFavSend;
+        Grid.SetRow(layout, 2);
         content.Children.Add(layout);
         card.Child = content;
         return card;
@@ -414,7 +525,7 @@ public partial class MainWindow
         _favTagsEditor.PointerPressed += (_, _) => _favTagInput.Focus();
         _favPresetSpinner = new NumericUpDown { Name = "FavoritePreset", Minimum = 0, Maximum = 512, FormatString = "0" };
         _favSceneSpinner = new NumericUpDown { Name = "FavoriteScene", Minimum = 1, Maximum = 8, FormatString = "0" };
-        foreach (var field in new (string, Control)[] { ("Name", _favNameBox), ("Category", _favCategoryBox), ("Tags", _favTagsEditor) })
+        foreach (var field in new (string, Control)[] { ("Name", _favNameBox), ("Collection", _favCategoryBox), ("Tags", _favTagsEditor) })
         {
             stack.Children.Add(ApprovedField(field.Item1, field.Item2));
         }

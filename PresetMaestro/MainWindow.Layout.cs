@@ -83,7 +83,8 @@ public partial class MainWindow
     private Favorite? _deleteSlotDialogFavorite;
     private bool _showFavoriteDetailsForAll;
 
-    private static readonly (string Header, GridLength Width)[] FavColumns =
+    // Preserve the existing detail-strip geometry independently of main-table columns.
+    private static readonly (string Header, GridLength Width)[] FavoriteDetailColumns =
     [
         ("Slot", new GridLength(54)),
         ("Name", new GridLength(1, GridUnitType.Star)),
@@ -91,6 +92,18 @@ public partial class MainWindow
         ("Preset", new GridLength(106)),
         ("Scene", new GridLength(66)),
     ];
+
+    private static readonly (string Header, GridLength Width)[] FavColumns =
+    [
+        ("Slot", new GridLength(54)),
+        ("Name", new GridLength(1.8, GridUnitType.Star)),
+        ("Collection", new GridLength(1, GridUnitType.Star)),
+        ("Tags", new GridLength(1.12, GridUnitType.Star)),
+        ("Preset", new GridLength(62)),
+        ("Scene", new GridLength(52)),
+    ];
+
+    private static readonly double[] FavColumnMinimumWidths = [44, 120, 90, 100, 58, 50];
 
     private void BuildLegacyLayout()
     {
@@ -390,7 +403,7 @@ public partial class MainWindow
 
         _favCategoryTree = new ListBox();
         _favCategoryTree.SelectionChanged += OnFavCategorySelectionChanged;
-        var treeCard = Card("Categories", _favCategoryTree);
+        var treeCard = Card("Collections", _favCategoryTree);
         grid.Children.Add(treeCard);
 
         var splitter1 = new GridSplitter { Width = 4, Background = Brushes.Transparent };
@@ -417,7 +430,7 @@ public partial class MainWindow
         var stack = new StackPanel { Spacing = 8 };
 
         var toolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,70") };
-        _favSearchBox = new TextBox { Watermark = "Search name / category / tag" };
+        _favSearchBox = new TextBox { Watermark = "Search name / collection / tag..." };
         _favSearchBox.TextChanged += OnFavFilterChanged;
         _favNewBtn = new Button { Content = "+ New", HorizontalAlignment = HorizontalAlignment.Stretch };
         _favNewBtn.Click += OnFavNew;
@@ -449,7 +462,12 @@ public partial class MainWindow
 
     private static Grid BuildFavColumnGrid(Control[] cells)
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions(string.Join(',', FavColumns.Select(c => GridLengthToString(c.Width)))) };
+        var grid = new Grid();
+        foreach (var column in FavColumns)
+        {
+            int index = grid.ColumnDefinitions.Count;
+            grid.ColumnDefinitions.Add(new ColumnDefinition(column.Width) { MinWidth = FavColumnMinimumWidths[index] });
+        }
         for (int i = 0; i < cells.Length; i++)
         {
             Grid.SetColumn(cells[i], i);
@@ -485,7 +503,7 @@ public partial class MainWindow
         _favSceneSpinner = new NumericUpDown { Minimum = 1, Maximum = 8, FormatString = "0" };
 
         editorStack.Children.Add(EditorField("Name", _favNameBox));
-        editorStack.Children.Add(EditorField("Category", _favCategoryBox));
+        editorStack.Children.Add(EditorField("Collection", _favCategoryBox));
         editorStack.Children.Add(EditorField("Tags", _favTagsBox));
         editorStack.Children.Add(EditorField("Slot #", _favSlotSpinner));
         editorStack.Children.Add(EditorField("Preset", _favPresetSpinner));

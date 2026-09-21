@@ -17,7 +17,7 @@ using System.Text.Json;
 
 namespace PresetMaestro.Tests;
 
-public class FavoriteEditorTests
+public partial class FavoriteEditorTests
 {
     private static readonly Favorite Sample = new()
     {
@@ -70,7 +70,7 @@ public class FavoriteEditorTests
             Assert.NotNull(logo.Source);
             Assert.Equal(32, logo.Width);
             Assert.Equal(32, logo.Height);
-            Assert.Equal(20, title.FontSize);
+            Assert.Equal(18, title.FontSize);
             Assert.Equal(12, identity.Spacing);
             Assert.Equal(Orientation.Horizontal, identity.Orientation);
         }
@@ -572,11 +572,12 @@ public class FavoriteEditorTests
             var add = Find<Button>(window, "FavoriteAdd");
             Assert.Equal(HorizontalAlignment.Center, add.HorizontalContentAlignment);
             Assert.Equal(VerticalAlignment.Center, add.VerticalContentAlignment);
-            var glyph = Assert.IsType<PathIcon>(add.Content);
-            Assert.Equal(14, glyph.Width);
-            Assert.Equal(14, glyph.Height);
-            Assert.Equal(HorizontalAlignment.Center, glyph.HorizontalAlignment);
-            Assert.Equal(VerticalAlignment.Center, glyph.VerticalAlignment);
+            var addContent = Assert.IsType<StackPanel>(add.Content);
+            var glyph = Assert.Single(addContent.Children.OfType<PathIcon>());
+            Assert.Equal("New", Assert.Single(addContent.Children.OfType<TextBlock>()).Text);
+            Assert.Equal(12, glyph.Width);
+            Assert.Equal(12, glyph.Height);
+            Assert.Equal(Orientation.Horizontal, addContent.Orientation);
 
             var card = Find<Border>(window, "FavoriteEditorCard");
             var newFavorite = Find<Button>(window, "FavoriteNew");
