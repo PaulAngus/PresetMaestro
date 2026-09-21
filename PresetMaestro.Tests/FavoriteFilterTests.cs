@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
@@ -15,14 +16,15 @@ namespace PresetMaestro.Tests;
 public partial class FavoriteEditorTests
 {
     [AvaloniaFact]
-    public void CollectionTagAndSearchFiltersCombineWithoutSendingOrChangingSlots()
+    public void MultiTagAllAnyExactAndCombinedFiltersDoNotChangeModelsOrSend()
     {
         var favorites = new List<Favorite>
         {
             new() { Id = 1, Slot = 1, Name = "Bright Lead", Category = "Clean", Tags = ["Fender", "warm"], Preset = 1, Scene = 1 },
             new() { Id = 2, Slot = 2, Name = "Bright Rhythm", Category = "Clean", Tags = ["fender"], Preset = 2, Scene = 2 },
-            new() { Id = 3, Slot = 3, Name = "Bright Lead", Category = "Crunch", Tags = ["Fender"], Preset = 3, Scene = 3 },
+            new() { Id = 3, Slot = 3, Name = "Bright Lead", Category = "Crunch", Tags = ["Fender", "Marshall"], Preset = 3, Scene = 3 },
             new() { Id = 4, Slot = 4, Name = "Bright Lead", Category = "Clean", Tags = ["Fenderish"], Preset = 4, Scene = 4 },
+            new() { Id = 5, Slot = 5, Name = "Dark Lead", Category = "Clean", Tags = ["Marshall"], Preset = 5, Scene = 1 },
         };
         string before = System.Text.Json.JsonSerializer.Serialize(favorites);
         var midi = new FakeMidi { OutputOpen = true };
@@ -37,15 +39,29 @@ public partial class FavoriteEditorTests
             var list = Field<ListBox>(window, "_favListBox");
             var collections = Field<ListBox>(window, "_favCategoryTree");
             var search = Field<TextBox>(window, "_favSearchBox");
-            var tags = Find<ComboBox>(window, "FavoriteTagFilter");
-            Assert.Equal(4, tags.ItemCount); // All tags, Fender, Fenderish, warm
+            var trigger = Find<Button>(window, "FavoriteTagFilter");
+            var label = Field<TextBlock>(window, "_favTagFilterLabel");
+            var options = Field<StackPanel>(window, "_favTagOptionsPanel");
+            Assert.Equal("Tags: All tags", label.Text);
+            Assert.Equal(new[] { "All tags", "Fender", "Fenderish", "Marshall", "warm" },
+                options.Children.OfType<CheckBox>().Select(option => option.Content));
 
-            tags.SelectedIndex = 1; // Fender; must not match Fenderish.
-            collections.SelectedIndex = 1; // Clean
+            SetTag(options, "Fender", selected: true);
+            Assert.Equal("Tags: Fender", label.Text);
+            SetTag(options, "Marshall", selected: true);
+            Assert.Equal("Tags: 2 selected", label.Text);
+            Assert.Equal(new[] { 3 }, Slots(list));
+            Click(trigger);
+            Assert.True(Field<Popup>(window, "_favTagFilterPopup").IsOpen);
+            Capture(window, "favorites-multi-tag-filter");
+
+            Click(Field<ToggleButton>(window, "_favTagMatchAnyButton"));
+            Assert.Equal(new[] { 1, 2, 3, 5 }, Slots(list));
+
+            collections.SelectedIndex = 1; // Clean (case-insensitive alphabetical order).
             search.Text = "LEAD";
             Dispatcher.UIThread.RunJobs();
-
-            Assert.Equal(new[] { 1 }, Slots(list));
+            Assert.Equal(new[] { 1, 5 }, Slots(list));
             search.Text = "none";
             Dispatcher.UIThread.RunJobs();
             Assert.Empty(list.Items);
@@ -55,12 +71,49 @@ public partial class FavoriteEditorTests
 
             search.Text = "lead";
             collections.SelectedIndex = 0;
-            tags.SelectedIndex = 0;
+            SetTag(options, "All tags", selected: true);
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(new[] { 1, 3, 4 }, Slots(list));
+            Assert.Equal("Tags: All tags", label.Text);
+            Assert.Equal(new[] { 1, 3, 4, 5 }, Slots(list));
             Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(favorites));
             Assert.Equal(0, saves);
             Assert.Equal(0, midi.TotalSendCount);
+
+            Assert.True(Field<Popup>(window, "_favTagFilterPopup").IsOpen);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void RebuildingTagOptionsPreservesValidSelectionsAndDropsOnlyStaleOnes()
+    {
+        var favorites = new List<Favorite>
+        {
+            new() { Id = 1, Slot = 1, Name = "One", Category = "Clean", Tags = ["Fender", "Marshall"] },
+            new() { Id = 2, Slot = 2, Name = "Two", Category = "Clean", Tags = ["FENDER", "Vox"] },
+        };
+        var window = CreateWindow(favorites: favorites);
+        try
+        {
+            window.Show();
+            Click(Find<Button>(window, "NavFavorites"));
+            Dispatcher.UIThread.RunJobs();
+
+            var options = Field<StackPanel>(window, "_favTagOptionsPanel");
+            SetTag(options, "Fender", selected: true);
+            SetTag(options, "Marshall", selected: true);
+            favorites[0].Tags = ["Fender"];
+            Invoke(window, "RefreshFavoritesList", true, null!, null!);
+
+            Assert.Equal("Tags: Fender", Field<TextBlock>(window, "_favTagFilterLabel").Text);
+            Assert.Equal(new[] { "All tags", "Fender", "Vox" },
+                options.Children.OfType<CheckBox>().Select(option => option.Content));
+            Assert.True(options.Children.OfType<CheckBox>().Single(option => Equals(option.Content, "Fender")).IsChecked);
+            Assert.Equal(new[] { 1, 2 }, Slots(Field<ListBox>(window, "_favListBox")));
+
+            SetTag(options, "All tags", selected: true);
+            Assert.Equal("Tags: All tags", Field<TextBlock>(window, "_favTagFilterLabel").Text);
+            Assert.All(options.Children.OfType<CheckBox>().Where(option => option.Tag is string), option => Assert.False(option.IsChecked));
         }
         finally { window.Close(); }
     }
@@ -88,7 +141,8 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
 
             var list = Field<ListBox>(window, "_favListBox");
-            var tags = Find<ComboBox>(window, "FavoriteTagFilter");
+            var trigger = Find<Button>(window, "FavoriteTagFilter");
+            var options = Field<StackPanel>(window, "_favTagOptionsPanel");
             var header = Find<Grid>(window, "FavoriteTableHeader");
             var viewer = list.GetVisualDescendants().OfType<ScrollViewer>().First();
             var scrollbar = list.GetVisualDescendants().OfType<ScrollBar>().Single(bar => bar.Orientation == Orientation.Vertical);
@@ -118,11 +172,19 @@ public partial class FavoriteEditorTests
             Assert.All(separators, separator => Assert.NotEqual(Brushes.Transparent, separator.Background));
             Capture(window, "favorites-overflow");
 
-            tags.SelectedIndex = 1;
+            SetTag(options, "Fender", selected: true);
             favorites.ForEach(favorite => favorite.Tags = []);
             Invoke(window, "RefreshFavoritesList", true, null!, null!);
-            Assert.Equal(0, tags.SelectedIndex);
-            Assert.Equal(1, tags.ItemCount);
+            Assert.Equal("Tags: All tags", Field<TextBlock>(window, "_favTagFilterLabel").Text);
+            Assert.Single(options.Children);
+            Assert.True(((CheckBox)options.Children[0]).IsChecked);
+            Click(trigger);
+            Assert.True(Field<Popup>(window, "_favTagFilterPopup").IsOpen);
+            Assert.Equal("Filter favorites by tag", AutomationProperties.GetName(trigger));
+            Assert.Equal("Match all selected tags", AutomationProperties.GetName(Find<ToggleButton>(window, "FavoriteTagMatchAll")));
+            window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(Field<Popup>(window, "_favTagFilterPopup").IsOpen);
             viewer.ScrollToEnd();
             Dispatcher.UIThread.RunJobs();
             Assert.True(viewer.Offset.Y > 0);
@@ -133,6 +195,14 @@ public partial class FavoriteEditorTests
     }
 
     private static int[] Slots(ListBox list) => list.Items.OfType<ListBoxItem>().Select(item => ((Favorite)item.Tag!).Slot).ToArray();
+
+    private static void SetTag(StackPanel options, string label, bool selected)
+    {
+        var option = options.Children.OfType<CheckBox>().Single(item => Equals(item.Content, label));
+        option.IsChecked = selected;
+        Click(option);
+        Dispatcher.UIThread.RunJobs();
+    }
 
     private static void Capture(Window window, string name)
     {

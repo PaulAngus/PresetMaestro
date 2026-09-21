@@ -378,36 +378,112 @@ public partial class MainWindow
         var search = new Grid(); search.Children.Add(_favSearchBox); search.Children.Add(new PathIcon { Data = Geometry.Parse("M9.5,3 C5.91,3 3,5.91 3,9.5 C3,13.09 5.91,16 9.5,16 C10.9,16 12.2,15.55 13.25,14.78 L18.47,20 L20,18.47 L14.78,13.25 C15.55,12.2 16,10.9 16,9.5 C16,5.91 13.09,3 9.5,3 Z"), Width = 17, Height = 17, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), IsHitTestVisible = false });
         var filters = new Grid { ColumnDefinitions = new ColumnDefinitions("3*,10,1.1*"), Margin = new Thickness(0, 0, 6, 0) };
         filters.Children.Add(search);
-        _favTagFilter = new ComboBox
+        _favTagFilterLabel = new TextBlock
+        {
+            FontSize = 10,
+            FontWeight = FontWeight.Normal,
+            Foreground = SecondaryBrush,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var tagFilterContent = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        tagFilterContent.Children.Add(_favTagFilterLabel);
+        var tagChevron = new PathIcon
+        {
+            Data = Geometry.Parse("M2,4 L7,9 L12,4"),
+            Width = 12,
+            Height = 10,
+            Foreground = SecondaryBrush,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(tagChevron, 1);
+        tagFilterContent.Children.Add(tagChevron);
+        _favTagFilter = new Button
         {
             Name = "FavoriteTagFilter",
             MinHeight = 34,
+            Padding = new Thickness(12, 0),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
-            FontWeight = FontWeight.Normal,
-            ItemTemplate = new FuncDataTemplate<FavoriteTagOption>((option, _) => new TextBlock { Text = option?.Label, FontSize = 14 }),
-            SelectionBoxItemTemplate = new FuncDataTemplate<FavoriteTagOption>((option, _) => new TextBlock
-            {
-                Text = $"Tags: {option?.Label ?? "All tags"}",
-                FontSize = 10,
-                FontWeight = FontWeight.Normal,
-                Foreground = SecondaryBrush,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            }),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = tagFilterContent,
         };
         AutomationProperties.SetName(_favTagFilter, "Filter favorites by tag");
-        _favTagFilter.SelectionChanged += (_, _) =>
+        _favTagOptionsPanel = new StackPanel { Name = "FavoriteTagOptions", Spacing = 1 };
+        _favTagMatchAllButton = new ToggleButton
         {
-            if (_refreshingTagOptions)
-            {
-                return;
-            }
-
-            _favSelectedTag = (_favTagFilter.SelectedItem as FavoriteTagOption)?.Tag;
-            RefreshFavoritesList(refreshCategories: false);
+            Name = "FavoriteTagMatchAll",
+            Content = "All",
+            MinHeight = 32,
+            CornerRadius = new CornerRadius(5),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
         };
-        Grid.SetColumn(_favTagFilter, 2);
-        filters.Children.Add(_favTagFilter);
+        AutomationProperties.SetName(_favTagMatchAllButton, "Match all selected tags");
+        _favTagMatchAllButton.Click += (_, _) => SetFavoriteTagMatchMode(matchAll: true);
+        _favTagMatchAnyButton = new ToggleButton
+        {
+            Name = "FavoriteTagMatchAny",
+            Content = "Any",
+            MinHeight = 32,
+            CornerRadius = new CornerRadius(5),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+        };
+        AutomationProperties.SetName(_favTagMatchAnyButton, "Match any selected tag");
+        _favTagMatchAnyButton.Click += (_, _) => SetFavoriteTagMatchMode(matchAll: false);
+        var matchMode = new Grid { ColumnDefinitions = new ColumnDefinitions("*,2,*") };
+        matchMode.Children.Add(_favTagMatchAllButton);
+        Grid.SetColumn(_favTagMatchAnyButton, 2);
+        matchMode.Children.Add(_favTagMatchAnyButton);
+        var popupContent = new StackPanel { Spacing = 6 };
+        popupContent.Children.Add(matchMode);
+        popupContent.Children.Add(new Border { Height = 1, Background = ThemeBrush("RowSeparatorBrush") });
+        popupContent.Children.Add(_favTagOptionsPanel);
+        _favTagFilterPopupBorder = new Border
+        {
+            Name = "FavoriteTagFilterPopup",
+            MinWidth = 220,
+            MaxHeight = 360,
+            Padding = new Thickness(8),
+            Background = SurfaceBrush,
+            BorderBrush = UiBorderBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            BoxShadow = Elevation,
+            Child = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Content = popupContent,
+            },
+        };
+        AutomationProperties.SetName(_favTagFilterPopupBorder, "Favorite tag filter options");
+        _favTagFilterPopupBorder.AddHandler(InputElement.KeyDownEvent, OnFavoriteTagPopupKeyDown, RoutingStrategies.Tunnel);
+        _favTagFilterPopup = new Popup
+        {
+            PlacementTarget = _favTagFilter,
+            Placement = PlacementMode.BottomEdgeAlignedRight,
+            IsLightDismissEnabled = true,
+            WindowManagerAddShadowHint = true,
+            Child = _favTagFilterPopupBorder,
+        };
+        _favTagFilter.Click += (_, _) =>
+        {
+            _favTagFilterPopupBorder.Width = Math.Max(220, _favTagFilter.Bounds.Width);
+            _favTagFilterPopup.IsOpen = !_favTagFilterPopup.IsOpen;
+            if (_favTagFilterPopup.IsOpen)
+            {
+                _favTagMatchAllButton.Focus();
+            }
+        };
+        var tagFilterHost = new Grid();
+        tagFilterHost.Children.Add(_favTagFilter);
+        tagFilterHost.Children.Add(_favTagFilterPopup);
+        UpdateFavoriteTagFilterPresentation();
+        Grid.SetColumn(tagFilterHost, 2);
+        filters.Children.Add(tagFilterHost);
         layout.Children.Add(filters);
         var headings = BuildFavColumnGrid(FavColumns.Select((column, index) => { var button = new Button { Content = column.Header, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(11, 0), Foreground = SecondaryBrush, FontSize = 11, FontWeight = FontWeight.Normal, HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 0 }; button.Click += (_, _) => OnFavColumnClick(index); return (Control)button; }).ToArray());
         foreach (ColumnDefinition columnDefinition in headings.ColumnDefinitions)

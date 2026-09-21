@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -102,40 +103,159 @@ public partial class MainWindow
         }
     }
 
-    private ComboBox _favTagFilter = null!;
+    private Button _favTagFilter = null!;
+    private TextBlock _favTagFilterLabel = null!;
+    private Popup _favTagFilterPopup = null!;
+    private Border _favTagFilterPopupBorder = null!;
+    private StackPanel _favTagOptionsPanel = null!;
+    private ToggleButton _favTagMatchAllButton = null!;
+    private ToggleButton _favTagMatchAnyButton = null!;
     private TextBlock _favEmptyResults = null!;
-    private string? _favSelectedTag;
+    private readonly HashSet<string> _favSelectedTags = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _favAvailableTags = [];
+    private bool _favTagMatchAll = true;
     private bool _refreshingTagOptions;
     private int? _favFilterSelectionId;
     private bool _refreshingFavorites;
     private double? _favPreviousMinWidth;
-    private sealed record FavoriteTagOption(string? Tag)
-    {
-        public string Label => Tag ?? "All tags";
-    }
-
     private void RefreshFavoriteTagOptions()
     {
         var tags = _favorites.SelectMany(f => f.Tags).Where(t => !string.IsNullOrWhiteSpace(t))
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
-        if (_favSelectedTag != null && !tags.Contains(_favSelectedTag, StringComparer.OrdinalIgnoreCase))
-        {
-            _favSelectedTag = null;
-        }
 
-        var options = new[] { new FavoriteTagOption(null) }.Concat(tags.Select(t => new FavoriteTagOption(t))).ToList();
-        if (_favTagFilter.Items.OfType<FavoriteTagOption>().SequenceEqual(options))
-        {
-            return;
-        }
+        var retainedSelections = tags.Where(tag => _favSelectedTags.Contains(tag)).ToList();
+        _favSelectedTags.Clear();
+        _favSelectedTags.UnionWith(retainedSelections);
 
         _refreshingTagOptions = true;
         try
         {
-            _favTagFilter.ItemsSource = options;
-            _favTagFilter.SelectedItem = options.First(o => string.Equals(o.Tag, _favSelectedTag, StringComparison.OrdinalIgnoreCase));
+            bool optionsUnchanged = _favAvailableTags.SequenceEqual(tags, StringComparer.OrdinalIgnoreCase) &&
+                                    _favTagOptionsPanel.Children.Count == tags.Count + 1;
+            if (optionsUnchanged)
+            {
+                foreach (var option in _favTagOptionsPanel.Children.OfType<CheckBox>())
+                {
+                    option.IsChecked = option.Tag is not string tag
+                        ? _favSelectedTags.Count == 0
+                        : _favSelectedTags.Contains(tag);
+                }
+
+                return;
+            }
+
+            _favAvailableTags.Clear();
+            _favAvailableTags.AddRange(tags);
+            _favTagOptionsPanel.Children.Clear();
+            var allTags = new CheckBox
+            {
+                Name = "FavoriteTagAllTags",
+                Content = "All tags",
+                IsChecked = _favSelectedTags.Count == 0,
+                MinHeight = 30,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
+            AutomationProperties.SetName(allTags, "Show favorites with all tags");
+            allTags.Click += (_, _) => ClearFavoriteTagFilter();
+            _favTagOptionsPanel.Children.Add(allTags);
+
+            for (int index = 0; index < tags.Count; index++)
+            {
+                string tag = tags[index];
+                var option = new CheckBox
+                {
+                    Name = $"FavoriteTagOption{index}",
+                    Content = tag,
+                    Tag = tag,
+                    IsChecked = _favSelectedTags.Contains(tag),
+                    MinHeight = 30,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                };
+                AutomationProperties.SetName(option, $"Filter favorites by tag {tag}");
+                option.Click += OnFavoriteTagOptionClicked;
+                _favTagOptionsPanel.Children.Add(option);
+            }
         }
-        finally { _refreshingTagOptions = false; }
+        finally
+        {
+            _refreshingTagOptions = false;
+            UpdateFavoriteTagFilterPresentation();
+        }
+    }
+
+    private void OnFavoriteTagOptionClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_refreshingTagOptions || sender is not CheckBox { Tag: string tag } option)
+        {
+            return;
+        }
+
+        if (option.IsChecked == true)
+        {
+            _favSelectedTags.Add(tag);
+        }
+        else
+        {
+            _favSelectedTags.Remove(tag);
+        }
+
+        RefreshFavoritesList(refreshCategories: false);
+    }
+
+    private void ClearFavoriteTagFilter()
+    {
+        if (_refreshingTagOptions)
+        {
+            return;
+        }
+
+        _favSelectedTags.Clear();
+        RefreshFavoritesList(refreshCategories: false);
+    }
+
+    private void SetFavoriteTagMatchMode(bool matchAll)
+    {
+        if (_favTagMatchAll == matchAll)
+        {
+            UpdateFavoriteTagFilterPresentation();
+            return;
+        }
+
+        _favTagMatchAll = matchAll;
+        UpdateFavoriteTagFilterPresentation();
+        RefreshFavoritesList(refreshCategories: false);
+    }
+
+    private void UpdateFavoriteTagFilterPresentation()
+    {
+        if (_favTagFilterLabel is null)
+        {
+            return;
+        }
+
+        _favTagFilterLabel.Text = _favSelectedTags.Count switch
+        {
+            0 => "Tags: All tags",
+            1 => $"Tags: {_favSelectedTags.Single()}",
+            _ => $"Tags: {_favSelectedTags.Count} selected",
+        };
+
+        _favTagMatchAllButton.IsChecked = _favTagMatchAll;
+        _favTagMatchAnyButton.IsChecked = !_favTagMatchAll;
+        _favTagMatchAllButton.Background = _favTagMatchAll ? AccentBrush : Brushes.Transparent;
+        _favTagMatchAllButton.Foreground = _favTagMatchAll ? Brushes.White : TextBrush;
+        _favTagMatchAnyButton.Background = _favTagMatchAll ? Brushes.Transparent : AccentBrush;
+        _favTagMatchAnyButton.Foreground = _favTagMatchAll ? TextBrush : Brushes.White;
+    }
+
+    private void OnFavoriteTagPopupKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            _favTagFilterPopup.IsOpen = false;
+            _favTagFilter.Focus();
+            e.Handled = true;
+        }
     }
 
     private string _favSelectedCategory = AllCategoriesSentinel;
@@ -171,7 +291,9 @@ public partial class MainWindow
 
         IEnumerable<Favorite> result = _favorites.Where(f =>
             (_favSelectedCategory == AllCategoriesSentinel || string.Equals(f.Category, _favSelectedCategory, StringComparison.OrdinalIgnoreCase)) &&
-            (_favSelectedTag == null || f.Tags.Contains(_favSelectedTag, StringComparer.OrdinalIgnoreCase)) &&
+            (_favSelectedTags.Count == 0 || (_favTagMatchAll
+                ? _favSelectedTags.All(selected => f.Tags.Contains(selected, StringComparer.OrdinalIgnoreCase))
+                : _favSelectedTags.Any(selected => f.Tags.Contains(selected, StringComparer.OrdinalIgnoreCase)))) &&
             (search.Length == 0 ||
              f.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
              f.Category.Contains(search, StringComparison.OrdinalIgnoreCase) ||

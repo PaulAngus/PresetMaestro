@@ -183,7 +183,8 @@ public partial class MainWindow
             _currentFavoriteName = null;
             _currentFavoriteScene = null;
             _favSelectedCategory = AllCategoriesSentinel;
-            _favSelectedTag = null;
+            _favSelectedTags.Clear();
+            _favTagMatchAll = true;
             _favFilterSelectionId = null;
             _favSearchBox.Text = "";
             ApplyProfileSettingsToUI();
