@@ -79,7 +79,7 @@ public partial class MainWindow
 
         int displayed = (int)value;
         int slot = displayed - _settings.DisplayOffset;
-        string name = slot >= 0 && slot < DevicePresets.Capacity(_settings.DeviceModel) &&
+        string name = slot >= 0 && slot < DevicePresets.Capacity(PickerDeviceModel) &&
                       _settings.PresetNameCache.TryGetValue(slot, out string? cachedName) &&
                       !string.IsNullOrWhiteSpace(cachedName)
             ? cachedName.Trim()
@@ -90,9 +90,9 @@ public partial class MainWindow
     private async Task SelectFavoritePresetAsync()
     {
         int offset = _settings.DisplayOffset;
-        _favPresetSpinner.Maximum = DevicePresets.Capacity(_settings.DeviceModel) - 1 + offset;
-        int currentSlot = Math.Clamp((int)(_favPresetSpinner.Value ?? offset) - offset, 0, DevicePresets.Capacity(_settings.DeviceModel) - 1);
-        var dialog = new PresetSelectionWindow(_settings.PresetNameCache, currentSlot, _settings.DisplayOffset, _settings.DeviceModel) { Icon = Icon };
+        _favPresetSpinner.Maximum = DevicePresets.Capacity(PickerDeviceModel) - 1 + offset;
+        int currentSlot = Math.Clamp((int)(_favPresetSpinner.Value ?? offset) - offset, 0, DevicePresets.Capacity(PickerDeviceModel) - 1);
+        var dialog = new PresetSelectionWindow(_settings.PresetNameCache, currentSlot, _settings.DisplayOffset, PickerDeviceModel) { Icon = Icon };
         int? slot = _presetPickerOverride is not null
             ? await _presetPickerOverride(dialog)
             : await dialog.ShowDialog<int?>(this);
@@ -523,7 +523,7 @@ public partial class MainWindow
         }
 
         int slot = favorite.Preset - _settings.DisplayOffset;
-        string presetName = slot >= 0 && slot < DevicePresets.Capacity(_settings.DeviceModel) &&
+        string presetName = slot >= 0 && slot < DevicePresets.Capacity(PickerDeviceModel) &&
                             _settings.PresetNameCache.TryGetValue(slot, out string? cachedPresetName)
             ? cachedPresetName.Trim()
             : string.Empty;
@@ -994,6 +994,11 @@ public partial class MainWindow
             _favIsDragging = false;
             e.Pointer.Capture(_favListBox);
             _favListBox.SelectedItem = item;
+            if (e.ClickCount == 2 && !favorite.IsEmpty)
+            {
+                SendFavorite(favorite);
+                e.Handled = true;
+            }
         }
     }
 
@@ -1408,10 +1413,12 @@ public partial class MainWindow
 
     private void OnFavListDoubleClick(object? sender, RoutedEventArgs e)
     {
-        var favorite = SelectedFavorite();
-        if (favorite is { IsEmpty: false })
+        var item = e.Source as ListBoxItem ?? FavoriteRowFromSource(e.Source);
+        if (item?.Tag is Favorite { IsEmpty: false } favorite)
         {
+            _favListBox.SelectedItem = item;
             SendFavorite(favorite);
+            e.Handled = true;
         }
     }
 

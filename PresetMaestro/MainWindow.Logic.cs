@@ -644,8 +644,8 @@ public partial class MainWindow
 
     private void ApplyProfileSettingsToUI()
     {
-        if (_deviceModelCombo is not null) { _deviceModelCombo.SelectedIndex = (int)_settings.DeviceModel; }
-        _favPresetSpinner.Maximum = DevicePresets.Capacity(_settings.DeviceModel) - 1 + _settings.DisplayOffset;
+        if (_detectedDevice is not null) { _settings.DeviceModel = _detectedDevice.Model; }
+        _favPresetSpinner.Maximum = DevicePresets.Capacity(PickerDeviceModel) - 1 + _settings.DisplayOffset;
         int maxPreset = _settings.MaxDisplayedPreset;
         _channelCombo.SelectedIndex = Math.Clamp(_settings.MidiChannel, 0, 16);
         _offsetCombo.SelectedIndex = Math.Clamp(_settings.DisplayOffset, 0, 1);

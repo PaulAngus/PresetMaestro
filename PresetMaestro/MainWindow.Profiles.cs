@@ -51,17 +51,15 @@ public partial class MainWindow
             button.Click += async (_, _) => await RunProfileActionAsync(action, _profileName.Text ?? "");
             actions.Children.Add(button);
         }
-        stack.Children.Add(actions);
-        var transfer = new WrapPanel { Orientation = Orientation.Horizontal };
-        var import = new Button { Name = "ProfileImport", Content = "Import…", Margin = new Avalonia.Thickness(0, 0, 8, 0) };
-        var export = new Button { Name = "ProfileExport", Content = "Export…" };
+        var import = new Button { Name = "ProfileImport", Content = "Import…", Margin = new Avalonia.Thickness(0, 0, 8, 4) };
+        var export = new Button { Name = "ProfileExport", Content = "Export…", Margin = new Avalonia.Thickness(0, 0, 0, 4) };
         import.Click += async (_, _) => await TransferProfileAsync(export: false);
         export.Click += async (_, _) => await TransferProfileAsync(export: true);
         ToolTip.SetTip(import, "Import a profile ZIP or a matching JSON file pair. Optional new name above.");
         ToolTip.SetTip(export, "Export the active profile and its cached names as a ZIP file.");
-        transfer.Children.Add(import);
-        transfer.Children.Add(export);
-        stack.Children.Add(transfer);
+        actions.Children.Add(import);
+        actions.Children.Add(export);
+        stack.Children.Add(actions);
         _profileStatus = new TextBlock { Name = "ProfileStatus", Text = _profileStore?.StartupMessage, TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush };
         stack.Children.Add(_profileStatus);
         SetApprovedCardContent(card, stack);

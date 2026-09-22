@@ -24,6 +24,34 @@ public class FractalConnectionTests
     private static void Invoke(MainWindow window, string name) => typeof(MainWindow).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
 
     [AvaloniaTheory]
+    [InlineData(0x10, DeviceModel.AxeFxIII, 1023)]
+    [InlineData(0x11, DeviceModel.FM3, 511)]
+    [InlineData(0x12, DeviceModel.FM9, 511)]
+    public async Task PickerUsesDetectedModelAcrossProfileChangesAndOffline(int model, DeviceModel expected, int maximum)
+    {
+        var midi = new DeviceMidi();
+        midi.Send = request => { if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Frame((byte)model, 0x64, [0, 0])); } };
+        var window = Create(midi, []);
+        var settings = (AppSettings)typeof(MainWindow).GetField("_settings", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+        var spinner = (NumericUpDown)typeof(MainWindow).GetField("_favPresetSpinner", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+        try
+        {
+            settings.DeviceModel = expected == DeviceModel.AxeFxIII ? DeviceModel.FM9 : DeviceModel.AxeFxIII;
+            await window.ConnectAsync();
+            Assert.Equal(expected, settings.DeviceModel);
+            Assert.Equal(maximum + settings.DisplayOffset, spinner.Maximum);
+            // Loading a profile must not override the connected device's identity.
+            settings.DeviceModel = expected == DeviceModel.AxeFxIII ? DeviceModel.FM9 : DeviceModel.AxeFxIII;
+            Invoke(window, "ApplyProfileSettingsToUI");
+            Assert.Equal(expected, settings.DeviceModel);
+            Assert.Equal(maximum + settings.DisplayOffset, spinner.Maximum);
+            Invoke(window, "Disconnect");
+            Assert.Equal(expected, settings.DeviceModel);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
     [InlineData("timeout")]
     [InlineData("malformed")]
     [InlineData("non-fractal")]

@@ -6,6 +6,8 @@ namespace PresetMaestro;
 
 public partial class MainWindow
 {
+    private Core.DeviceModel PickerDeviceModel => _detectedDevice?.Model ?? _settings.DeviceModel;
+
     internal const string ConnectionError = "Could not connect to a supported Fractal device. Check the selected MIDI IN and MIDI OUT ports, then try again.";
     private CancellationTokenSource? _connectionCts;
     private long _connectionGeneration;
@@ -57,6 +59,9 @@ public partial class MainWindow
             }
 
             _detectedDevice = device;
+            _settings.DeviceModel = device.Model;
+            _favPresetSpinner.Maximum = Core.DevicePresets.Capacity(PickerDeviceModel) - 1 + _settings.DisplayOffset;
+            UpdateFavoritePresetDisplay();
             SetStatus(device.Label, StatusKind.ConnectedBoth);
             AppendLog($"CONNECT: validated {device.ModelLabel} on selected MIDI IN '{input}'.");
             // A fresh timer avoids retaining a previous connection's selected port names.
