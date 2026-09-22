@@ -343,7 +343,7 @@ public sealed class ProfileStore(string directory)
 
         var settings = JsonSerializer.Deserialize<ProfileSettings>(json, JsonOptions)!;
         if (settings.MidiChannel is < 0 or > 16 || settings.DisplayOffset is < 0 or > 1 ||
-            settings.MaxDisplayedPreset is < 1 or > 512 || settings.SceneCc is < 0 or > 127 ||
+            settings.MaxDisplayedPreset is < 1 or > 1024 || settings.SceneCc is < 0 or > 127 ||
             settings.CategoryOrder is null || settings.PresetNameCache is null || settings.SceneNameCaches is null ||
             settings.SceneNameCaches.Values.Any(cache => cache is null || cache.Values.Any(entry => entry is null || entry.Names is null)))
         {

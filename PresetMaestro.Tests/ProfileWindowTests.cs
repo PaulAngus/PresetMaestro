@@ -72,7 +72,7 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
             Field<ComboBox>(window, "_channelCombo").SelectedIndex = 9;
             Field<ComboBox>(window, "_offsetCombo").SelectedIndex = 1;
-            Field<NumericUpDown>(window, "_maxPresetSpinner").Value = 400;
+            settings.MaxDisplayedPreset = 400; // Legacy value is readable but no longer authoritative.
             Field<NumericUpDown>(window, "_sceneCcSpinner").Value = 58;
             settings.CategoryOrder = ["Set A"];
             settings.PresetNameCache[100] = "Original preset";
@@ -86,7 +86,7 @@ public partial class FavoriteEditorTests
             Assert.Equal("Copy", store.LoadSettings().ActiveProfile);
             Assert.Equal(9, settings.MidiChannel);
             Assert.Equal(1, settings.DisplayOffset);
-            Assert.Equal(400, settings.MaxDisplayedPreset);
+            Assert.Equal(512, settings.MaxDisplayedPreset);
             Assert.Equal(58, settings.SceneCc);
             Assert.Equal(140, settings.AutoSendDelayMs);
             Assert.Equal(["Set A"], settings.CategoryOrder);
@@ -188,7 +188,7 @@ public partial class FavoriteEditorTests
             Assert.Equal(0, midi.TotalSendCount);
             Field<ComboBox>(window, "_channelCombo").SelectedIndex = 9;
             Field<ComboBox>(window, "_offsetCombo").SelectedIndex = 1;
-            Field<NumericUpDown>(window, "_maxPresetSpinner").Value = 400;
+            settings.MaxDisplayedPreset = 400; // Legacy value is normalized when this profile is saved.
             Field<NumericUpDown>(window, "_sceneCcSpinner").Value = 58;
             settings.PresetNameCache[2] = "Live name";
             settings.SceneNameCaches["live"] = new() { [2] = new() { Names = ["Solo"] } };
@@ -207,14 +207,14 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(9, settings.MidiChannel);
             Assert.Equal(1, settings.DisplayOffset);
-            Assert.Equal(400, settings.MaxDisplayedPreset);
+            Assert.Equal(512, settings.MaxDisplayedPreset);
             Assert.Equal(58, settings.SceneCc);
             Assert.Equal("Solo", settings.SceneNameCaches["live"][2].Names[0]);
             Assert.Equal("Live favorite", Field<List<Favorite>>(window, "_favorites").Single().Name);
             Find<TextBox>(window, "ProfileName").Text = "Tour";
             Click(Find<Button>(window, "ProfileRename"));
             Assert.Equal("Tour", store.LoadSettings().ActiveProfile);
-            Assert.Equal(400, store.LoadProfile("Tour").MaxDisplayedPreset);
+            Assert.Equal(512, store.LoadProfile("Tour").MaxDisplayedPreset);
             Click(Find<Button>(window, "ProfileDelete"));
             Assert.Equal("Default", settings.ActiveProfile);
             Assert.Equal(["Default"], store.ListProfiles());

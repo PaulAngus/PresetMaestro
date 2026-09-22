@@ -7,6 +7,7 @@ namespace PresetMaestro;
 public partial class MainWindow
 {
     private Core.DeviceModel PickerDeviceModel => _detectedDevice?.Model ?? _settings.DeviceModel;
+    private int EffectiveMaximum => Core.DevicePresets.Capacity(PickerDeviceModel) - 1 + _settings.DisplayOffset;
 
     internal const string ConnectionError = "Could not connect to a supported Fractal device. Check the selected MIDI IN and MIDI OUT ports, then try again.";
     private CancellationTokenSource? _connectionCts;
@@ -63,7 +64,7 @@ public partial class MainWindow
 
             _detectedDevice = device;
             _settings.DeviceModel = device.Model;
-            _favPresetSpinner.Maximum = Core.DevicePresets.Capacity(PickerDeviceModel) - 1 + _settings.DisplayOffset;
+            UpdatePresetCapacityUI();
             UpdateFavoritePresetDisplay();
             SetStatus(device.Label, StatusKind.ConnectedBoth);
             AppendLog($"CONNECT: validated {device.ModelLabel} on selected MIDI IN '{input}'.");
@@ -145,5 +146,14 @@ public partial class MainWindow
                 AppendLog($"THRU: failed to {(reopen ? "reopen" : "open")} '{port}' — {error}");
             }
         }
+    }
+
+    private void UpdatePresetCapacityUI()
+    {
+        _settings.MaxDisplayedPreset = EffectiveMaximum;
+        _favPresetSpinner.Maximum = EffectiveMaximum;
+        string model = PickerDeviceModel == Core.DeviceModel.AxeFxIII ? "Axe-Fx III" : PickerDeviceModel.ToString();
+        string source = _detectedDevice is null ? "saved model" : "detected";
+        _deviceCapacityLabel.Text = $"{model} · {Core.DevicePresets.Capacity(PickerDeviceModel)} presets ({source})";
     }
 }

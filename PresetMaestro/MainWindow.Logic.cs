@@ -88,7 +88,7 @@ public partial class MainWindow
         if (_mode == EntryMode.Favorite) { AppendLog("NEXT: not available in Favorites mode"); return; }
         int min = PresetTranslation.MinDisplayed(_settings.DisplayOffset);
         int next = _currentPreset.HasValue ? _currentPreset.Value + 1 : min;
-        if (next > _settings.MaxDisplayedPreset)
+        if (next > EffectiveMaximum)
         {
             next = min;
         }
@@ -102,10 +102,10 @@ public partial class MainWindow
         _enteredDigits = string.Empty;
         if (_mode == EntryMode.Favorite) { AppendLog("PREV: not available in Favorites mode"); return; }
         int min = PresetTranslation.MinDisplayed(_settings.DisplayOffset);
-        int prev = _currentPreset.HasValue ? _currentPreset.Value - 1 : _settings.MaxDisplayedPreset;
+        int prev = _currentPreset.HasValue ? _currentPreset.Value - 1 : EffectiveMaximum;
         if (prev < min)
         {
-            prev = _settings.MaxDisplayedPreset;
+            prev = EffectiveMaximum;
         }
 
         SendPreset(prev);
@@ -165,10 +165,10 @@ public partial class MainWindow
     private void SendFavorite(Favorite fav)
     {
         if (_connectionCts is not null) { return; }
-        if (!PresetTranslation.IsValid(fav.Preset, _settings.DisplayOffset, _settings.MaxDisplayedPreset))
+        if (!PresetTranslation.IsValid(fav.Preset, _settings.DisplayOffset, EffectiveMaximum))
         {
             AppendLog($"ERROR: favorite '{fav.Name}' preset {fav.Preset} is out of range " +
-                      $"(offset={_settings.DisplayOffset}, max={_settings.MaxDisplayedPreset})");
+                      $"(offset={_settings.DisplayOffset}, max={EffectiveMaximum})");
             _enteredDigits = string.Empty;
             UpdateDisplay();
             return;
@@ -207,10 +207,10 @@ public partial class MainWindow
     private void SendPreset(int displayed)
     {
         if (_connectionCts is not null) { return; }
-        if (!PresetTranslation.IsValid(displayed, _settings.DisplayOffset, _settings.MaxDisplayedPreset))
+        if (!PresetTranslation.IsValid(displayed, _settings.DisplayOffset, EffectiveMaximum))
         {
             AppendLog($"ERROR: {displayed} is out of range " +
-                      $"(offset={_settings.DisplayOffset}, max={_settings.MaxDisplayedPreset})");
+                      $"(offset={_settings.DisplayOffset}, max={EffectiveMaximum})");
             _enteredDigits = string.Empty;
             UpdateDisplay();
             return;
@@ -263,7 +263,7 @@ public partial class MainWindow
             bool isNumeric = int.TryParse(_enteredDigits, out int parsed);
             bool valid = _mode == EntryMode.Favorite
                 ? isNumeric
-                : isNumeric && PresetTranslation.IsValid(parsed, _settings.DisplayOffset, _settings.MaxDisplayedPreset);
+                : isNumeric && PresetTranslation.IsValid(parsed, _settings.DisplayOffset, EffectiveMaximum);
             text = _enteredDigits;
             fore = valid ? AccentBrush : Brushes.Red;
         }
@@ -339,7 +339,7 @@ public partial class MainWindow
             return;
         }
 
-        bool valid = PresetTranslation.IsValid(displayed.Value, _settings.DisplayOffset, _settings.MaxDisplayedPreset);
+        bool valid = PresetTranslation.IsValid(displayed.Value, _settings.DisplayOffset, EffectiveMaximum);
         SetDiagRow(_diagEnteredLabel, _enteredDigits.Length > 0 ? _enteredDigits : displayed.Value.ToString());
 
         if (valid)
@@ -602,6 +602,7 @@ public partial class MainWindow
         _midi.CloseInput();
         _midi.CloseOutput();
         _detectedDevice = null;
+        UpdatePresetCapacityUI();
         SetStatus("○ Not connected", StatusKind.NotConnected);
         UpdateConnectButtons();
     }
@@ -645,12 +646,10 @@ public partial class MainWindow
     private void ApplyProfileSettingsToUI()
     {
         if (_detectedDevice is not null) { _settings.DeviceModel = _detectedDevice.Model; }
-        _favPresetSpinner.Maximum = DevicePresets.Capacity(PickerDeviceModel) - 1 + _settings.DisplayOffset;
-        int maxPreset = _settings.MaxDisplayedPreset;
         _channelCombo.SelectedIndex = Math.Clamp(_settings.MidiChannel, 0, 16);
         _offsetCombo.SelectedIndex = Math.Clamp(_settings.DisplayOffset, 0, 1);
-        _maxPresetSpinner.Value = Math.Clamp(maxPreset, 1, 512);
         _sceneCcSpinner.Value = Math.Clamp(_settings.SceneCc, 0, 127);
+        UpdatePresetCapacityUI();
     }
 
     private void ApplyComputerSettingsToUI()
@@ -674,7 +673,7 @@ public partial class MainWindow
         _settings.ThruInputPorts = GetCheckedThruPorts();
         _settings.MidiChannel = _channelCombo.SelectedIndex;
         _settings.DisplayOffset = _offsetCombo.SelectedIndex;
-        _settings.MaxDisplayedPreset = (int)(_maxPresetSpinner.Value ?? 511);
+        _settings.MaxDisplayedPreset = EffectiveMaximum;
         _settings.AutoSend = _autoSendCheck.IsChecked == true;
         _settings.AutoSendDelayMs = (int)(_autoSendDelaySpinner.Value ?? 35);
         _settings.KeyboardEntryEnabled = _keyboardEntryCheck.IsChecked == true;
@@ -702,16 +701,7 @@ public partial class MainWindow
     private void OnOffsetChanged(object? sender, EventArgs e)
     {
         _settings.DisplayOffset = _offsetCombo.SelectedIndex;
-        if (_settings.DisplayOffset == 0 && _maxPresetSpinner.Value == 512)
-        {
-            _maxPresetSpinner.Value = 511;
-        }
-        else if (_settings.DisplayOffset == 1 && _maxPresetSpinner.Value == 511)
-        {
-            _maxPresetSpinner.Value = 512;
-        }
-
-        _settings.MaxDisplayedPreset = (int)(_maxPresetSpinner.Value ?? 511);
+        UpdatePresetCapacityUI();
         UpdateDisplay();
     }
 
@@ -723,7 +713,7 @@ public partial class MainWindow
             return;
         }
 
-        if (!PresetTranslation.IsValid(displayed, _settings.DisplayOffset, _settings.MaxDisplayedPreset))
+        if (!PresetTranslation.IsValid(displayed, _settings.DisplayOffset, EffectiveMaximum))
         {
             AppendLog($"TEST: {displayed} is out of range (no MIDI sent)");
             return;

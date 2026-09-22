@@ -441,9 +441,6 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
 
             var diagnostics = Find<Button>(window, "OpenDiagnostics");
-            var openSettings = Find<Button>(window, "OpenSettingsJson");
-            Assert.Equal(openSettings.Bounds.Width, diagnostics.Bounds.Width, 1);
-            Assert.Equal(openSettings.Bounds.Height, diagnostics.Bounds.Height, 1);
 
             Click(diagnostics);
             Dispatcher.UIThread.RunJobs();

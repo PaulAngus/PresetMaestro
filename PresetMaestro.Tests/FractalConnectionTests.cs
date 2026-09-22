@@ -34,12 +34,14 @@ public class FractalConnectionTests
         var window = Create(midi, []);
         var settings = (AppSettings)typeof(MainWindow).GetField("_settings", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
         var spinner = (NumericUpDown)typeof(MainWindow).GetField("_favPresetSpinner", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+        var capacity = (TextBlock)typeof(MainWindow).GetField("_deviceCapacityLabel", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
         try
         {
             settings.DeviceModel = expected == DeviceModel.AxeFxIII ? DeviceModel.FM9 : DeviceModel.AxeFxIII;
             await window.ConnectAsync();
             Assert.Equal(expected, settings.DeviceModel);
             Assert.Equal(maximum + settings.DisplayOffset, spinner.Maximum);
+            Assert.Contains("detected", capacity.Text);
             // Loading a profile must not override the connected device's identity.
             settings.DeviceModel = expected == DeviceModel.AxeFxIII ? DeviceModel.FM9 : DeviceModel.AxeFxIII;
             Invoke(window, "ApplyProfileSettingsToUI");
@@ -47,6 +49,7 @@ public class FractalConnectionTests
             Assert.Equal(maximum + settings.DisplayOffset, spinner.Maximum);
             Invoke(window, "Disconnect");
             Assert.Equal(expected, settings.DeviceModel);
+            Assert.Contains("saved model", capacity.Text);
         }
         finally { window.Close(); }
     }

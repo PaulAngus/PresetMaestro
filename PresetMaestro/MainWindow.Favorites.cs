@@ -90,7 +90,7 @@ public partial class MainWindow
     private async Task SelectFavoritePresetAsync()
     {
         int offset = _settings.DisplayOffset;
-        _favPresetSpinner.Maximum = DevicePresets.Capacity(PickerDeviceModel) - 1 + offset;
+        _favPresetSpinner.Maximum = EffectiveMaximum;
         int currentSlot = Math.Clamp((int)(_favPresetSpinner.Value ?? offset) - offset, 0, DevicePresets.Capacity(PickerDeviceModel) - 1);
         var dialog = new PresetSelectionWindow(_settings.PresetNameCache, currentSlot, _settings.DisplayOffset, PickerDeviceModel) { Icon = Icon };
         int? slot = _presetPickerOverride is not null

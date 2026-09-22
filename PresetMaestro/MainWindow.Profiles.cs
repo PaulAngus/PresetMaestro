@@ -36,7 +36,7 @@ public partial class MainWindow
         rescan.Click += async (_, _) => await RunProfileActionAsync("rescan", "");
         Grid.SetColumn(rescan, 1);
         selection.Children.Add(rescan);
-        stack.Children.Add(ApprovedField("Active profile · restored on startup", selection));
+        stack.Children.Add(ApprovedField("Active profile", selection));
         _profileName = new TextBox { Name = "ProfileName", Watermark = "New, copied or renamed profile name" };
         stack.Children.Add(_profileName);
         var actions = new WrapPanel { Orientation = Orientation.Horizontal };

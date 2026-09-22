@@ -188,7 +188,10 @@ public sealed class ProfileStoreTests : IDisposable
         var settings = store.LoadSettings();
         settings.MidiInputPort = "Private computer port";
         settings.AutoSend = true;
+        settings.DeviceModel = DeviceModel.AxeFxIII;
         settings.MidiChannel = 8;
+        settings.DisplayOffset = 1;
+        settings.MaxDisplayedPreset = 1024;
         settings.SceneCc = 55;
         settings.CategoryOrder = ["Gig"];
         settings.PresetNameCache[3] = "Preset";
@@ -210,6 +213,8 @@ public sealed class ProfileStoreTests : IDisposable
         string imported = store.Import(archivePath);
         Assert.Equal("Default (2)", imported);
         Assert.Equal(8, store.LoadProfile(imported).MidiChannel);
+        Assert.Equal(DeviceModel.AxeFxIII, store.LoadProfile(imported).DeviceModel);
+        Assert.Equal(1024, store.LoadProfile(imported).MaxDisplayedPreset);
         Assert.Equal(55, store.LoadProfile(imported).SceneCc);
         Assert.Equal(["Gig"], store.LoadProfile(imported).CategoryOrder);
         Assert.Equal("Scene", store.LoadProfile(imported).SceneNameCaches["ports"][3].Names[0]);

@@ -30,6 +30,7 @@ public partial class MainWindow
     private static IBrush TagRemoveBrush => ThemeBrush("TagRemoveBrush");
     private static readonly BoxShadows Elevation = new(new BoxShadow { OffsetY = 1, Blur = 3, Color = Color.Parse("#180E1A25") });
     private static readonly Bitmap AppLogo = LoadAppLogo();
+    private TextBlock _deviceCapacityLabel = null!;
 
     private static Bitmap LoadAppLogo()
     {
@@ -217,21 +218,87 @@ public partial class MainWindow
 
     private Control ApprovedEntryOptions()
     {
-        var card = ApprovedCard(); var stack = new StackPanel { Spacing = 12 }; stack.Children.Add(new TextBlock { Text = "ENTRY OPTIONS", FontSize = 11, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush });
-        var auto = new Grid { ColumnDefinitions = new ColumnDefinitions("*,130,Auto") }; _autoSendCheck = new CheckBox { Content = "Auto-send after 3 digits", VerticalAlignment = VerticalAlignment.Center }; _autoSendCheck.IsCheckedChanged += (_, _) => _settings.AutoSend = _autoSendCheck.IsChecked == true; auto.Children.Add(_autoSendCheck); _autoSendDelaySpinner = new NumericUpDown { Minimum = 10, Maximum = 2000, Value = 35, FormatString = "0" }; _autoSendDelaySpinner.ValueChanged += (_, _) => { _settings.AutoSendDelayMs = (int)(_autoSendDelaySpinner.Value ?? 35); _autoSendTimer.Interval = TimeSpan.FromMilliseconds(_settings.AutoSendDelayMs); }; Grid.SetColumn(_autoSendDelaySpinner, 1); auto.Children.Add(_autoSendDelaySpinner); var unit = new TextBlock { Text = "ms", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = SecondaryBrush }; Grid.SetColumn(unit, 2); auto.Children.Add(unit); stack.Children.Add(auto);
-        var entryOptions = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*") };
-        _keyboardEntryCheck = new CheckBox { Content = "Enable keyboard entry" }; _keyboardEntryCheck.IsCheckedChanged += (_, _) => _settings.KeyboardEntryEnabled = _keyboardEntryCheck.IsChecked == true; entryOptions.Children.Add(_keyboardEntryCheck);
-        _midiEntryCheck = new CheckBox { Content = "Enable MIDI note entry" }; _midiEntryCheck.IsCheckedChanged += (_, _) => _settings.MidiEntryEnabled = _midiEntryCheck.IsChecked == true; Grid.SetColumn(_midiEntryCheck, 1); entryOptions.Children.Add(_midiEntryCheck);
-        stack.Children.Add(entryOptions);
-        card.Child = stack; return card;
+        var card = ApprovedCard("Entry Options", "Keyboard and MIDI entry behaviour");
+        card.Name = "EntryOptionsCard";
+        var stack = new StackPanel { Spacing = 14 };
+
+        var auto = new Grid { Name = "AutoSendOptions" };
+        _autoSendCheck = new CheckBox { Name = "AutoSend", Content = "Auto-send after 3 digits", VerticalAlignment = VerticalAlignment.Bottom };
+        _autoSendCheck.IsCheckedChanged += (_, _) => _settings.AutoSend = _autoSendCheck.IsChecked == true;
+        auto.Children.Add(_autoSendCheck);
+        _autoSendDelaySpinner = new NumericUpDown { Name = "AutoSendDelay", Minimum = 10, Maximum = 2000, Value = 35, FormatString = "0", MinWidth = 110 };
+        _autoSendDelaySpinner.ValueChanged += (_, _) => { _settings.AutoSendDelayMs = (int)(_autoSendDelaySpinner.Value ?? 35); _autoSendTimer.Interval = TimeSpan.FromMilliseconds(_settings.AutoSendDelayMs); };
+        var delay = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        delay.Children.Add(_autoSendDelaySpinner);
+        var unit = new TextBlock { Text = "ms", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = SecondaryBrush };
+        Grid.SetColumn(unit, 1);
+        delay.Children.Add(unit);
+        var delayField = ApprovedField("Delay", delay);
+        auto.Children.Add(delayField);
+        stack.Children.Add(auto);
+
+        stack.Children.Add(new Border { Height = 1, Background = UiBorderBrush });
+        stack.Children.Add(new TextBlock { Text = "ENTRY SOURCES", FontSize = 11, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush });
+        var entrySources = new Grid { Name = "EntrySources" };
+        _keyboardEntryCheck = new CheckBox { Name = "KeyboardEntry", Content = "Keyboard entry" };
+        _keyboardEntryCheck.IsCheckedChanged += (_, _) => _settings.KeyboardEntryEnabled = _keyboardEntryCheck.IsChecked == true;
+        entrySources.Children.Add(_keyboardEntryCheck);
+        _midiEntryCheck = new CheckBox { Name = "MidiNoteEntry", Content = "MIDI note entry" };
+        _midiEntryCheck.IsCheckedChanged += (_, _) => _settings.MidiEntryEnabled = _midiEntryCheck.IsChecked == true;
+        entrySources.Children.Add(_midiEntryCheck);
+        stack.Children.Add(entrySources);
+
+        void ArrangeEntryOptions(double width)
+        {
+            bool compact = width < 480;
+            auto.ColumnDefinitions.Clear();
+            auto.RowDefinitions.Clear();
+            entrySources.ColumnDefinitions.Clear();
+            entrySources.RowDefinitions.Clear();
+            if (compact)
+            {
+                auto.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                auto.RowDefinitions.Add(new RowDefinition(new GridLength(10)));
+                auto.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                Grid.SetColumn(_autoSendCheck, 0); Grid.SetRow(_autoSendCheck, 0);
+                Grid.SetColumn(delayField, 0); Grid.SetRow(delayField, 2);
+                entrySources.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                entrySources.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
+                entrySources.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                Grid.SetColumn(_keyboardEntryCheck, 0); Grid.SetRow(_keyboardEntryCheck, 0);
+                Grid.SetColumn(_midiEntryCheck, 0); Grid.SetRow(_midiEntryCheck, 2);
+            }
+            else
+            {
+                auto.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+                auto.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(16)));
+                auto.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(174)));
+                Grid.SetColumn(_autoSendCheck, 0); Grid.SetRow(_autoSendCheck, 0);
+                Grid.SetColumn(delayField, 2); Grid.SetRow(delayField, 0);
+                entrySources.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+                entrySources.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+                Grid.SetColumn(_keyboardEntryCheck, 0); Grid.SetRow(_keyboardEntryCheck, 0);
+                Grid.SetColumn(_midiEntryCheck, 1); Grid.SetRow(_midiEntryCheck, 0);
+            }
+        }
+
+        stack.SizeChanged += (_, _) => ArrangeEntryOptions(stack.Bounds.Width);
+        ArrangeEntryOptions(600);
+        SetApprovedCardContent(card, stack);
+        return card;
     }
 
     private Control ApprovedDiagnostics()
     {
-        var card = ApprovedCard("Signal Diagnostics", "Live translation preview"); card.Height = 500; var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("170,*") };
+        var card = ApprovedCard("Signal Diagnostics", "Live translation preview"); card.Height = 500; var stack = new StackPanel { Spacing = 14 }; var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("170,*") };
         (string, TextBlock)[] rows = [("Last Rx note", _diagLastRxLabel = Value()), ("Entered", _diagEnteredLabel = Value()), ("Favorite", _diagFavoriteLabel = Value()), ("device display", _diagDeviceDisplayLabel = Value()), ("MIDI preset", _diagMidiPresetLabel = Value()), ("Bank select CC#0", _diagBankLabel = Value()), ("Program change", _diagPcLabel = Value()), ("Scene", _diagSceneLabel = Value()), ("MIDI channel", _diagChannelLabel = Value())];
         for (int row = 0; row < rows.Length; row++) { grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); var label = new TextBlock { Text = rows[row].Item1, Foreground = SecondaryBrush, Margin = new Thickness(0, 7) }; Grid.SetRow(label, row); Grid.SetRow(rows[row].Item2, row); Grid.SetColumn(rows[row].Item2, 1); grid.Children.Add(label); grid.Children.Add(rows[row].Item2); }
-        var test = new Button { Content = "Test Translation", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 14, 0, 0) }; test.Click += OnTestTranslation; Grid.SetRow(test, rows.Length); Grid.SetColumn(test, 1); grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); grid.Children.Add(test); SetApprovedCardContent(card, grid); return card;
+        var test = new Button { Content = "Test Translation", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 14, 0, 0) }; test.Click += OnTestTranslation; Grid.SetRow(test, rows.Length); Grid.SetColumn(test, 1); grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); grid.Children.Add(test); stack.Children.Add(grid);
+        stack.Children.Add(new Border { Height = 1, Background = UiBorderBrush });
+        _debugCheck = new CheckBox { Name = "DebugMode", Content = "Debug mode (bypass channel filter)" };
+        _debugCheck.IsCheckedChanged += (_, _) => _settings.DebugMode = _debugCheck.IsChecked == true;
+        stack.Children.Add(_debugCheck);
+        SetApprovedCardContent(card, stack); return card;
     }
 
     private Control ApprovedLog()
@@ -673,9 +740,9 @@ public partial class MainWindow
 
     private Control BuildApprovedConfig(Action showDiagnostics)
     {
-        var page = new Grid { Margin = new Thickness(24) };
-        var connection = new StackPanel { Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), BuildPresetNameSyncCard(), ApprovedEntryOptions() } };
-        var mapping = new StackPanel { Spacing = 16, Children = { BuildProfileCard(), BuildApprovedMapping(), BuildApprovedAppearance() } };
+        var page = new Grid { Name = "ConfigLayout", Margin = new Thickness(24) };
+        var connection = new StackPanel { Name = "ConfigLeftColumn", Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), BuildPresetNameSyncCard(), ApprovedEntryOptions() } };
+        var mapping = new StackPanel { Name = "ConfigRightColumn", Spacing = 16, Children = { BuildProfileCard(), BuildApprovedMapping(), BuildApprovedAppearance() } };
         page.Children.Add(connection); page.Children.Add(mapping);
 
         void Arrange()
@@ -710,23 +777,72 @@ public partial class MainWindow
 
     private Control BuildApprovedConnection(Action showDiagnostics)
     {
-        var card = ApprovedCard("MIDI Connection", "Hardware and routing"); var stack = new StackPanel { Spacing = 14 }; _statusLabel = new TextBlock { Text = "●  Not connected", Foreground = SecondaryBrush, FontWeight = FontWeight.Bold }; stack.Children.Add(_statusLabel); _inputPortCombo = new ComboBox(); _inputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions(); _outputPortCombo = new ComboBox(); _outputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions(); _thruInputPanel = new StackPanel { Spacing = 4 }; var ports = new Grid { ColumnDefinitions = new ColumnDefinitions("*,16,*") }; var routing = new StackPanel { Spacing = 14, Children = { ApprovedField("MIDI In", _inputPortCombo), ApprovedField("MIDI Out", _outputPortCombo) } }; ports.Children.Add(routing); var thru = ApprovedField("Thru In(s)", _thruInputPanel); Grid.SetColumn(thru, 2); ports.Children.Add(thru); stack.Children.Add(ports); var refresh = new Button { Content = "Refresh Devices", HorizontalAlignment = HorizontalAlignment.Left }; refresh.Click += (_, _) => RefreshPortLists(); stack.Children.Add(refresh); var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 }; _connectButton = new Button { Content = "Connect", Background = AccentBrush, Foreground = Brushes.White }; _connectButton.Click += (_, _) => Connect(); _disconnectButton = new Button { Content = "Disconnect", Foreground = DangerBrush }; _disconnectButton.Click += (_, _) => Disconnect(); buttons.Children.Add(_connectButton); buttons.Children.Add(_disconnectButton); stack.Children.Add(buttons); var debugOptions = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") }; _debugCheck = new CheckBox { Content = "Debug mode (bypass channel filter)" }; _debugCheck.IsCheckedChanged += (_, _) => _settings.DebugMode = _debugCheck.IsChecked == true; debugOptions.Children.Add(_debugCheck); var settingsActions = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right }; var diagnostics = new Button { Name = "OpenDiagnostics", Content = "Diagnostics", HorizontalAlignment = HorizontalAlignment.Stretch }; diagnostics.Click += (_, _) => showDiagnostics(); settingsActions.Children.Add(diagnostics); var openSettings = new Button { Name = "OpenSettingsJson", Content = "Open Settings JSON", HorizontalAlignment = HorizontalAlignment.Stretch }; openSettings.Click += (_, _) => OpenSettingsFile(); settingsActions.Children.Add(openSettings); Grid.SetColumn(settingsActions, 1); debugOptions.Children.Add(settingsActions); stack.Children.Add(debugOptions); SetApprovedCardContent(card, stack); return card;
+        var card = ApprovedCard("MIDI Connection", "Hardware and routing");
+        card.Name = "MidiConnectionCard";
+        var stack = new StackPanel { Spacing = 14 };
+        _statusLabel = new TextBlock { Text = "○  Not connected", Foreground = SecondaryBrush, FontWeight = FontWeight.Bold };
+        stack.Children.Add(_statusLabel);
+
+        _inputPortCombo = new ComboBox { Name = "MidiInput", HorizontalAlignment = HorizontalAlignment.Stretch };
+        _inputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions();
+        _outputPortCombo = new ComboBox { Name = "MidiOutput", HorizontalAlignment = HorizontalAlignment.Stretch };
+        _outputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions();
+        _thruInputPanel = new StackPanel { Name = "ThruInputs", Spacing = 4 };
+        var routing = new StackPanel { Spacing = 14, Children = { ApprovedField("MIDI In", _inputPortCombo), ApprovedField("MIDI Out", _outputPortCombo), ApprovedField("Thru In(s)", _thruInputPanel) } };
+
+        var settingsActions = new StackPanel { Name = "ConnectionActions", Spacing = 8 };
+        _connectButton = new Button { Name = "Connect", Content = "Connect", Background = AccentBrush, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Stretch };
+        _connectButton.Click += (_, _) => Connect();
+        _disconnectButton = new Button { Name = "Disconnect", Content = "Disconnect", Foreground = DangerBrush, HorizontalAlignment = HorizontalAlignment.Stretch };
+        _disconnectButton.Click += (_, _) => Disconnect();
+        var refresh = new Button { Name = "RefreshDevices", Content = "Refresh Devices", HorizontalAlignment = HorizontalAlignment.Stretch };
+        refresh.Click += (_, _) => RefreshPortLists();
+        var diagnostics = new Button { Name = "OpenDiagnostics", Content = "Diagnostics", HorizontalAlignment = HorizontalAlignment.Stretch };
+        diagnostics.Click += (_, _) => showDiagnostics();
+        settingsActions.Children.Add(_connectButton);
+        settingsActions.Children.Add(_disconnectButton);
+        settingsActions.Children.Add(refresh);
+        settingsActions.Children.Add(diagnostics);
+
+        var columns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,16,0.72*") };
+        columns.Children.Add(routing);
+        var actions = ApprovedField("Actions", settingsActions);
+        Grid.SetColumn(actions, 2);
+        columns.Children.Add(actions);
+        stack.Children.Add(columns);
+        SetApprovedCardContent(card, stack);
+        return card;
     }
 
     private Control BuildApprovedMapping()
     {
-        var card = ApprovedCard("Preset Mapping", "Translation settings"); var stack = new StackPanel { Spacing = 14 }; _channelCombo = new ComboBox(); _channelCombo.Items.Add("Omni"); for (int channel = 1; channel <= 16; channel++)
+        var card = ApprovedCard("Preset Mapping", "Translation settings · detected limits are applied automatically"); var stack = new StackPanel { Spacing = 14 }; _channelCombo = new ComboBox { Name = "MidiChannel", MinWidth = 100 }; _channelCombo.Items.Add("Omni"); for (int channel = 1; channel <= 16; channel++)
         {
             _channelCombo.Items.Add(channel.ToString());
         }
 
-        _channelCombo.SelectionChanged += (_, _) => { if (_channelCombo.SelectedIndex >= 0) { _settings.MidiChannel = _channelCombo.SelectedIndex; } }; _offsetCombo = new ComboBox { ItemsSource = new[] { "0 (device mapping disabled)", "1 (display starts at 001)" } }; _offsetCombo.SelectionChanged += OnOffsetChanged; _maxPresetSpinner = new NumericUpDown { Minimum = 1, Maximum = 512, FormatString = "0" }; _maxPresetSpinner.ValueChanged += (_, _) => _settings.MaxDisplayedPreset = (int)(_maxPresetSpinner.Value ?? 511); _sceneCcSpinner = new NumericUpDown { Minimum = 0, Maximum = 127, FormatString = "0" }; _sceneCcSpinner.ValueChanged += (_, _) => _settings.SceneCc = (int)(_sceneCcSpinner.Value ?? 34); stack.Children.Add(ApprovedField("MIDI Channel", _channelCombo)); stack.Children.Add(ApprovedField("Display Offset", _offsetCombo)); stack.Children.Add(ApprovedField("Max Preset", _maxPresetSpinner)); stack.Children.Add(ApprovedField("Scene CC#", _sceneCcSpinner)); stack.Children.Add(new Border { Background = InsetBrush, Padding = new Thickness(14), CornerRadius = new CornerRadius(5), Child = new TextBlock { Text = "Program Change mapping must be disabled on the device when Display Offset is 0.", TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush } }); SetApprovedCardContent(card, stack); return card;
+        _channelCombo.SelectionChanged += (_, _) => { if (_channelCombo.SelectedIndex >= 0) { _settings.MidiChannel = _channelCombo.SelectedIndex; } };
+        _offsetCombo = new ComboBox { Name = "DisplayOffset", ItemsSource = new[] { "0 (device mapping disabled)", "1 (display starts at 001)" } };
+        _offsetCombo.SelectionChanged += OnOffsetChanged;
+        _sceneCcSpinner = new NumericUpDown { Name = "SceneCc", Minimum = 0, Maximum = 127, FormatString = "0", MinWidth = 86, MaxWidth = 100 };
+        _sceneCcSpinner.ValueChanged += (_, _) => _settings.SceneCc = (int)(_sceneCcSpinner.Value ?? 34);
+        var fields = new Grid { ColumnDefinitions = new ColumnDefinitions("126,12,*,12,100") };
+        var channelField = ApprovedField("MIDI Channel", _channelCombo);
+        var offset = ApprovedField("Display Offset", _offsetCombo);
+        var scene = ApprovedField("Scene CC#", _sceneCcSpinner);
+        fields.Children.Add(channelField);
+        Grid.SetColumn(offset, 2); fields.Children.Add(offset);
+        Grid.SetColumn(scene, 4); fields.Children.Add(scene);
+        stack.Children.Add(fields);
+        _deviceCapacityLabel = new TextBlock { Name = "DeviceCapacity", Foreground = SecondaryBrush };
+        stack.Children.Add(new Border { Background = InsetBrush, Padding = new Thickness(12, 9), CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left, Child = _deviceCapacityLabel });
+        stack.Children.Add(new Border { Background = InsetBrush, Padding = new Thickness(14), CornerRadius = new CornerRadius(5), Child = new TextBlock { Text = "Program Change mapping must be disabled on the device when Display Offset is 0.", TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush } }); SetApprovedCardContent(card, stack); return card;
     }
 
     private Control BuildApprovedAppearance()
     {
         bool isLight = string.Equals(_settings.Theme, "Light", StringComparison.OrdinalIgnoreCase);
-        var card = ApprovedCard(); var stack = new StackPanel { Spacing = 12 }; stack.Children.Add(new TextBlock { Text = "APPEARANCE", FontSize = 11, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush }); var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 }; _darkThemeRadio = new RadioButton { Content = "Dark", IsChecked = !isLight }; _lightThemeRadio = new RadioButton { Content = "Light", IsChecked = isLight }; _darkThemeRadio.IsCheckedChanged += (_, _) => { if (_darkThemeRadio.IsChecked == true) { _lightThemeRadio.IsChecked = false; _settings.Theme = "Dark"; SetTheme("Dark"); } }; _lightThemeRadio.IsCheckedChanged += (_, _) => { if (_lightThemeRadio.IsChecked == true) { _darkThemeRadio.IsChecked = false; _settings.Theme = "Light"; SetTheme("Light"); } }; row.Children.Add(_darkThemeRadio); row.Children.Add(_lightThemeRadio); stack.Children.Add(row); card.Child = stack; return card;
+        var card = ApprovedCard("Appearance", "Application theme"); var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 }; _darkThemeRadio = new RadioButton { Content = "Dark", IsChecked = !isLight }; _lightThemeRadio = new RadioButton { Content = "Light", IsChecked = isLight }; _darkThemeRadio.IsCheckedChanged += (_, _) => { if (_darkThemeRadio.IsChecked == true) { _lightThemeRadio.IsChecked = false; _settings.Theme = "Dark"; SetTheme("Dark"); } }; _lightThemeRadio.IsCheckedChanged += (_, _) => { if (_lightThemeRadio.IsChecked == true) { _darkThemeRadio.IsChecked = false; _settings.Theme = "Light"; SetTheme("Light"); } }; row.Children.Add(_darkThemeRadio); row.Children.Add(_lightThemeRadio); SetApprovedCardContent(card, row); return card;
     }
 
     private static Border ApprovedCard(string? title = null, string? subtitle = null, Control? headerRight = null, FontWeight? titleFontWeight = null)

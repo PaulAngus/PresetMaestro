@@ -1,6 +1,6 @@
 namespace PresetMaestro.Core;
 
-// The device has 512 presets: 4 banks × 128 (internal 0–511).
+// Supported devices use banks of 128 presets (up to 8 banks / internal 0–1023).
 // internal = displayed - offset;  bank = internal / 128;  pc = internal % 128
 public readonly record struct TranslationResult(
     int DisplayedPreset,
@@ -11,7 +11,7 @@ public readonly record struct TranslationResult(
 
 public static class PresetTranslation
 {
-    public const int MaxMidiPreset = 511; // Bank 3, PC 127
+    public const int MaxMidiPreset = 1023; // Bank 7, PC 127
 
     public static TranslationResult Translate(int displayedPreset, int offset, int midiChannel)
     {

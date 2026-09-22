@@ -50,6 +50,9 @@ public class PresetTranslationTests
     [InlineData(513, 1, 512, false)]  // over max
     [InlineData(0, 1, 512, false)]  // below min offset-1
     [InlineData(100, 0, 50, false)]  // over configured max
+    [InlineData(1023, 0, 1023, true)] // Axe-Fx III maximum, offset 0
+    [InlineData(1024, 1, 1024, true)] // Axe-Fx III maximum, offset 1
+    [InlineData(1024, 0, 1024, false)] // beyond the supported internal range
     public void IsValid_ReturnsExpected(int displayed, int offset, int max, bool expected)
     {
         Assert.Equal(expected, PresetTranslation.IsValid(displayed, offset, max));
@@ -61,12 +64,11 @@ public class PresetTranslationTests
 
     // ── MaxMidiPreset constant ─────────────────────────────────────
     [Fact]
-    public void MaxMidiPreset_Is511_FourBanks()
+    public void MaxMidiPreset_Is1023_EightBanks()
     {
-        Assert.Equal(511, PresetTranslation.MaxMidiPreset);
-        // 511 / 128 = Bank 3, 511 % 128 = 127
-        var r = PresetTranslation.Translate(511, 0, 1);
-        Assert.Equal(3, r.Bank);
+        Assert.Equal(1023, PresetTranslation.MaxMidiPreset);
+        var r = PresetTranslation.Translate(1023, 0, 1);
+        Assert.Equal(7, r.Bank);
         Assert.Equal(127, r.ProgramChange);
     }
 }
