@@ -20,6 +20,9 @@ public partial class MainWindow
     private CancellationTokenSource? _scenePollCts;
     private int _sceneGeneration;
     private int? _sceneSlot, _activeScene;
+    // These are written only by the existing hardware-state poll.  Sending a
+    // preset or scene therefore does not optimistically mark a Favourite active.
+    private int? _detectedPresetSlot, _detectedScene;
     private bool _sceneClosing, _pollBusy;
     private string _sceneCacheKey = "";
     private TextBlock _favoriteSceneDisplay = null!;
@@ -384,15 +387,21 @@ public partial class MainWindow
             if (_sceneSlot != preset.Slot)
             {
                 _sceneSlot = preset.Slot; _activeScene = null;
+                _detectedPresetSlot = _detectedScene = null;
                 _currentPreset = preset.Slot + _settings.DisplayOffset;
                 _currentFavoriteName = null; _currentFavoriteScene = null;
-                UpdateDisplay(); RenderScenes();
+                UpdateDisplay(); RenderScenes(); UpdateFavoriteRowStates();
                 await RefreshScenesAsync(preset.Slot);
             }
             int sceneGeneration = _sceneGeneration;
             var scene = await _presetNameClient.CurrentSceneAsync(cts.Token);
             if (!cts.IsCancellationRequested && sceneGeneration == _sceneGeneration && _sceneSlot == preset.Slot)
-            { _activeScene = scene.Index + 1; UpdateDisplay(); RenderScenes(); }
+            {
+                _activeScene = scene.Index + 1;
+                _detectedPresetSlot = preset.Slot;
+                _detectedScene = _activeScene;
+                UpdateDisplay(); RenderScenes(); UpdateFavoriteRowStates();
+            }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -419,7 +428,9 @@ public partial class MainWindow
         }
 
         _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _sceneSyncCts?.Cancel(); _presetNamesCts?.Cancel();
-        _sceneGeneration++; _sceneSlot = null; _activeScene = null; RenderScenes();
+        _sceneGeneration++; _sceneSlot = null; _activeScene = null;
+        _detectedPresetSlot = _detectedScene = null;
+        RenderScenes(); UpdateFavoriteRowStates();
         // Query the full current slot rather than guessing the bank from a PC notification.
         _ = PollAfterChangeAsync();
     });
@@ -441,7 +452,9 @@ public partial class MainWindow
     private void StopSceneTracking()
     {
         _scenePoll.Stop(); _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _sceneSyncCts?.Cancel(); _favoriteSceneCts?.Cancel();
-        _sceneGeneration++; _sceneSlot = null; _activeScene = null; RenderScenes();
+        _sceneGeneration++; _sceneSlot = null; _activeScene = null;
+        _detectedPresetSlot = _detectedScene = null;
+        RenderScenes(); UpdateFavoriteRowStates();
     }
 
     private async Task SyncSceneNamesAsync()

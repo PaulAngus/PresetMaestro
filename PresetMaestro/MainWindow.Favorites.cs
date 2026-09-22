@@ -280,6 +280,7 @@ public partial class MainWindow
     private readonly Dictionary<ListBoxItem, TextBlock> _favDetailTexts = [];
     private readonly Dictionary<ListBoxItem, Grid> _favMainRows = [];
     private readonly Dictionary<ListBoxItem, Border> _favSelectionAccents = [];
+    private readonly Dictionary<ListBoxItem, Border> _favActiveAccents = [];
     private bool _favInsertAfter;
     private bool _favIsDragging;
     private string? _favCategoryDragSource;
@@ -383,6 +384,7 @@ public partial class MainWindow
         _favDetailTexts.Clear();
         _favMainRows.Clear();
         _favSelectionAccents.Clear();
+        _favActiveAccents.Clear();
         foreach (var fav in GetFilteredFavorites())
         {
             _favListBox.Items.Add(BuildFavoriteRow(fav));
@@ -409,9 +411,10 @@ public partial class MainWindow
             new TextBlock { Text = fav.IsEmpty ? string.Empty : fav.Scene.ToString(), Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(11, 0) },
         ]);
         var accent = new Border { Width = 4, Background = AccentBrush, HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false, IsHitTestVisible = false };
+        var activeAccent = new Border { Name = "FavoriteActiveAccent", Width = 4, Background = DangerBrush, HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false, IsHitTestVisible = false };
         var divider = new Border { Height = 1, Background = ThemeBrush("RowSeparatorBrush"), VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false };
         var mainRow = new Grid { Height = 26, Background = Brushes.Transparent };
-        mainRow.Children.Add(row); mainRow.Children.Add(accent);
+        mainRow.Children.Add(row); mainRow.Children.Add(activeAccent); mainRow.Children.Add(accent);
 
         var detailText = new TextBlock
         {
@@ -486,6 +489,7 @@ public partial class MainWindow
         _favDetailTexts[item] = detailText;
         _favMainRows[item] = mainRow;
         _favSelectionAccents[item] = accent;
+        _favActiveAccents[item] = activeAccent;
         return item;
     }
 
@@ -947,9 +951,17 @@ public partial class MainWindow
         {
             var grid = (Grid)item.Content!;
             bool selected = item == _favListBox.SelectedItem;
+            bool activeOnHardware = item.Tag is Favorite activeFavorite &&
+                                    !activeFavorite.IsEmpty &&
+                                    _detectedPresetSlot is int presetSlot &&
+                                    _detectedScene is int scene &&
+                                    activeFavorite.Preset == presetSlot + _settings.DisplayOffset &&
+                                    activeFavorite.Scene == scene;
             grid.Background = Brushes.Transparent;
             _favMainRows[item].Background = selected ? ThemeBrush("SelectedBrush") : item == hovered ? ThemeBrush("HoverBrush") : Brushes.Transparent;
+            _favSelectionAccents[item].Background = activeOnHardware ? DangerBrush : AccentBrush;
             _favSelectionAccents[item].IsVisible = selected;
+            _favActiveAccents[item].IsVisible = activeOnHardware && !selected;
 
             bool showDetails = _showFavoriteDetailsForAll || selected;
             string detail = showDetails && item.Tag is Favorite favorite

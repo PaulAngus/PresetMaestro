@@ -41,6 +41,9 @@ public partial class FavoriteEditorTests
     private static void Invoke(MainWindow window, string name, params object[] arguments) =>
         typeof(MainWindow).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, arguments);
 
+    private static void SetField(MainWindow window, string name, object? value) =>
+        typeof(MainWindow).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, value);
+
     private static MainWindow CreateWindow(
         FakeMidi? midi = null,
         List<Favorite>? favorites = null,
@@ -279,6 +282,70 @@ public partial class FavoriteEditorTests
             Assert.False(DetailStrip(rows[1]).IsVisible);
             Assert.Equal("Show preset and scene details for all favourites", AutomationProperties.GetName(toggle));
             Assert.Equal(selectedOnlyIconTop, toggleIcon.Data!.Bounds.Top);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void DetectedHardwareFavoriteUsesOnlyTheExistingLeftAccentWithoutChangingRowFill()
+    {
+        var favorites = new List<Favorite>
+        {
+            new() { Id = 10, Slot = 1, Name = "Active", Preset = 101, Scene = 2 },
+            new() { Id = 20, Slot = 2, Name = "Selected", Preset = 202, Scene = 3 },
+        };
+        var window = CreateWindow(favorites: favorites, settings: new AppSettings { Theme = "Light", DisplayOffset = 1 });
+        try
+        {
+            window.Show();
+            Click(Find<Button>(window, "NavFavorites"));
+            Dispatcher.UIThread.RunJobs();
+            var list = Field<ListBox>(window, "_favListBox");
+            var rows = list.Items.OfType<ListBoxItem>().ToArray();
+            var selectionAccents = Field<Dictionary<ListBoxItem, Border>>(window, "_favSelectionAccents");
+            var activeAccents = Field<Dictionary<ListBoxItem, Border>>(window, "_favActiveAccents");
+            var mainRows = Field<Dictionary<ListBoxItem, Grid>>(window, "_favMainRows");
+
+            // UI state alone is insufficient: the red marker is reserved for a
+            // preset-and-scene pair reported by the existing hardware poll.
+            SetField(window, "_sceneSlot", 100);
+            SetField(window, "_activeScene", 2);
+            list.SelectedItem = rows[0];
+            Invoke(window, "UpdateFavoriteRowStates", (object)null!);
+            Assert.False(activeAccents[rows[0]].IsVisible);
+            Assert.Equal(Color.Parse("#1969B0"), ((ISolidColorBrush)selectionAccents[rows[0]].Background!).Color);
+
+            SetField(window, "_detectedPresetSlot", 100);
+            SetField(window, "_detectedScene", 2);
+            IBrush selectedFill = mainRows[rows[0]].Background!;
+            Invoke(window, "UpdateFavoriteRowStates", (object)null!);
+            Assert.True(selectionAccents[rows[0]].IsVisible);
+            Assert.False(activeAccents[rows[0]].IsVisible);
+            Assert.Equal(Color.Parse("#C84444"), ((ISolidColorBrush)selectionAccents[rows[0]].Background!).Color);
+            Assert.Equal(selectedFill, mainRows[rows[0]].Background);
+
+            list.SelectedItem = rows[1];
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(activeAccents[rows[0]].IsVisible);
+            Assert.Equal(Color.Parse("#C84444"), ((ISolidColorBrush)activeAccents[rows[0]].Background!).Color);
+            Assert.True(selectionAccents[rows[1]].IsVisible);
+            Assert.Equal(Color.Parse("#1969B0"), ((ISolidColorBrush)selectionAccents[rows[1]].Background!).Color);
+            Assert.Equal(selectionAccents[rows[1]].Width, activeAccents[rows[0]].Width);
+            Assert.Equal(selectionAccents[rows[1]].HorizontalAlignment, activeAccents[rows[0]].HorizontalAlignment);
+            Assert.Equal(selectionAccents[rows[1]].Bounds.Size, activeAccents[rows[0]].Bounds.Size);
+            Assert.Equal(4, activeAccents[rows[0]].Bounds.Width);
+            Assert.Equal(26, activeAccents[rows[0]].Bounds.Height);
+            if (Environment.GetEnvironmentVariable("FAVORITE_ACTIVE_ACCENT_SNAPSHOT") is { Length: > 0 } path)
+            {
+                Dispatcher.UIThread.RunJobs();
+                using var bitmap = window.CaptureRenderedFrame();
+                bitmap!.Save(path);
+            }
+
+            SetField(window, "_detectedScene", 1);
+            Invoke(window, "UpdateFavoriteRowStates", (object)null!);
+            Assert.False(activeAccents[rows[0]].IsVisible);
+            Assert.Equal(Color.Parse("#1969B0"), ((ISolidColorBrush)selectionAccents[rows[1]].Background!).Color);
         }
         finally { window.Close(); }
     }
