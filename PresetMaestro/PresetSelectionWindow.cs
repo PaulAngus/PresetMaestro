@@ -27,10 +27,10 @@ public sealed class PresetSelectionWindow : Window
     private int _preferredSlot;
     private bool _filtering;
 
-    public PresetSelectionWindow(IReadOnlyDictionary<int, string> names, int currentSlot, int displayOffset = 0)
+    public PresetSelectionWindow(IReadOnlyDictionary<int, string> names, int currentSlot, int displayOffset = 0, DeviceModel deviceModel = DeviceModel.FM9)
     {
-        _catalog = PresetSelection.CreateCatalog(names, displayOffset);
-        _preferredSlot = Math.Clamp(currentSlot, 0, 511);
+        _catalog = PresetSelection.TrimExplicitEmptyEdges(PresetSelection.CreateCatalog(names, displayOffset, deviceModel));
+        _preferredSlot = Math.Clamp(currentSlot, 0, DevicePresets.Capacity(deviceModel) - 1);
         Title = "Select Preset";
         Width = 1280; Height = 780; MinWidth = 640; MinHeight = 420;
         CanResize = true;
@@ -129,8 +129,9 @@ public sealed class PresetSelectionWindow : Window
         _presets.SelectedIndex = filtered.Count == 0 ? -1 : Math.Max(0, wanted);
         _filtering = false;
         _empty.IsVisible = filtered.Count == 0;
+        _empty.Text = _catalog.Count == 0 ? "No populated presets" : "No matching presets";
         _select.IsEnabled = filtered.Count != 0;
-        _count.Text = filtered.Count == 512 ? "512 presets · device slots 000–511" : $"{filtered.Count} of 512 presets";
+        _count.Text = $"{filtered.Count} of {_catalog.Count} presets";
         PaintRows(); RevealSelection();
     }
 
@@ -238,7 +239,7 @@ public sealed class PresetSelectionWindow : Window
         }
 
         int target = PresetSelection.MoveIndex(_presets.SelectedIndex, _presets.Items.Count, _grid.Columns, move.Value, Math.Max(1, (int)(_presets.Bounds.Height / RowHeight) - 1));
-        if (move == PresetNavigation.Last)
+        if (target >= 0 && ((ListBoxItem)_presets.Items[target]!).Tag is not PresetChoice)
         {
             while (target >= 0 && ((ListBoxItem)_presets.Items[target]!).Tag is not PresetChoice)
             {

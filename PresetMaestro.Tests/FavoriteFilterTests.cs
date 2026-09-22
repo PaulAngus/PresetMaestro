@@ -16,6 +16,44 @@ namespace PresetMaestro.Tests;
 public partial class FavoriteEditorTests
 {
     [AvaloniaFact]
+    public void CompactTagIndicatorsAlignWithLabelsAndKeepCheckedVisuals()
+    {
+        var window = CreateWindow(favorites: [new Favorite { Id = 1, Name = "Clean", Tags = ["Fender", "Marshall"] }]);
+        try
+        {
+            window.Show();
+            Click(Find<Button>(window, "NavFavorites"));
+            Dispatcher.UIThread.RunJobs();
+            Click(Find<Button>(window, "FavoriteTagFilter"));
+            Dispatcher.UIThread.RunJobs();
+            var options = Field<StackPanel>(window, "_favTagOptionsPanel");
+            foreach (var option in options.Children.OfType<CheckBox>())
+            {
+                var box = option.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "NormalRectangle");
+                var label = option.GetVisualDescendants().OfType<Avalonia.Controls.Presenters.ContentPresenter>().Single(p => p.Name == "PART_ContentPresenter");
+                var boxOrigin = box.TranslatePoint(default, option)!.Value;
+                var labelOrigin = label.TranslatePoint(default, option)!.Value;
+                Assert.Equal(new Size(16, 16), box.Bounds.Size);
+                Assert.InRange(Math.Abs(boxOrigin.Y + box.Bounds.Height / 2 - labelOrigin.Y - label.Bounds.Height / 2), 0, 0.5);
+                Assert.Equal(8, labelOrigin.X - boxOrigin.X - box.Bounds.Width);
+                var glyph = option.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().Single(p => p.Name == "CheckGlyph");
+                Assert.Equal(option.IsChecked == true ? 1d : 0d, glyph.Opacity);
+            }
+            SetTag(options, "Fender", selected: true);
+            Dispatcher.UIThread.RunJobs();
+            var selected = options.Children.OfType<CheckBox>().Single(c => Equals(c.Content, "Fender"));
+            Assert.Equal(1d, selected.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().Single(p => p.Name == "CheckGlyph").Opacity);
+            if (Environment.GetEnvironmentVariable("TAG_PICKER_SNAPSHOT") is { Length: > 0 } path)
+            {
+                var popup = Field<Border>(window, "_favTagFilterPopupBorder");
+                using var bitmap = TopLevel.GetTopLevel(popup)!.CaptureRenderedFrame();
+                bitmap!.Save(path);
+            }
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void MultiTagAllAnyExactAndCombinedFiltersDoNotChangeModelsOrSend()
     {
         var favorites = new List<Favorite>

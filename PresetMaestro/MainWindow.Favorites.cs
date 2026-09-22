@@ -79,7 +79,7 @@ public partial class MainWindow
 
         int displayed = (int)value;
         int slot = displayed - _settings.DisplayOffset;
-        string name = slot is >= 0 and <= 511 &&
+        string name = slot >= 0 && slot < DevicePresets.Capacity(_settings.DeviceModel) &&
                       _settings.PresetNameCache.TryGetValue(slot, out string? cachedName) &&
                       !string.IsNullOrWhiteSpace(cachedName)
             ? cachedName.Trim()
@@ -90,8 +90,9 @@ public partial class MainWindow
     private async Task SelectFavoritePresetAsync()
     {
         int offset = _settings.DisplayOffset;
-        int currentSlot = Math.Clamp((int)(_favPresetSpinner.Value ?? offset) - offset, 0, 511);
-        var dialog = new PresetSelectionWindow(_settings.PresetNameCache, currentSlot, _settings.DisplayOffset) { Icon = Icon };
+        _favPresetSpinner.Maximum = DevicePresets.Capacity(_settings.DeviceModel) - 1 + offset;
+        int currentSlot = Math.Clamp((int)(_favPresetSpinner.Value ?? offset) - offset, 0, DevicePresets.Capacity(_settings.DeviceModel) - 1);
+        var dialog = new PresetSelectionWindow(_settings.PresetNameCache, currentSlot, _settings.DisplayOffset, _settings.DeviceModel) { Icon = Icon };
         int? slot = _presetPickerOverride is not null
             ? await _presetPickerOverride(dialog)
             : await dialog.ShowDialog<int?>(this);
@@ -150,9 +151,13 @@ public partial class MainWindow
             var allTags = new CheckBox
             {
                 Name = "FavoriteTagAllTags",
+                Classes = { "favoriteTag" },
                 Content = "All tags",
                 IsChecked = _favSelectedTags.Count == 0,
-                MinHeight = 30,
+                MinHeight = 26,
+                Height = 26,
+                Padding = new Thickness(8, 0, 0, 0),
+                VerticalContentAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
             };
             AutomationProperties.SetName(allTags, "Show favorites with all tags");
@@ -165,10 +170,14 @@ public partial class MainWindow
                 var option = new CheckBox
                 {
                     Name = $"FavoriteTagOption{index}",
+                    Classes = { "favoriteTag" },
                     Content = tag,
                     Tag = tag,
                     IsChecked = _favSelectedTags.Contains(tag),
-                    MinHeight = 30,
+                    MinHeight = 26,
+                    Height = 26,
+                    Padding = new Thickness(8, 0, 0, 0),
+                    VerticalContentAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                 };
                 AutomationProperties.SetName(option, $"Filter favorites by tag {tag}");
@@ -514,7 +523,7 @@ public partial class MainWindow
         }
 
         int slot = favorite.Preset - _settings.DisplayOffset;
-        string presetName = slot is >= 0 and <= 511 &&
+        string presetName = slot >= 0 && slot < DevicePresets.Capacity(_settings.DeviceModel) &&
                             _settings.PresetNameCache.TryGetValue(slot, out string? cachedPresetName)
             ? cachedPresetName.Trim()
             : string.Empty;
@@ -1468,7 +1477,8 @@ public partial class MainWindow
         {
             Title = title,
             Width = 360,
-            Height = 140,
+            MinHeight = 140,
+            SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new StackPanel

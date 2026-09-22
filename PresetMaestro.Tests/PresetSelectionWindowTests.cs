@@ -59,14 +59,14 @@ public class PresetSelectionWindowTests
             var list = Find<ListBox>(window, "PresetList");
             var grid = list.GetVisualDescendants().OfType<UniformGrid>().Single();
             Assert.Equal(5, grid.Columns);
-            Assert.Equal(520, list.Items.Count);
+            Assert.Equal(515, list.Items.Count);
             var items = list.Items.Cast<ListBoxItem>().ToArray();
             Assert.True(items[1].Bounds.X > items[0].Bounds.X);
             Assert.Equal(items[0].Bounds.Y, items[4].Bounds.Y);
             Assert.True(items[5].Bounds.Y > items[0].Bounds.Y);
             Assert.Equal(items[0].Bounds.X, items[5].Bounds.X);
-            Assert.Equal(new[] { 0, 104, 208, 312, 416 }, items.Take(5).Select(i => ((PresetChoice)i.Tag!).Slot));
-            Assert.Equal(new[] { 1, 105, 209, 313, 417 }, items.Skip(5).Take(5).Select(i => ((PresetChoice)i.Tag!).Slot));
+            Assert.Equal(new[] { 0, 103, 206, 308, 410 }, items.Take(5).Select(i => ((PresetChoice)i.Tag!).Slot));
+            Assert.Equal(new[] { 1, 104, 207, 309, 411 }, items.Skip(5).Take(5).Select(i => ((PresetChoice)i.Tag!).Slot));
             Assert.Equal(ScrollBarVisibility.Visible, ScrollViewer.GetVerticalScrollBarVisibility(list));
             var selected = items.Single(i => (i.Tag as PresetChoice)?.Slot == 3);
             Assert.True(((Grid)selected.Content!).Children[1].IsVisible);
@@ -127,9 +127,9 @@ public class PresetSelectionWindowTests
             window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None); // Leave search without changing its text.
             window.KeyPressQwerty(PhysicalKey.ArrowRight, RawInputModifiers.None);
             window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
-            Assert.Equal(108, Slot(Find<ListBox>(window, "PresetList")));
+            Assert.Equal(107, Slot(Find<ListBox>(window, "PresetList")));
             window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
-            Assert.Equal(108, await result);
+            Assert.Equal(107, await result);
         }
         finally { window.Close(); owner.Close(); }
     }
@@ -162,6 +162,83 @@ public class PresetSelectionWindowTests
             window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
             window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
             Assert.Equal(0, await result);
+        }
+        finally { window.Close(); owner.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void TrimmedRangeReflowsSearchRestoresAndPaddingCannotBeSelected()
+    {
+        var names = Enumerable.Range(0, 512).ToDictionary(i => i, _ => "<EMPTY>");
+        names[100] = "Match first"; names[106] = "Match last";
+        var window = new PresetSelectionWindow(names, 106);
+        try
+        {
+            window.Show(); Layout();
+            var list = Find<ListBox>(window, "PresetList");
+            var search = Find<TextBox>(window, "PresetSearch");
+            var grid = list.GetVisualDescendants().OfType<UniformGrid>().Single();
+            foreach (var (width, columns) in new[] { (640, 2), (740, 3), (1000, 4), (1280, 5) })
+            {
+                window.Width = width; Layout();
+                Assert.Equal(columns, grid.Columns);
+                Assert.Equal(106, Slot(list));
+                var cells = list.Items.Cast<ListBoxItem>().ToArray();
+                var vertical = Enumerable.Range(0, columns).SelectMany(c => cells.Where((_, i) => i % columns == c)).ToArray();
+                Assert.Equal(Enumerable.Range(100, 7), vertical.Select(i => i.Tag).OfType<PresetChoice>().Select(p => p.Slot));
+                Assert.All(cells.Where(i => i.Tag == null), cell =>
+                {
+                    Assert.False(cell.IsEnabled); Assert.False(cell.Focusable); Assert.False(cell.IsHitTestVisible);
+                    Assert.Empty(((Grid)cell.Content!).Children);
+                });
+                Assert.All(cells.Where(i => i.Tag is PresetChoice), cell => Assert.Equal(34, cell.Bounds.Height));
+                Assert.Equal(Avalonia.Layout.VerticalAlignment.Top, grid.VerticalAlignment);
+            }
+            search.Text = "Match"; Layout();
+            Assert.Equal(new[] { 100, 106 }, list.Items.Cast<ListBoxItem>().Select(i => i.Tag).OfType<PresetChoice>().Select(p => p.Slot));
+            search.Text = ""; Layout();
+            Assert.Equal(7, list.Items.Cast<ListBoxItem>().Count(i => i.Tag is PresetChoice));
+            Assert.Equal(106, Slot(list));
+            window.Width = 640; Layout();
+            window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
+            window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None); // Bottom-right padding resolves to last real row cell.
+            Assert.Equal(103, Slot(list));
+            window.KeyPressQwerty(PhysicalKey.ArrowRight, RawInputModifiers.None);
+            Assert.Equal(103, Slot(list));
+            window.KeyPressQwerty(PhysicalKey.ArrowUp, RawInputModifiers.None);
+            Assert.Equal(102, Slot(list));
+            window.KeyPressQwerty(PhysicalKey.ArrowRight, RawInputModifiers.None);
+            Assert.Equal(106, Slot(list));
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void ExplicitEmptyCatalogShowsEmptyState()
+    {
+        var window = new PresetSelectionWindow(Enumerable.Range(0, 512).ToDictionary(i => i, _ => "<EMPTY>"), 0);
+        try
+        {
+            window.Show(); Layout();
+            Assert.Empty(Find<ListBox>(window, "PresetList").Items);
+            Assert.Equal("No populated presets", Find<TextBlock>(window, "NoPresetMatches").Text);
+            Assert.False(Find<Button>(window, "ConfirmPresetSelection").IsEnabled);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task AxeHighSlotSearchAndConfirmationUseRawIdentity()
+    {
+        var owner = new Window(); owner.Show();
+        var window = new PresetSelectionWindow(new Dictionary<int, string> { [1023] = "High" }, 1023, 1, DeviceModel.AxeFxIII);
+        try
+        {
+            var result = window.ShowDialog<int?>(owner); Layout();
+            Find<TextBox>(window, "PresetSearch").Text = "1024"; Layout();
+            Assert.Equal(1023, Slot(Find<ListBox>(window, "PresetList")));
+            window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+            Assert.Equal(1023, await result);
         }
         finally { window.Close(); owner.Close(); }
     }

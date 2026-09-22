@@ -128,6 +128,7 @@ public partial class MainWindow
 
     private void ExecuteSend()
     {
+        if (_connectionCts is not null) { return; }
         if (_enteredDigits.Length == 0)
         {
             return;
@@ -163,6 +164,7 @@ public partial class MainWindow
 
     private void SendFavorite(Favorite fav)
     {
+        if (_connectionCts is not null) { return; }
         if (!PresetTranslation.IsValid(fav.Preset, _settings.DisplayOffset, _settings.MaxDisplayedPreset))
         {
             AppendLog($"ERROR: favorite '{fav.Name}' preset {fav.Preset} is out of range " +
@@ -204,6 +206,7 @@ public partial class MainWindow
 
     private void SendPreset(int displayed)
     {
+        if (_connectionCts is not null) { return; }
         if (!PresetTranslation.IsValid(displayed, _settings.DisplayOffset, _settings.MaxDisplayedPreset))
         {
             AppendLog($"ERROR: {displayed} is out of range " +
@@ -422,11 +425,21 @@ public partial class MainWindow
     }
 
     // ── MIDI event handlers ────────────────────────────────────────
-    private void OnMidiLogMessage(object? sender, string msg) => AppendLog(msg);
+    private void OnMidiLogMessage(object? sender, string msg)
+    {
+        AppendLog(msg);
+        if (msg.StartsWith("OUTPUT ERROR:", StringComparison.Ordinal) || msg.StartsWith("OUTPUT SYSEX ERROR:", StringComparison.Ordinal) ||
+            msg.StartsWith("SCENE ERROR:", StringComparison.Ordinal) || msg.StartsWith("THRU ERROR:", StringComparison.Ordinal))
+        {
+            long generation = _connectionGeneration;
+            Dispatcher.UIThread.Post(() => { if (generation == _connectionGeneration && _connectionCts is null) { Disconnect(); } });
+        }
+    }
 
     private void OnNoteOnReceived(object? sender, NoteOnEventArgs e)
     {
         if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(() => OnNoteOnReceived(sender, e)); return; }
+        if (_connectionCts is not null) { return; }
 
         if (!_settings.MidiEntryEnabled)
         {
@@ -545,6 +558,7 @@ public partial class MainWindow
 
     private void OnThruInputItemCheck(object? sender, RoutedEventArgs e)
     {
+        if (_connectionCts is not null) { return; }
         if (sender is not CheckBox { Tag: string port } cb)
         {
             return;
@@ -575,59 +589,20 @@ public partial class MainWindow
         }
     }
 
-    private void Connect()
-    {
-        StopSceneTracking();
-        _presetNamesCts?.Cancel();
-        bool inOk = false;
-        bool outOk = false;
-
-        var inPorts = _midi.GetInputPortNames();
-        var outPorts = _midi.GetOutputPortNames();
-        AppendLog($"CONNECT: {inPorts.Count} input(s): {string.Join(", ", inPorts)}");
-        AppendLog($"CONNECT: {outPorts.Count} output(s): {string.Join(", ", outPorts)}");
-
-        if (_inputPortCombo.SelectedItem is string inPort && inPort.Length > 0)
-        {
-            AppendLog($"CONNECT: opening input '{inPort}'");
-            inOk = _midi.OpenInput(inPort, out string? inErr);
-            AppendLog(inOk ? "CONNECT: input OK" : $"CONNECT: input FAILED — {inErr}");
-        }
-        else
-        {
-            AppendLog("CONNECT: no input port selected");
-        }
-
-        if (_outputPortCombo.SelectedItem is string outPort && outPort.Length > 0)
-        {
-            AppendLog($"CONNECT: opening output '{outPort}'");
-            outOk = _midi.OpenOutput(outPort, out string? outErr);
-            AppendLog(outOk ? "CONNECT: output OK" : $"CONNECT: output FAILED — {outErr}");
-        }
-        else
-        {
-            AppendLog("CONNECT: no output port selected");
-        }
-
-        (string text, StatusKind kind) = (inOk, outOk) switch
-        {
-            (true, true) => ("● Connected (IN + OUT)", StatusKind.ConnectedBoth),
-            (true, false) => ("● Input only", StatusKind.InputOnly),
-            (false, true) => ("● Output only", StatusKind.OutputOnly),
-            _ => ("○ Not connected", StatusKind.NotConnected),
-        };
-        SetStatus(text, kind);
-        UpdateConnectButtons();
-        StartSceneTracking();
-    }
+    private async void Connect() => await ConnectAsync();
 
     private void Disconnect()
     {
+        _connectionGeneration++;
+        _connectionCts?.Cancel();
+        _connectionMonitor?.Stop();
         StopSceneTracking();
         _presetNamesCts?.Cancel();
+        _midi.CloseAllThruInputs();
         _midi.CloseInput();
         _midi.CloseOutput();
-        SetStatus("○ Disconnected", StatusKind.Disconnected);
+        _detectedDevice = null;
+        SetStatus("○ Not connected", StatusKind.NotConnected);
         UpdateConnectButtons();
     }
 
@@ -645,7 +620,8 @@ public partial class MainWindow
         _statusLabel.Text = text;
         _statusLabel.Foreground = foreground;
         _headerStatusLabel.Text = text;
-        _headerStatusLabel.Foreground = foreground;
+        _headerStatusLabel.Foreground = kind == StatusKind.ConnectedBoth ? TextBrush : foreground;
+        if (_connectionDot is not null) { _connectionDot.IsVisible = kind == StatusKind.ConnectedBoth; }
         _senderStatusLabel.Text = text;
         _senderStatusLabel.Foreground = foreground;
         _activePresetStatusLabel.Text = text;
@@ -655,7 +631,7 @@ public partial class MainWindow
 
     private void UpdateConnectButtons()
     {
-        _connectButton.IsEnabled = true;
+        _connectButton.IsEnabled = _connectionCts is null;
         _disconnectButton.IsEnabled = _midi.InputOpen || _midi.OutputOpen;
     }
 
@@ -668,6 +644,8 @@ public partial class MainWindow
 
     private void ApplyProfileSettingsToUI()
     {
+        if (_deviceModelCombo is not null) { _deviceModelCombo.SelectedIndex = (int)_settings.DeviceModel; }
+        _favPresetSpinner.Maximum = DevicePresets.Capacity(_settings.DeviceModel) - 1 + _settings.DisplayOffset;
         int maxPreset = _settings.MaxDisplayedPreset;
         _channelCombo.SelectedIndex = Math.Clamp(_settings.MidiChannel, 0, 16);
         _offsetCombo.SelectedIndex = Math.Clamp(_settings.DisplayOffset, 0, 1);
@@ -708,6 +686,7 @@ public partial class MainWindow
 
     private void OnClosing()
     {
+        Disconnect();
         _sceneClosing = true;
         StopSceneTracking();
         _midi.PresetChangeReceived -= OnDevicePresetChange;

@@ -2,6 +2,7 @@ namespace PresetMaestro.Core;
 
 public sealed class ProfileSettings
 {
+    public DeviceModel DeviceModel { get; set; } = DeviceModel.FM9;
     public int MidiChannel { get; set; } = 1;
     public int DisplayOffset { get; set; }
     public int MaxDisplayedPreset { get; set; } = 511;
@@ -12,6 +13,7 @@ public sealed class ProfileSettings
 
     public static ProfileSettings From(AppSettings settings) => new()
     {
+        DeviceModel = settings.DeviceModel,
         MidiChannel = settings.MidiChannel,
         DisplayOffset = settings.DisplayOffset,
         MaxDisplayedPreset = settings.MaxDisplayedPreset,
@@ -23,6 +25,7 @@ public sealed class ProfileSettings
 
     public void ApplyTo(AppSettings settings)
     {
+        settings.DeviceModel = DeviceModel;
         settings.MidiChannel = MidiChannel;
         settings.DisplayOffset = DisplayOffset;
         settings.MaxDisplayedPreset = MaxDisplayedPreset;

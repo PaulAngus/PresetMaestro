@@ -302,7 +302,7 @@ public sealed class MidiManager : IMidiManager
 
     private void OnSysexMessageReceived(object? sender, MidiInSysexMessageEventArgs e)
     {
-        SysexMessageReceived?.Invoke(this, e.SysexBytes.ToArray());
+        if (ReferenceEquals(sender, _midiIn)) { SysexMessageReceived?.Invoke(this, e.SysexBytes.ToArray()); }
     }
 
     private void OnMidiMessage(object? sender, MidiInMessageEventArgs e)

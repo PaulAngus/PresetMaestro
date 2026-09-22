@@ -60,7 +60,7 @@ public partial class MainWindow
             var button = new Button { Content = $"Scene {scene}", Margin = new Thickness(4), MinHeight = 50, HorizontalAlignment = HorizontalAlignment.Stretch };
             button.Click += (_, _) =>
             {
-                if (_sceneSlot.HasValue && _midi.SendScene(scene, _settings.SceneCc, _settings.MidiChannel == 0 ? 1 : _settings.MidiChannel))
+                if (_connectionCts is null && _sceneSlot.HasValue && _midi.SendScene(scene, _settings.SceneCc, _settings.MidiChannel == 0 ? 1 : _settings.MidiChannel))
                 { _activeScene = scene; _currentFavoriteScene = scene; UpdateDisplay(); RenderScenes(); }
             };
             _sceneButtons[i] = button; grid.Children.Add(button);
@@ -204,7 +204,7 @@ public partial class MainWindow
 
     private async Task UseCurrentFavoriteStateAsync()
     {
-        if (_favEditingId == null || !_midi.InputOpen || !_midi.OutputOpen)
+        if (_connectionCts is not null || _favEditingId == null || !_midi.InputOpen || !_midi.OutputOpen)
         {
             AppendLog("SCENES: connect both MIDI ports to use the current preset and scene.");
             return;
@@ -215,7 +215,7 @@ public partial class MainWindow
         try
         {
             var state = await _presetNameClient.CurrentStateAsync(CancellationToken.None);
-            if (_favEditingId == null || _sceneClosing || profileGeneration != _profileGeneration)
+            if (_connectionCts is not null || _favEditingId == null || _sceneClosing || profileGeneration != _profileGeneration)
             {
                 return;
             }
@@ -295,7 +295,7 @@ public partial class MainWindow
 
     private async Task ReadFavoriteScenesAsync()
     {
-        if (!_midi.InputOpen || !_midi.OutputOpen) { AppendLog("SCENES: connect both MIDI ports first."); return; }
+        if (_connectionCts is not null || !_midi.InputOpen || !_midi.OutputOpen) { AppendLog("SCENES: connect both MIDI ports first."); return; }
         int slot = (int)(_favPresetSpinner.Value ?? _settings.DisplayOffset) - _settings.DisplayOffset;
         if (slot is < 0 or > 511)
         {
@@ -330,7 +330,7 @@ public partial class MainWindow
     {
         _sceneCts?.Cancel();
         int generation = ++_sceneGeneration;
-        if (!_midi.InputOpen || !_midi.OutputOpen) { _sceneStatus.Text = "Cached names; connect both MIDI directions to refresh."; return; }
+        if (_connectionCts is not null || !_midi.InputOpen || !_midi.OutputOpen) { _sceneStatus.Text = "Cached names; connect both MIDI directions to refresh."; return; }
         using var cts = new CancellationTokenSource(); _sceneCts = cts;
         string key = _sceneCacheKey;
         RenderScenes(); _sceneStatus.Text = $"Preset {slot + _settings.DisplayOffset:000}: refreshing scene names…";
@@ -365,7 +365,7 @@ public partial class MainWindow
 
     private async Task PollSceneStateAsync()
     {
-        if (_pollBusy || _sceneCts != null || _sceneSyncCts != null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen || _sceneClosing)
+        if (_connectionCts is not null || _pollBusy || _sceneCts != null || _sceneSyncCts != null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen || _sceneClosing)
         {
             return;
         }
@@ -446,7 +446,7 @@ public partial class MainWindow
 
     private async Task SyncSceneNamesAsync()
     {
-        if (_sceneSyncCts != null || !_midi.InputOpen || !_midi.OutputOpen) { _sceneStatus.Text = "Connect MIDI input and output before syncing."; return; }
+        if (_connectionCts is not null || _sceneSyncCts != null || !_midi.InputOpen || !_midi.OutputOpen) { _sceneStatus.Text = "Connect MIDI input and output before syncing."; return; }
         _presetNamesCts?.Cancel(); _sceneCts?.Cancel(); _scenePollCts?.Cancel();
         using var cts = new CancellationTokenSource(); _sceneSyncCts = cts;
         string key = _sceneCacheKey; int count = 0;

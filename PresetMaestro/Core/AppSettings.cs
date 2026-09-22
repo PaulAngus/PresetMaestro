@@ -7,6 +7,7 @@ public class AppSettings
     public string MidiInputPort { get; set; } = string.Empty;
     public string MidiOutputPort { get; set; } = string.Empty;
     public List<string> ThruInputPorts { get; set; } = [];
+    public DeviceModel DeviceModel { get; set; } = DeviceModel.FM9;
     public int MidiChannel { get; set; } = 1;
     public int DisplayOffset { get; set; }
     public int MaxDisplayedPreset { get; set; } = 511;

@@ -769,6 +769,44 @@ public partial class FavoriteEditorTests
         finally { window.Close(); }
     }
 
+    [AvaloniaFact]
+    public void BrowsingConfiguredPickerDoesNotSendMidiOrQueryNames()
+    {
+        var midi = new FakeMidi { InputOpen = true, OutputOpen = true };
+        int queries = 0, opened = 0;
+        var settings = new AppSettings { DeviceModel = DeviceModel.AxeFxIII };
+        var window = CreateWindow(midi, settings: settings,
+            query: (_, _, _) => { queries++; throw new InvalidOperationException("Unexpected query"); },
+            presetPicker: picker =>
+            {
+                opened++;
+                try
+                {
+                    picker.Show(); Dispatcher.UIThread.RunJobs();
+                    var list = Find<ListBox>(picker, "PresetList");
+                    Assert.Equal(1024, list.Items.Cast<ListBoxItem>().Count(i => i.Tag is PresetChoice));
+                    Find<TextBox>(picker, "PresetSearch").Text = "1023";
+                    picker.Width = 640; Dispatcher.UIThread.RunJobs();
+                    picker.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
+                    picker.KeyPressQwerty(PhysicalKey.ArrowRight, RawInputModifiers.None);
+                    Assert.Equal(0, midi.TotalSendCount);
+                    Assert.Equal(0, queries);
+                    return Task.FromResult<int?>(null);
+                }
+                finally { picker.Close(); }
+            });
+        try
+        {
+            ShowEditor(window, Sample);
+            Click(Find<Button>(window, "FavoritePresetPicker"));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, opened);
+            Assert.Equal(0, midi.TotalSendCount);
+            Assert.Equal(0, queries);
+        }
+        finally { window.Close(); }
+    }
+
     private sealed class FakeMidi : IMidiManager
     {
         public (int Bank, int Program, int Scene, int SceneCc, int Channel)? LastFavorite { get; private set; }

@@ -13,7 +13,7 @@ public partial class MainWindow
     private TextBlock _presetNamesStatus = null!;
     private CancellationTokenSource? _presetNamesCts;
 
-    private bool CanSyncPresetNames => _presetNamesCts is null && _midi.InputOpen && _midi.OutputOpen;
+    private bool CanSyncPresetNames => _connectionCts is null && _presetNamesCts is null && _midi.InputOpen && _midi.OutputOpen;
 
     private Control BuildPresetNameSyncCard()
     {
@@ -41,7 +41,7 @@ public partial class MainWindow
 
     internal async Task SyncPresetNamesAsync()
     {
-        if (_presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen)
+        if (_connectionCts is not null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen)
         {
             if (!_midi.InputOpen || !_midi.OutputOpen)
             {

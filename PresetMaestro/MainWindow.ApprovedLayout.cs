@@ -131,8 +131,12 @@ public partial class MainWindow
         nav.Children.Add(Nav("Config", config, AppPage.Config));
         var navigation = new Border { Height = 46, Padding = new Thickness(3), Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = nav };
         Grid.SetColumn(navigation, 1); grid.Children.Add(navigation);
-        _headerStatusLabel = new TextBlock { FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-        var state = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(12, 7), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Child = _headerStatusLabel };
+        _headerStatusLabel = new TextBlock { Name = "HeaderConnectionStatus", FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        _connectionDot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Background = Brushes.ForestGreen, VerticalAlignment = VerticalAlignment.Center, IsVisible = _statusKind == StatusKind.ConnectedBoth };
+        var statusContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        statusContent.Children.Add(_connectionDot);
+        statusContent.Children.Add(_headerStatusLabel);
+        var state = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(12, 7), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Child = statusContent };
         Grid.SetColumn(state, 2); grid.Children.Add(state); header.Child = grid; return header;
     }
 
@@ -409,12 +413,14 @@ public partial class MainWindow
             Content = tagFilterContent,
         };
         AutomationProperties.SetName(_favTagFilter, "Filter favorites by tag");
-        _favTagOptionsPanel = new StackPanel { Name = "FavoriteTagOptions", Spacing = 1 };
+        _favTagOptionsPanel = new StackPanel { Name = "FavoriteTagOptions", Spacing = 0 };
         _favTagMatchAllButton = new ToggleButton
         {
             Name = "FavoriteTagMatchAll",
             Content = "All",
-            MinHeight = 32,
+            MinHeight = 26,
+            Height = 26,
+            Padding = new Thickness(6, 0),
             CornerRadius = new CornerRadius(5),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center,
@@ -425,7 +431,9 @@ public partial class MainWindow
         {
             Name = "FavoriteTagMatchAny",
             Content = "Any",
-            MinHeight = 32,
+            MinHeight = 26,
+            Height = 26,
+            Padding = new Thickness(6, 0),
             CornerRadius = new CornerRadius(5),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center,
@@ -436,7 +444,7 @@ public partial class MainWindow
         matchMode.Children.Add(_favTagMatchAllButton);
         Grid.SetColumn(_favTagMatchAnyButton, 2);
         matchMode.Children.Add(_favTagMatchAnyButton);
-        var popupContent = new StackPanel { Spacing = 6 };
+        var popupContent = new StackPanel { Spacing = 4 };
         popupContent.Children.Add(matchMode);
         popupContent.Children.Add(new Border { Height = 1, Background = ThemeBrush("RowSeparatorBrush") });
         popupContent.Children.Add(_favTagOptionsPanel);
@@ -445,7 +453,7 @@ public partial class MainWindow
             Name = "FavoriteTagFilterPopup",
             MinWidth = 220,
             MaxHeight = 360,
-            Padding = new Thickness(8),
+            Padding = new Thickness(6),
             Background = SurfaceBrush,
             BorderBrush = UiBorderBrush,
             BorderThickness = new Thickness(1),
@@ -705,6 +713,8 @@ public partial class MainWindow
         var card = ApprovedCard("MIDI Connection", "Hardware and routing"); var stack = new StackPanel { Spacing = 14 }; _statusLabel = new TextBlock { Text = "●  Not connected", Foreground = SecondaryBrush, FontWeight = FontWeight.Bold }; stack.Children.Add(_statusLabel); _inputPortCombo = new ComboBox(); _inputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions(); _outputPortCombo = new ComboBox(); _outputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions(); _thruInputPanel = new StackPanel { Spacing = 4 }; var ports = new Grid { ColumnDefinitions = new ColumnDefinitions("*,16,*") }; var routing = new StackPanel { Spacing = 14, Children = { ApprovedField("MIDI In", _inputPortCombo), ApprovedField("MIDI Out", _outputPortCombo) } }; ports.Children.Add(routing); var thru = ApprovedField("Thru In(s)", _thruInputPanel); Grid.SetColumn(thru, 2); ports.Children.Add(thru); stack.Children.Add(ports); var refresh = new Button { Content = "Refresh Devices", HorizontalAlignment = HorizontalAlignment.Left }; refresh.Click += (_, _) => RefreshPortLists(); stack.Children.Add(refresh); var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 }; _connectButton = new Button { Content = "Connect", Background = AccentBrush, Foreground = Brushes.White }; _connectButton.Click += (_, _) => Connect(); _disconnectButton = new Button { Content = "Disconnect", Foreground = DangerBrush }; _disconnectButton.Click += (_, _) => Disconnect(); buttons.Children.Add(_connectButton); buttons.Children.Add(_disconnectButton); stack.Children.Add(buttons); var debugOptions = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") }; _debugCheck = new CheckBox { Content = "Debug mode (bypass channel filter)" }; _debugCheck.IsCheckedChanged += (_, _) => _settings.DebugMode = _debugCheck.IsChecked == true; debugOptions.Children.Add(_debugCheck); var settingsActions = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right }; var diagnostics = new Button { Name = "OpenDiagnostics", Content = "Diagnostics", HorizontalAlignment = HorizontalAlignment.Stretch }; diagnostics.Click += (_, _) => showDiagnostics(); settingsActions.Children.Add(diagnostics); var openSettings = new Button { Name = "OpenSettingsJson", Content = "Open Settings JSON", HorizontalAlignment = HorizontalAlignment.Stretch }; openSettings.Click += (_, _) => OpenSettingsFile(); settingsActions.Children.Add(openSettings); Grid.SetColumn(settingsActions, 1); debugOptions.Children.Add(settingsActions); stack.Children.Add(debugOptions); SetApprovedCardContent(card, stack); return card;
     }
 
+    private ComboBox? _deviceModelCombo;
+
     private Control BuildApprovedMapping()
     {
         var card = ApprovedCard("Preset Mapping", "Translation settings"); var stack = new StackPanel { Spacing = 14 }; _channelCombo = new ComboBox(); _channelCombo.Items.Add("Omni"); for (int channel = 1; channel <= 16; channel++)
@@ -712,6 +722,15 @@ public partial class MainWindow
             _channelCombo.Items.Add(channel.ToString());
         }
 
+        _deviceModelCombo = new ComboBox { Name = "PickerDeviceModel", ItemsSource = new[] { "FM9", "FM3", "Axe-Fx III" } };
+        _deviceModelCombo.SelectionChanged += (_, _) =>
+        {
+            if (_deviceModelCombo.SelectedIndex >= 0)
+            {
+                _settings.DeviceModel = (Core.DeviceModel)_deviceModelCombo.SelectedIndex;
+            }
+        };
+        stack.Children.Add(ApprovedField("Preset Picker Device", _deviceModelCombo));
         _channelCombo.SelectionChanged += (_, _) => { if (_channelCombo.SelectedIndex >= 0) { _settings.MidiChannel = _channelCombo.SelectedIndex; } }; _offsetCombo = new ComboBox { ItemsSource = new[] { "0 (device mapping disabled)", "1 (display starts at 001)" } }; _offsetCombo.SelectionChanged += OnOffsetChanged; _maxPresetSpinner = new NumericUpDown { Minimum = 1, Maximum = 512, FormatString = "0" }; _maxPresetSpinner.ValueChanged += (_, _) => _settings.MaxDisplayedPreset = (int)(_maxPresetSpinner.Value ?? 511); _sceneCcSpinner = new NumericUpDown { Minimum = 0, Maximum = 127, FormatString = "0" }; _sceneCcSpinner.ValueChanged += (_, _) => _settings.SceneCc = (int)(_sceneCcSpinner.Value ?? 34); stack.Children.Add(ApprovedField("MIDI Channel", _channelCombo)); stack.Children.Add(ApprovedField("Display Offset", _offsetCombo)); stack.Children.Add(ApprovedField("Max Preset", _maxPresetSpinner)); stack.Children.Add(ApprovedField("Scene CC#", _sceneCcSpinner)); stack.Children.Add(new Border { Background = InsetBrush, Padding = new Thickness(14), CornerRadius = new CornerRadius(5), Child = new TextBlock { Text = "Program Change mapping must be disabled on the device when Display Offset is 0.", TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush } }); SetApprovedCardContent(card, stack); return card;
     }
 

@@ -4,6 +4,38 @@
              RequestedThemeVariant="Light">
   <Application.Styles>
     <FluentTheme />
+    <!-- Compact tag rows retain Fluent's checked, hover, disabled and focus states. -->
+    <Style Selector="CheckBox.favoriteTag">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid x:Name="RootGrid" ColumnDefinitions="16,*" Background="Transparent">
+            <Border x:Name="PART_Border" Grid.ColumnSpan="2"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{TemplateBinding CornerRadius}" />
+            <Grid Width="16" Height="16" VerticalAlignment="Center">
+              <Border x:Name="NormalRectangle" CornerRadius="2"
+                      BorderThickness="{DynamicResource CheckBoxBorderThemeThickness}"
+                      BorderBrush="{DynamicResource CheckBoxCheckBackgroundStrokeUnchecked}"
+                      Background="{DynamicResource CheckBoxCheckBackgroundFillUnchecked}" />
+              <Path x:Name="CheckGlyph" Opacity="0" Stretch="Uniform"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Fill="{DynamicResource CheckBoxCheckGlyphForegroundUnchecked}"
+                    FlowDirection="LeftToRight" />
+            </Grid>
+            <ContentPresenter x:Name="PART_ContentPresenter" Grid.Column="1"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Margin="{TemplateBinding Padding}"
+                              RecognizesAccessKey="True" TextWrapping="NoWrap"
+                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalAlignment="Center" />
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+    </Style>
     <Style Selector="Window">
       <Setter Property="Icon" Value="/preset_maestro.ico" />
     </Style>
