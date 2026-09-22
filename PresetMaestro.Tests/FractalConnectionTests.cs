@@ -113,6 +113,35 @@ public class FractalConnectionTests
     }
 
     [AvaloniaFact]
+    public async Task SavedThruPortIsOpenedThenReopenedAfterConnection()
+    {
+        var midi = new DeviceMidi();
+        midi.InputPorts.Add("FootCtrlPlus");
+        midi.Send = request => { if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9")); } };
+        var settings = new AppSettings
+        {
+            Theme = "Light",
+            MidiInputPort = "FM9",
+            MidiOutputPort = "FM9",
+            ThruInputPorts = ["FootCtrlPlus"]
+        };
+        var window = new MainWindow(settings, [], midi, saveSettings: _ => { }, saveFavorites: _ => { })
+        {
+            DeviceInformationTimeout = TimeSpan.FromMilliseconds(20),
+            ThruInputRetryDelay = TimeSpan.Zero
+        };
+        window.Show();
+        try
+        {
+            await window.ConnectAsync();
+
+            Assert.Equal(["FootCtrlPlus", "FootCtrlPlus"], midi.OpenedThruPorts);
+            Assert.Contains("FootCtrlPlus", midi.ClosedThruPorts);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task DisconnectDuringQueryPreventsLateConnectedLabel()
     {
         var midi = new DeviceMidi();

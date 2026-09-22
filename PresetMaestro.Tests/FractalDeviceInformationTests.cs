@@ -181,20 +181,23 @@ internal sealed class DeviceMidi : IMidiManager
     public bool OutputOpen { get; set; } = true;
     public bool FailInput { get; set; }
     public bool Removed { get; set; }
+    public List<string> InputPorts { get; } = ["FM9"];
+    public List<string> OpenedThruPorts { get; } = [];
+    public List<string> ClosedThruPorts { get; } = [];
     public List<byte[]> Sent { get; } = [];
     public Action<byte[]>? Send { get; set; }
     public void Reply(byte[] frame) => SysexMessageReceived?.Invoke(this, frame);
     public void FailTransport() => LogMessage?.Invoke(this, "OUTPUT ERROR: removed");
     public EventHandler<byte[]>? SnapshotListener() => SysexMessageReceived;
     public IReadOnlyCollection<string> ThruInputPorts => [];
-    public IReadOnlyList<string> GetInputPortNames() => Removed ? [] : ["FM9"];
+    public IReadOnlyList<string> GetInputPortNames() => Removed ? [] : InputPorts;
     public IReadOnlyList<string> GetOutputPortNames() => Removed ? [] : ["FM9"];
     public bool OpenInput(string name, out string? error) { error = FailInput ? "Unavailable" : null; InputOpen = !FailInput; return InputOpen; }
     public bool OpenOutput(string name, out string? error) { error = null; OutputOpen = true; return true; }
-    public bool OpenThruInput(string name, out string? error) { error = null; return true; }
+    public bool OpenThruInput(string name, out string? error) { OpenedThruPorts.Add(name); error = null; return true; }
     public void CloseInput() => InputOpen = false;
     public void CloseOutput() => OutputOpen = false;
-    public void CloseThruInput(string name) { }
+    public void CloseThruInput(string name) => ClosedThruPorts.Add(name);
     public void CloseAllThruInputs() { }
     public bool SendSysEx(byte[] frame) { Sent.Add(frame); Send?.Invoke(frame); return true; }
     public bool SendBankAndPC(int bank, int pc, int channel) => throw new InvalidOperationException("Unexpected write");

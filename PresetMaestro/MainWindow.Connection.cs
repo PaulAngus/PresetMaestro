@@ -17,6 +17,9 @@ public partial class MainWindow
     private Border? _connectionDot;
     internal Func<string, Task>? ConnectionErrorOverride { get; set; }
     internal TimeSpan DeviceInformationTimeout { get; set; } = TimeSpan.FromMilliseconds(700);
+    // Some USB MIDI devices enumerate before their receive callback is ready. Reopening once
+    // shortly after connection mirrors the manual checkbox recovery without changing its state.
+    internal TimeSpan ThruInputRetryDelay { get; set; } = TimeSpan.FromMilliseconds(500);
 
     internal async Task ConnectAsync()
     {
@@ -112,11 +115,35 @@ public partial class MainWindow
         }
         if (generation == _connectionGeneration && _detectedDevice is not null)
         {
-            foreach (string port in GetCheckedThruPorts())
-            {
-                if (!_midi.OpenThruInput(port, out var error)) { AppendLog($"THRU: {error}"); }
-            }
+            OpenCheckedThruInputs(reopen: false);
             StartSceneTracking();
+
+            await Task.Delay(ThruInputRetryDelay);
+            if (generation == _connectionGeneration && _detectedDevice is not null && _midi.InputOpen && _midi.OutputOpen)
+            {
+                OpenCheckedThruInputs(reopen: true);
+            }
+        }
+    }
+
+    private void OpenCheckedThruInputs(bool reopen)
+    {
+        foreach (string port in GetCheckedThruPorts())
+        {
+            if (reopen)
+            {
+                _midi.CloseThruInput(port);
+            }
+
+            bool opened = _midi.OpenThruInput(port, out var error);
+            if (opened)
+            {
+                AppendLog(reopen ? $"THRU: reopened '{port}' after connection" : $"THRU: opened '{port}' on connection");
+            }
+            else
+            {
+                AppendLog($"THRU: failed to {(reopen ? "reopen" : "open")} '{port}' — {error}");
+            }
         }
     }
 }
