@@ -1,6 +1,6 @@
 # Preset Maestro
 
-A Windows desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10, Avalonia, and NAudio.
+A Windows 10 version 2004 or later desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10, Avalonia, and NAudio. MIDI input uses NAudio's WinRT backend so long-running systems are not exposed to the legacy WinMM signed timestamp overflow; output continues to use WinMM.
 
 ## Start here when you have forgotten how it works
 
@@ -18,8 +18,8 @@ Use **Config → Profiles** to select a profile, or enter a name and click **Cre
 
 Each profile has two files in `%APPDATA%\PresetMaestro`:
 
-- `<profile>-favorites.json`: favorite slots, preset/scene mappings, collections and tags.
-- `<profile>-settings.json`: MIDI channel, display offset, maximum preset, Scene CC, collection order, and cached preset/scene names.
+- `<profile>-favorites.json`: favorite slots, names, preset/scene mappings, and tags.
+- `<profile>-settings.json`: MIDI channel, display offset, maximum preset, Scene CC, and cached preset/scene names.
 
 `settings.json` keeps computer settings: MIDI input/output and thru ports, debug mode, entry options and note mappings, appearance, the available profile names (`Profiles`), and the last selected profile (`ActiveProfile`). Startup restores that profile. If its files are missing or unreadable, the app reports this and loads another readable profile, creating a new default profile if needed while preserving the original files.
 
@@ -51,6 +51,26 @@ For prompt notification of front-panel/footswitch preset changes over DIN MIDI, 
 | Config → Preset Name Sync | Sync Preset Names | Reads preset titles only. This is separate from scene-name sync. |
 | Favorites → Edit Favorite | Named scene picker | Chooses a scene number for the favorite using cached labels. Saving the favorite does not select it on the device. |
 | Favorites → Edit Favorite | Read names for this preset | Fetches scene labels for that favorite's preset without loading it on the device. |
+
+## Favorites tables and search
+
+Favorites uses the full content width with adjacent bordered tables. Every table repeats **Slot | Name | Preset | Scene**. Tag pills follow each favorite title directly within the Name field, sharing the available space; hover for the full title or tag list. There are always at least two tables; wider windows add more. Favorites fill down each table in balanced groups, after filtering and global sorting. Resizing and filtering preserve the real slot numbers. All tables share one selection and one vertical scrollbar; their headings scroll together. Drag a heading separator to resize that field across every table.
+
+Type in **Add tag or search term�** and press **Enter** to add a chip. An exact existing tag match (ignoring case) becomes a tag chip; any other phrase becomes a **Text:** chip. Spaces stay within the same chip. Suggestions include an explicit **Search text ���** choice for searching a tag name as ordinary text. Use arrow keys to select a suggestion, Enter to accept it, or Escape to dismiss the suggestions. Backspace in an empty input removes the last chip, and each chip has its own remove button.
+
+**All** requires every tag chip; **Any** requires at least one. Text chips always combine with AND and search favorite names, tags, displayed numbers, and cached preset/scene names. The uncommitted input previews the same matching rule as Enter. **Clear search** removes every chip and restores All. Search never edits favorites or sends MIDI. Switching profiles resets this transient search state and uses the new profile's tags.
+
+The details button switches between selected-row details and details for all favorites with cached names. Detail strips remain neutral and wrap long cached names within their table. Hover over a truncated favorite name or tag area for the full text. Selection uses the light blue/theme fill; the red edge independently marks the preset and scene reported by the hardware. Double-click sends the clicked nonempty favorite once. Empty slots remain editable. **Clear Slot** keeps its number; **Remove Slot and Shift Up�** removes it and shifts later slots after confirmation.
+
+Up/Down moves within a table, Left/Right moves to the neighboring table and clamps to its last available row, Home/End moves to the first/last favorite, and Page Up/Down moves within the current table. Drag/drop across tables reorders the underlying slots only when search is clear and no header sort is active. Clicking a sorted heading cycles ascending, descending, and default slot order. The minimum window width is 1000 logical pixels; opening the editor raises it to 1320 to retain two readable tables and the editor.
+
+### Legacy collection migration
+
+Collections are retired. When old JSON is read, each nonblank `Category` becomes one ordinary tag: surrounding whitespace is trimmed, internal spaces are retained, and case-insensitive duplicates are avoided while preserving existing tag spelling and order. IDs, slots, names, and preset/scene values remain unchanged. Blank categories add nothing. This also applies to legacy initialization, profile loading, and ZIP or folder imports. New saves and exports omit `Category` and `CategoryOrder`.
+
+Before an existing legacy JSON file is first rewritten, its original bytes are retained alongside it as `<filename>.pre-tags.bak`. Writes use temporary files and replacement; invalid legacy data prevents replacement. Imports leave their source files intact. Keep these backups if you might need to recover old collection information. Migration is idempotent across repeated saves, exports/imports, and profile switches.
+
+Developer notes and the verification procedure are in [FAVORITES.md](FAVORITES.md).
 
 ## Choosing a preset for a Favorite
 

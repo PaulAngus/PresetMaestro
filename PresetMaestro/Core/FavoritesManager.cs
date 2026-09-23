@@ -39,15 +39,18 @@ public static class FavoritesManager
         var favorites = JsonSerializer.Deserialize<List<Favorite>>(
                     File.ReadAllText(path), JsonOpts)
                 ?? [];
+        if (favorites.Any(favorite => favorite is null))
+        {
+            throw new JsonException("Invalid favorite entry.");
+        }
         favorites.Sort((left, right) => left.Slot != right.Slot ? left.Slot.CompareTo(right.Slot) : left.Id.CompareTo(right.Id));
-        RenumberSlots(favorites);
         return favorites;
     }
 
     internal static void Save(List<Favorite> favorites, string path)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(favorites, JsonOpts));
+        LegacyFavoritesStorage.Write(path, JsonSerializer.Serialize(favorites, JsonOpts));
     }
 
     public static int NextId(IEnumerable<Favorite> favorites) =>
@@ -83,7 +86,6 @@ public static class FavoritesManager
         }
 
         favorite.Name = string.Empty;
-        favorite.Category = string.Empty;
         favorite.Tags = [];
         favorite.Preset = 0;
         favorite.Scene = 0;

@@ -24,7 +24,6 @@ public partial class FavoriteEditorTests
         Id = 10,
         Slot = 1,
         Name = "Clean",
-        Category = "Set A",
         Tags = ["bright", "dry"],
         Preset = 101,
         Scene = 2,
@@ -37,6 +36,11 @@ public partial class FavoriteEditorTests
 
     private static T Field<T>(MainWindow window, string name) where T : class =>
         (T)typeof(MainWindow).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+
+    private static T? FieldOrDefault<T>(MainWindow window, string name) where T : class =>
+        typeof(MainWindow).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic) is { } field
+            ? field.GetValue(window) as T
+            : null;
 
     private static void Invoke(MainWindow window, string name, params object[] arguments) =>
         typeof(MainWindow).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, arguments);
@@ -85,7 +89,6 @@ public partial class FavoriteEditorTests
         Id = favorite.Id,
         Slot = favorite.Slot,
         Name = favorite.Name,
-        Category = favorite.Category,
         Tags = favorite.Tags.ToList(),
         Preset = favorite.Preset,
         Scene = favorite.Scene,
@@ -185,8 +188,8 @@ public partial class FavoriteEditorTests
     {
         var favorites = new List<Favorite>
         {
-            new() { Id = 10, Slot = 1, Name = "First", Category = "High Gain", Preset = 101, Scene = 2 },
-            new() { Id = 20, Slot = 2, Name = "Second", Category = "Clean", Preset = 202, Scene = 3 },
+            new() { Id = 10, Slot = 1, Name = "First", Preset = 101, Scene = 2 },
+            new() { Id = 20, Slot = 2, Name = "Second", Preset = 202, Scene = 3 },
         };
         var settings = SettingsWithNames(displayOffset: 1,
             presetNames: new() { [100] = "Brit 800", [201] = "Plexi" },
@@ -212,7 +215,7 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
             Assert.True(DetailStrip(rows[0]).IsVisible);
             Assert.Equal("Brit 800 | Lead", DetailText(rows[0]).Text);
-            Assert.Contains(rows[0].GetVisualDescendants().OfType<TextBlock>(), text => text.Name == "FavoriteCategoryDetail" && text.Text == "High Gain" && text.FontSize == 11);
+            Assert.DoesNotContain(rows[0].GetVisualDescendants().OfType<TextBlock>(), text => text.Name == "FavoriteCategoryDetail");
             Assert.DoesNotContain("Preset", DetailText(rows[0]).Text);
             Assert.DoesNotContain("Scene", DetailText(rows[0]).Text);
             Assert.DoesNotContain("101", DetailText(rows[0]).Text);
@@ -222,8 +225,8 @@ public partial class FavoriteEditorTests
             Assert.Equal(((Control)rows[0].Content!).Bounds.Width, DetailStrip(rows[0]).Bounds.Width, 1);
             Assert.InRange(DetailStrip(rows[0]).Bounds.Height, 1, 20);
             Assert.Equal(HorizontalAlignment.Right, DetailText(rows[0]).HorizontalAlignment);
-            Assert.Equal(2, Grid.GetColumn(DetailText(rows[0])));
-            Assert.Equal(3, Grid.GetColumnSpan(DetailText(rows[0])));
+            Assert.Equal(0, Grid.GetColumn(DetailText(rows[0])));
+            Assert.Equal(TextWrapping.Wrap, DetailText(rows[0]).TextWrapping);
             Assert.Equal(TextTrimming.None, DetailText(rows[0]).TextTrimming);
             Assert.Equal(Brushes.Transparent, DetailStrip(rows[0]).Background);
             Assert.NotEqual(Brushes.Transparent, ((Grid)((Grid)rows[0].Content!).Children[0]!).Background);
@@ -232,7 +235,7 @@ public partial class FavoriteEditorTests
             Assert.False(DetailStrip(rows[0]).IsVisible);
             Assert.True(DetailStrip(rows[1]).IsVisible);
             Assert.Equal("Plexi | Rhythm", DetailText(rows[1]).Text);
-            Assert.Contains(rows[1].GetVisualDescendants().OfType<TextBlock>(), text => text.Name == "FavoriteCategoryDetail" && text.Text == "Clean" && text.FontSize == 11);
+            Assert.DoesNotContain(rows[1].GetVisualDescendants().OfType<TextBlock>(), text => text.Name == "FavoriteCategoryDetail");
 
             list.SelectedItem = null;
             Assert.All(rows, row => Assert.False(DetailStrip(row).IsVisible));
@@ -247,8 +250,8 @@ public partial class FavoriteEditorTests
     {
         var favorites = new List<Favorite>
         {
-            new() { Id = 10, Slot = 1, Name = "First", Category = "High Gain", Preset = 101, Scene = 2 },
-            new() { Id = 20, Slot = 2, Name = "Second", Category = "Clean", Preset = 202, Scene = 3 },
+            new() { Id = 10, Slot = 1, Name = "First", Preset = 101, Scene = 2 },
+            new() { Id = 20, Slot = 2, Name = "Second", Preset = 202, Scene = 3 },
         };
         var settings = SettingsWithNames(displayOffset: 1,
             presetNames: new() { [100] = "Brit 800", [201] = "Plexi" },
@@ -484,6 +487,48 @@ public partial class FavoriteEditorTests
     }
 
     [AvaloniaFact]
+    public void DiagnosticsShowsBuildVersionAndPlacesBackButtonBelowSignalCard()
+    {
+        var window = CreateWindow();
+        try
+        {
+            window.Show();
+            Click(Find<Button>(window, "NavConfig"));
+            Dispatcher.UIThread.RunJobs();
+            Click(Find<Button>(window, "OpenDiagnostics"));
+            Dispatcher.UIThread.RunJobs();
+
+            var version = Find<TextBlock>(window, "DiagnosticsVersion");
+            var content = Find<Grid>(window, "DiagnosticsContent");
+            var signal = Find<Border>(window, "SignalDiagnosticsCard");
+            var log = Find<Border>(window, "MidiLogCard");
+            var back = Find<Button>(window, "BackToConfig");
+
+            Assert.Equal($"Version: {AppVersion.Current}", version.Text);
+            Assert.Equal(0, Grid.GetRow(signal));
+            Assert.Equal(0, Grid.GetColumn(signal));
+            Assert.Equal(0, Grid.GetRow(log));
+            Assert.Equal(2, Grid.GetColumn(log));
+            Assert.Equal(2, Grid.GetRow(back));
+            Assert.Equal(0, Grid.GetColumn(back));
+            Assert.Same(content, signal.Parent);
+            Assert.Same(content, log.Parent);
+            Assert.Same(content, back.Parent);
+
+            Point versionOrigin = version.TranslatePoint(default, window)!.Value;
+            Point signalOrigin = signal.TranslatePoint(default, window)!.Value;
+            Point logOrigin = log.TranslatePoint(default, window)!.Value;
+            Point backOrigin = back.TranslatePoint(default, window)!.Value;
+            Assert.True(versionOrigin.X > logOrigin.X);
+            Assert.InRange(Math.Abs(signalOrigin.Y - logOrigin.Y), 0, 0.5);
+            Assert.InRange(signalOrigin.Y - (versionOrigin.Y + version.Bounds.Height), 10, 16);
+            Assert.InRange(backOrigin.Y - (signalOrigin.Y + signal.Bounds.Height), 10, 16);
+            Assert.InRange(Math.Abs(backOrigin.X - signalOrigin.X), 0, 0.5);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void ActionsRenderAsOneThreeColumnRowInsideEditorAtMinimumWidthAndRemainAccessible()
     {
         var favorite = Clone(Sample);
@@ -640,7 +685,7 @@ public partial class FavoriteEditorTests
             Invoke(window, "UpdateDisplay");
 
             Assert.Equal("High Landrons", Field<TextBlock>(window, "_currentPresetNameLabel").Text);
-            Assert.Equal("Scene 2 · Lead", Field<TextBlock>(window, "_currentSceneNameLabel").Text);
+            Assert.Equal("Scene 2 � Lead", Field<TextBlock>(window, "_currentSceneNameLabel").Text);
         }
         finally { window.Close(); }
     }
@@ -766,7 +811,7 @@ public partial class FavoriteEditorTests
             Click(sync);
             await Task.Yield();
             Assert.False(sync.IsEnabled);
-            Assert.Equal("Syncing…", sync.Content);
+            Assert.Equal("Syncing�", sync.Content);
 
             firstQuery.SetResult(true);
             while (queryCount < 512 || !sync.IsEnabled)
@@ -791,7 +836,6 @@ public partial class FavoriteEditorTests
         {
             ShowEditor(window, favorite);
             Find<TextBox>(window, "FavoriteName").Text = "Unsaved name";
-            Find<AutoCompleteBox>(window, "FavoriteCategory").Text = "Unsaved category";
             Field<NumericUpDown>(window, "_favPresetSpinner").Value = 222;
             Field<NumericUpDown>(window, "_favSceneSpinner").Value = 7;
             Field<List<string>>(window, "_favEditingTags").Add("unsaved-tag");
@@ -800,7 +844,6 @@ public partial class FavoriteEditorTests
 
             Assert.True(Find<Border>(window, "FavoriteEditorCard").IsVisible);
             Assert.Equal("Unsaved name", Find<TextBox>(window, "FavoriteName").Text);
-            Assert.Equal("Unsaved category", Find<AutoCompleteBox>(window, "FavoriteCategory").Text);
             Assert.Equal(222, Field<NumericUpDown>(window, "_favPresetSpinner").Value);
             Assert.Equal(7, Field<NumericUpDown>(window, "_favSceneSpinner").Value);
             Assert.Equal(new[] { "bright", "dry", "unsaved-tag" }, Field<List<string>>(window, "_favEditingTags"));

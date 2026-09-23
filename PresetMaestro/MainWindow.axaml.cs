@@ -25,7 +25,7 @@ public partial class MainWindow : Window
     private int? _currentFavoriteScene;
     private EntryMode _mode = EntryMode.Preset;
     private AppPage _currentPage = AppPage.PresetSender;
-    private string _statusText = "○ Not connected";
+    private string _statusText = "Not connected";
     private StatusKind _statusKind = StatusKind.NotConnected;
     private bool _isApplyingTheme;
 
@@ -109,6 +109,7 @@ public partial class MainWindow : Window
         RefreshFavoritesList();
         UpdateDisplay();
 
+        SizeChanged += (_, _) => QueueFavoriteViewportLayout();
         Closing += (_, _) => OnClosing();
     }
 
@@ -122,7 +123,7 @@ public partial class MainWindow : Window
         if (_settings.KeyboardEntryEnabled &&
             e.Key == Key.Enter &&
             _enteredDigits.Length > 0 &&
-            FocusManager?.GetFocusedElement() is not TextBox)
+            FocusManager?.GetFocusedElement() is not TextBox && !FavoriteSearchHasFocus)
         {
             HandleSend();
             e.Handled = true;
@@ -133,7 +134,7 @@ public partial class MainWindow : Window
     {
         base.OnKeyDown(e);
 
-        if (!_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox)
+        if (!_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
         {
             return;
         }

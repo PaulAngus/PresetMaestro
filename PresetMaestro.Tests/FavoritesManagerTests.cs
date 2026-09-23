@@ -6,9 +6,9 @@ public class FavoritesManagerTests
 {
     private static List<Favorite> Favorites() =>
     [
-        new() { Id = 10, Slot = 1, Name = "Clean", Category = "Set A", Tags = ["bright"], Preset = 101, Scene = 2 },
-        new() { Id = 20, Slot = 2, Name = "Lead", Category = "Set B", Tags = ["lead", "gain"], Preset = 202, Scene = 5 },
-        new() { Id = 30, Slot = 3, Name = "Ambient", Category = "Set B", Tags = ["wet"], Preset = 303, Scene = 7 },
+        new() { Id = 10, Slot = 1, Name = "Clean", Tags = ["bright"], Preset = 101, Scene = 2 },
+        new() { Id = 20, Slot = 2, Name = "Lead", Tags = ["lead", "gain"], Preset = 202, Scene = 5 },
+        new() { Id = 30, Slot = 3, Name = "Ambient", Tags = ["wet"], Preset = 303, Scene = 7 },
     ];
 
     [Fact]
@@ -39,7 +39,6 @@ public class FavoritesManagerTests
         Assert.Equal(20, target.Id);
         Assert.True(target.IsEmpty);
         Assert.Equal(string.Empty, target.Name);
-        Assert.Equal(string.Empty, target.Category);
         Assert.Empty(target.Tags);
         Assert.Equal(0, target.Preset);
         Assert.Equal(0, target.Scene);
@@ -124,7 +123,6 @@ public class FavoritesManagerTests
             Assert.Equal(new[] { 1, 2 }, reloaded.Select(f => f.Slot));
             Assert.True(reloaded[1].IsEmpty);
             Assert.Equal(string.Empty, reloaded[1].Name);
-            Assert.Equal(string.Empty, reloaded[1].Category);
             Assert.Empty(reloaded[1].Tags);
             Assert.Equal(0, reloaded[1].Preset);
             Assert.Equal(0, reloaded[1].Scene);

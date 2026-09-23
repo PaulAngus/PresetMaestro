@@ -180,6 +180,7 @@ internal sealed class DeviceMidi : IMidiManager
     public bool InputOpen { get; set; } = true;
     public bool OutputOpen { get; set; } = true;
     public bool FailInput { get; set; }
+    public bool ThrowThru { get; set; }
     public bool Removed { get; set; }
     public List<string> InputPorts { get; } = ["FM9"];
     public List<string> OpenedThruPorts { get; } = [];
@@ -194,7 +195,11 @@ internal sealed class DeviceMidi : IMidiManager
     public IReadOnlyList<string> GetOutputPortNames() => Removed ? [] : ["FM9"];
     public bool OpenInput(string name, out string? error) { error = FailInput ? "Unavailable" : null; InputOpen = !FailInput; return InputOpen; }
     public bool OpenOutput(string name, out string? error) { error = null; OutputOpen = true; return true; }
-    public bool OpenThruInput(string name, out string? error) { OpenedThruPorts.Add(name); error = null; return true; }
+    public bool OpenThruInput(string name, out string? error)
+    {
+        if (ThrowThru) { throw new InvalidOperationException("thru driver failure"); }
+        OpenedThruPorts.Add(name); error = null; return true;
+    }
     public void CloseInput() => InputOpen = false;
     public void CloseOutput() => OutputOpen = false;
     public void CloseThruInput(string name) => ClosedThruPorts.Add(name);

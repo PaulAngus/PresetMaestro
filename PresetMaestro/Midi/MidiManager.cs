@@ -4,12 +4,12 @@ namespace PresetMaestro.Midi;
 
 public sealed class MidiManager : IMidiManager
 {
-    private MidiIn? _midiIn;
+    private IMidiInput? _midiIn;
     private MidiOut? _midiOut;
     private bool _disposed;
 
     // Extra input ports whose raw messages are forwarded straight to _midiOut (MIDI thru/merge).
-    private readonly Dictionary<string, MidiIn> _thruInputs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IMidiInput> _thruInputs = new(StringComparer.OrdinalIgnoreCase);
     // Guards all writes to _midiOut, since preset sends and thru forwarding can happen from different threads.
     private readonly object _outLock = new();
 
@@ -25,13 +25,7 @@ public sealed class MidiManager : IMidiManager
 
     public static IReadOnlyList<string> GetInputPortNames()
     {
-        var names = new string[MidiIn.NumberOfDevices];
-        for (int i = 0; i < MidiIn.NumberOfDevices; i++)
-        {
-            names[i] = MidiIn.DeviceInfo(i).ProductName;
-        }
-
-        return names;
+        return GetWinRtInputDevices().Select(device => device.Name).ToArray();
     }
 
     public static IReadOnlyList<string> GetOutputPortNames()
@@ -53,19 +47,18 @@ public sealed class MidiManager : IMidiManager
     {
         errorMessage = null;
         CloseInput();
-        for (int i = 0; i < MidiIn.NumberOfDevices; i++)
+        foreach (var device in GetWinRtInputDevices())
         {
-            if (!string.Equals(MidiIn.DeviceInfo(i).ProductName, portName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(device.Name, portName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
             try
             {
-                _midiIn = new MidiIn(i);
+                _midiIn = CreateWinRtInput(device.Id);
                 _midiIn.MessageReceived += OnMidiMessage;
                 _midiIn.SysexMessageReceived += OnSysexMessageReceived;
-                _midiIn.ErrorReceived += OnMidiError;
                 _midiIn.Start();
                 return true;
             }
@@ -120,7 +113,6 @@ public sealed class MidiManager : IMidiManager
 
         _midiIn.MessageReceived -= OnMidiMessage;
         _midiIn.SysexMessageReceived -= OnSysexMessageReceived;
-        _midiIn.ErrorReceived -= OnMidiError;
         try { _midiIn.Stop(); } catch { }
         try { _midiIn.Dispose(); } catch { }
         _midiIn = null;
@@ -141,19 +133,18 @@ public sealed class MidiManager : IMidiManager
             return true; // already open
         }
 
-        for (int i = 0; i < MidiIn.NumberOfDevices; i++)
+        foreach (var device in GetWinRtInputDevices())
         {
-            if (!string.Equals(MidiIn.DeviceInfo(i).ProductName, portName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(device.Name, portName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            MidiIn? midiIn = null;
+            IMidiInput? midiIn = null;
             try
             {
-                midiIn = new MidiIn(i);
+                midiIn = CreateWinRtInput(device.Id);
                 midiIn.MessageReceived += OnThruMidiMessage;
-                midiIn.ErrorReceived += OnMidiError;
                 midiIn.Start();
                 _thruInputs[portName] = midiIn;
                 return true;
@@ -163,7 +154,6 @@ public sealed class MidiManager : IMidiManager
                 if (midiIn is not null)
                 {
                     midiIn.MessageReceived -= OnThruMidiMessage;
-                    midiIn.ErrorReceived -= OnMidiError;
                     try { midiIn.Stop(); } catch { }
                     try { midiIn.Dispose(); } catch { }
                 }
@@ -184,7 +174,6 @@ public sealed class MidiManager : IMidiManager
         }
 
         midiIn.MessageReceived -= OnThruMidiMessage;
-        midiIn.ErrorReceived -= OnMidiError;
         try { midiIn.Stop(); } catch { }
         try { midiIn.Dispose(); } catch { }
         _thruInputs.Remove(portName);
@@ -339,12 +328,6 @@ public sealed class MidiManager : IMidiManager
         }
     }
 
-    private void OnMidiError(object? sender, MidiInMessageEventArgs e)
-    {
-        // MIM_ERROR = invalid MIDI data received (not device removal). Log and continue.
-        LogMessage?.Invoke(this, $"MIDI ERROR (ignored): raw=0x{e.RawMessage:X8}");
-    }
-
     private void OnThruMidiMessage(object? sender, MidiInMessageEventArgs e)
     {
         byte status = (byte)(e.RawMessage & 0xFF);
@@ -382,6 +365,12 @@ public sealed class MidiManager : IMidiManager
         CloseAllThruInputs();
         _disposed = true;
     }
+
+    private static IReadOnlyList<Windows.Devices.Enumeration.DeviceInformation> GetWinRtInputDevices() =>
+        Task.Run(async () => await WinRTMidiIn.GetDevicesAsync()).GetAwaiter().GetResult();
+
+    private static WinRTMidiIn CreateWinRtInput(string deviceId) =>
+        Task.Run(async () => await WinRTMidiIn.CreateAsync(deviceId)).GetAwaiter().GetResult();
 }
 
 public sealed class NoteOnEventArgs(int noteNumber, int velocity, int channel) : EventArgs

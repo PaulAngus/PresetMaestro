@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -12,6 +12,11 @@
     <Product>Preset Maestro</Product>
     <Title>Preset Maestro</Title>
     <ApplicationIcon>preset_maestro.ico</ApplicationIcon>
+    <AppVersionFile>$(MSBuildProjectDirectory)\Version.txt</AppVersionFile>
+    <AppVersion>$([System.IO.File]::ReadAllText('$(AppVersionFile)').Trim())</AppVersion>
+    <Version>$(AppVersion)</Version>
+    <InformationalVersion>$(AppVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <PublishDir>..\publish\</PublishDir>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>

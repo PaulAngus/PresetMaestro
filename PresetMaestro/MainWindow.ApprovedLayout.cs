@@ -30,7 +30,6 @@ public partial class MainWindow
     private static IBrush TagRemoveBrush => ThemeBrush("TagRemoveBrush");
     private static readonly BoxShadows Elevation = new(new BoxShadow { OffsetY = 1, Blur = 3, Color = Color.Parse("#180E1A25") });
     private static readonly Bitmap AppLogo = LoadAppLogo();
-    private TextBlock _deviceCapacityLabel = null!;
 
     private static Bitmap LoadAppLogo()
     {
@@ -59,9 +58,9 @@ public partial class MainWindow
         resources["BadgeBrush"] = Brush(light ? "#EDF1F5" : "#3B4653");
         resources["SelectedBadgeBrush"] = Brush(light ? "#DCEEFF" : "#2F80ED");
         resources["RowSeparatorBrush"] = Brush(light ? "#E7EDF3" : "#2A313B");
-        resources["TagBrush"] = Brush(light ? "#EAF1FA" : "#252E3A");
-        resources["TagTextBrush"] = Brush(light ? "#536B8C" : "#C4D1E3");
-        resources["TagRemoveBrush"] = Brush(light ? "#7F91AA" : "#8493A8");
+        resources["TagBrush"] = Brush(light ? "#FCFEFF" : "#1E2731");
+        resources["TagTextBrush"] = Brush(light ? "#7C8FAC" : "#A9B8CC");
+        resources["TagRemoveBrush"] = Brush(light ? "#96A5B9" : "#8493A8");
     }
 
     private void BuildLayout()
@@ -133,7 +132,7 @@ public partial class MainWindow
         var navigation = new Border { Height = 46, Padding = new Thickness(3), Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = nav };
         Grid.SetColumn(navigation, 1); grid.Children.Add(navigation);
         _headerStatusLabel = new TextBlock { Name = "HeaderConnectionStatus", FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-        _connectionDot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Background = Brushes.ForestGreen, VerticalAlignment = VerticalAlignment.Center, IsVisible = _statusKind == StatusKind.ConnectedBoth };
+        _connectionDot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Background = SuccessBrush, VerticalAlignment = VerticalAlignment.Center, IsVisible = true };
         var statusContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         statusContent.Children.Add(_connectionDot);
         statusContent.Children.Add(_headerStatusLabel);
@@ -153,17 +152,35 @@ public partial class MainWindow
 
     private Control BuildApprovedDiagnosticsPage(Action showConfig)
     {
-        var page = new Grid { Margin = new Thickness(24), RowDefinitions = new RowDefinitions("Auto,16,*") };
-        var back = new Button { Name = "BackToConfig", Content = "← Back", HorizontalAlignment = HorizontalAlignment.Left };
-        back.Click += (_, _) => showConfig();
-        page.Children.Add(back);
+        var page = new Grid { Margin = new Thickness(24), RowDefinitions = new RowDefinitions("Auto,12,Auto") };
+        var version = new TextBlock
+        {
+            Name = "DiagnosticsVersion",
+            Text = $"Version: {AppVersion.Current}",
+            Foreground = SecondaryBrush,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        page.Children.Add(version);
 
-        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("*,16,*") };
+        var content = new Grid
+        {
+            Name = "DiagnosticsContent",
+            ColumnDefinitions = new ColumnDefinitions("*,16,*"),
+            RowDefinitions = new RowDefinitions("Auto,12,Auto"),
+            VerticalAlignment = VerticalAlignment.Top,
+        };
         var diagnostics = ApprovedDiagnostics();
         content.Children.Add(diagnostics);
         var log = ApprovedLog();
         Grid.SetColumn(log, 2);
         content.Children.Add(log);
+
+        var back = new Button { Name = "BackToConfig", Content = "← Back", HorizontalAlignment = HorizontalAlignment.Left };
+        back.Click += (_, _) => showConfig();
+        Grid.SetRow(back, 2);
+        content.Children.Add(back);
+
         Grid.SetRow(content, 2);
         page.Children.Add(content);
         return page;
@@ -174,13 +191,10 @@ public partial class MainWindow
         _displayLabel = new TextBlock { Text = "---", FontFamily = new FontFamily("Bahnschrift"), FontSize = 56, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, LetterSpacing = 2 };
         _currentPresetNameLabel = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = SecondaryBrush };
         _currentSceneNameLabel = new TextBlock { FontSize = 13, Foreground = SecondaryBrush };
-        var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"), ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        _activePresetStatusLabel = new TextBlock { FontSize = 11, FontWeight = FontWeight.Bold };
-        Grid.SetColumn(_activePresetStatusLabel, 1);
-        grid.Children.Add(_activePresetStatusLabel);
-        Grid.SetRow(_displayLabel, 1); Grid.SetColumnSpan(_displayLabel, 2); grid.Children.Add(_displayLabel);
-        Grid.SetRow(_currentPresetNameLabel, 2); Grid.SetColumnSpan(_currentPresetNameLabel, 2); grid.Children.Add(_currentPresetNameLabel);
-        Grid.SetRow(_currentSceneNameLabel, 3); Grid.SetColumnSpan(_currentSceneNameLabel, 2); grid.Children.Add(_currentSceneNameLabel);
+        var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto") };
+        Grid.SetRow(_displayLabel, 0); grid.Children.Add(_displayLabel);
+        Grid.SetRow(_currentPresetNameLabel, 1); grid.Children.Add(_currentPresetNameLabel);
+        Grid.SetRow(_currentSceneNameLabel, 2); grid.Children.Add(_currentSceneNameLabel);
         return new Border { Height = 170, Background = InsetBrush, BorderBrush = AccentBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(20), BoxShadow = Elevation, Child = grid };
     }
 
@@ -290,7 +304,7 @@ public partial class MainWindow
 
     private Control ApprovedDiagnostics()
     {
-        var card = ApprovedCard("Signal Diagnostics", "Live translation preview"); card.Height = 500; var stack = new StackPanel { Spacing = 14 }; var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("170,*") };
+        var card = ApprovedCard("Signal Diagnostics", "Live translation preview"); card.Name = "SignalDiagnosticsCard"; card.Height = 500; var stack = new StackPanel { Spacing = 14 }; var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("170,*") };
         (string, TextBlock)[] rows = [("Last Rx note", _diagLastRxLabel = Value()), ("Entered", _diagEnteredLabel = Value()), ("Favorite", _diagFavoriteLabel = Value()), ("device display", _diagDeviceDisplayLabel = Value()), ("MIDI preset", _diagMidiPresetLabel = Value()), ("Bank select CC#0", _diagBankLabel = Value()), ("Program change", _diagPcLabel = Value()), ("Scene", _diagSceneLabel = Value()), ("MIDI channel", _diagChannelLabel = Value())];
         for (int row = 0; row < rows.Length; row++) { grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); var label = new TextBlock { Text = rows[row].Item1, Foreground = SecondaryBrush, Margin = new Thickness(0, 7) }; Grid.SetRow(label, row); Grid.SetRow(rows[row].Item2, row); Grid.SetColumn(rows[row].Item2, 1); grid.Children.Add(label); grid.Children.Add(rows[row].Item2); }
         var test = new Button { Content = "Test Translation", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 14, 0, 0) }; test.Click += OnTestTranslation; Grid.SetRow(test, rows.Length); Grid.SetColumn(test, 1); grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); grid.Children.Add(test); stack.Children.Add(grid);
@@ -304,6 +318,7 @@ public partial class MainWindow
     private Control ApprovedLog()
     {
         var card = ApprovedCard("MIDI Log", "Device activity");
+        card.Name = "MidiLogCard";
         card.Height = 500;
         var layout = new Grid { RowDefinitions = new RowDefinitions("*,Auto") };
         _logTextBox = CreateSelectableLog("Cascadia Mono", 12);
@@ -318,17 +333,10 @@ public partial class MainWindow
 
     private Control BuildApprovedFavorites()
     {
-        _favoritesPage = new Grid { Margin = new Thickness(20), ColumnDefinitions = new ColumnDefinitions("252,12,*") };
-        _favCategoryTree = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), ItemContainerTheme = CompactListItemTheme() };
-        _favCategoryTree.SelectionChanged += OnFavCategorySelectionChanged;
-        _favCategoryTree.AddHandler(InputElement.PointerPressedEvent, OnFavCategoryPointerPressed, RoutingStrategies.Bubble, handledEventsToo: true);
-        _favCategoryTree.AddHandler(InputElement.PointerMovedEvent, OnFavCategoryPointerMoved, RoutingStrategies.Bubble, handledEventsToo: true);
-        _favCategoryTree.AddHandler(InputElement.PointerReleasedEvent, OnFavCategoryPointerReleased, RoutingStrategies.Bubble, handledEventsToo: true);
-        _favCategoryTree.AddHandler(InputElement.PointerCaptureLostEvent, OnFavCategoryPointerCaptureLost, RoutingStrategies.Bubble, handledEventsToo: true);
-        var categories = ApprovedCard("Collections", titleFontWeight: FontWeight.Bold);
-        categories.Padding = new Thickness(16, 17);
-        SetApprovedCardContent(categories, _favCategoryTree); _favoritesPage.Children.Add(categories);
-        var library = BuildApprovedFavoriteLibrary(); Grid.SetColumn(library, 2); _favoritesPage.Children.Add(library); BuildApprovedFavoriteEditor(); return _favoritesPage;
+        _favoritesPage = new Grid { Margin = new Thickness(20), ColumnDefinitions = new ColumnDefinitions("*") };
+        _favoritesPage.Children.Add(BuildApprovedFavoriteLibrary());
+        BuildApprovedFavoriteEditor();
+        return _favoritesPage;
     }
 
     private Control BuildApprovedFavoriteLibrary()
@@ -443,164 +451,11 @@ public partial class MainWindow
         Grid.SetColumn(actions, 1);
         header.Children.Add(actions);
         content.Children.Add(header);
-        var layout = new Grid { RowDefinitions = new RowDefinitions("40,32,*") };
-        _favSearchBox = new TextBox { Watermark = "Search name / collection / tag...", MinHeight = 34, Padding = new Thickness(14, 0, 36, 0), CornerRadius = new CornerRadius(5) };
-        _favSearchBox.TextChanged += OnFavFilterChanged;
-        var search = new Grid(); search.Children.Add(_favSearchBox); search.Children.Add(new PathIcon { Data = Geometry.Parse("M9.5,3 C5.91,3 3,5.91 3,9.5 C3,13.09 5.91,16 9.5,16 C10.9,16 12.2,15.55 13.25,14.78 L18.47,20 L20,18.47 L14.78,13.25 C15.55,12.2 16,10.9 16,9.5 C16,5.91 13.09,3 9.5,3 Z"), Width = 17, Height = 17, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), IsHitTestVisible = false });
-        var filters = new Grid { ColumnDefinitions = new ColumnDefinitions("3*,10,1.1*"), Margin = new Thickness(0, 0, 6, 0) };
-        filters.Children.Add(search);
-        _favTagFilterLabel = new TextBlock
-        {
-            FontSize = 10,
-            FontWeight = FontWeight.Normal,
-            Foreground = SecondaryBrush,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        var tagFilterContent = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        tagFilterContent.Children.Add(_favTagFilterLabel);
-        var tagChevron = new PathIcon
-        {
-            Data = Geometry.Parse("M2,4 L7,9 L12,4"),
-            Width = 12,
-            Height = 10,
-            Foreground = SecondaryBrush,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Grid.SetColumn(tagChevron, 1);
-        tagFilterContent.Children.Add(tagChevron);
-        _favTagFilter = new Button
-        {
-            Name = "FavoriteTagFilter",
-            MinHeight = 34,
-            Padding = new Thickness(12, 0),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Content = tagFilterContent,
-        };
-        AutomationProperties.SetName(_favTagFilter, "Filter favorites by tag");
-        _favTagOptionsPanel = new StackPanel { Name = "FavoriteTagOptions", Spacing = 0 };
-        _favTagMatchAllButton = new ToggleButton
-        {
-            Name = "FavoriteTagMatchAll",
-            Content = "All",
-            MinHeight = 26,
-            Height = 26,
-            Padding = new Thickness(6, 0),
-            CornerRadius = new CornerRadius(5),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Center,
-        };
-        AutomationProperties.SetName(_favTagMatchAllButton, "Match all selected tags");
-        _favTagMatchAllButton.Click += (_, _) => SetFavoriteTagMatchMode(matchAll: true);
-        _favTagMatchAnyButton = new ToggleButton
-        {
-            Name = "FavoriteTagMatchAny",
-            Content = "Any",
-            MinHeight = 26,
-            Height = 26,
-            Padding = new Thickness(6, 0),
-            CornerRadius = new CornerRadius(5),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Center,
-        };
-        AutomationProperties.SetName(_favTagMatchAnyButton, "Match any selected tag");
-        _favTagMatchAnyButton.Click += (_, _) => SetFavoriteTagMatchMode(matchAll: false);
-        var matchMode = new Grid { ColumnDefinitions = new ColumnDefinitions("*,2,*") };
-        matchMode.Children.Add(_favTagMatchAllButton);
-        Grid.SetColumn(_favTagMatchAnyButton, 2);
-        matchMode.Children.Add(_favTagMatchAnyButton);
-        var popupContent = new StackPanel { Spacing = 4 };
-        popupContent.Children.Add(matchMode);
-        popupContent.Children.Add(new Border { Height = 1, Background = ThemeBrush("RowSeparatorBrush") });
-        popupContent.Children.Add(_favTagOptionsPanel);
-        _favTagFilterPopupBorder = new Border
-        {
-            Name = "FavoriteTagFilterPopup",
-            MinWidth = 220,
-            MaxHeight = 360,
-            Padding = new Thickness(6),
-            Background = SurfaceBrush,
-            BorderBrush = UiBorderBrush,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(6),
-            BoxShadow = Elevation,
-            Child = new ScrollViewer
-            {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Content = popupContent,
-            },
-        };
-        AutomationProperties.SetName(_favTagFilterPopupBorder, "Favorite tag filter options");
-        _favTagFilterPopupBorder.AddHandler(InputElement.KeyDownEvent, OnFavoriteTagPopupKeyDown, RoutingStrategies.Tunnel);
-        _favTagFilterPopup = new Popup
-        {
-            PlacementTarget = _favTagFilter,
-            Placement = PlacementMode.BottomEdgeAlignedRight,
-            IsLightDismissEnabled = true,
-            WindowManagerAddShadowHint = true,
-            Child = _favTagFilterPopupBorder,
-        };
-        _favTagFilter.Click += (_, _) =>
-        {
-            _favTagFilterPopupBorder.Width = Math.Max(220, _favTagFilter.Bounds.Width);
-            _favTagFilterPopup.IsOpen = !_favTagFilterPopup.IsOpen;
-            if (_favTagFilterPopup.IsOpen)
-            {
-                _favTagMatchAllButton.Focus();
-            }
-        };
-        var tagFilterHost = new Grid();
-        tagFilterHost.Children.Add(_favTagFilter);
-        tagFilterHost.Children.Add(_favTagFilterPopup);
-        UpdateFavoriteTagFilterPresentation();
-        Grid.SetColumn(tagFilterHost, 2);
-        filters.Children.Add(tagFilterHost);
-        layout.Children.Add(filters);
-        var headings = BuildFavColumnGrid(FavColumns.Select((column, index) => { var button = new Button { Content = column.Header, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(11, 0), Foreground = SecondaryBrush, FontSize = 11, FontWeight = FontWeight.Normal, HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 0 }; button.Click += (_, _) => OnFavColumnClick(index); return (Control)button; }).ToArray());
-        foreach (ColumnDefinition columnDefinition in headings.ColumnDefinitions)
-        {
-            columnDefinition.PropertyChanged += (_, change) =>
-            {
-                if (change.Property == ColumnDefinition.WidthProperty)
-                {
-                    SynchronizeFavoriteColumnWidths(headings);
-                }
-            };
-        }
-        for (int index = 0; index < FavColumns.Length - 1; index++)
-        {
-            int boundary = index;
-            var visibleSeparator = new Border
-            {
-                Name = $"FavoriteHeaderColumnSeparator{boundary}",
-                Width = 1,
-                Background = ThemeBrush("RowSeparatorBrush"),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                IsHitTestVisible = false,
-            };
-            Grid.SetColumn(visibleSeparator, boundary);
-            headings.Children.Add(visibleSeparator);
-            var resizeHandle = new GridSplitter
-            {
-                Name = $"FavoriteColumnResize{boundary}",
-                Width = 8,
-                Background = Brushes.Transparent,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Stretch,
-                ResizeDirection = GridResizeDirection.Columns,
-                ResizeBehavior = GridResizeBehavior.CurrentAndNext,
-                ShowsPreview = false,
-                Cursor = new Cursor(StandardCursorType.SizeWestEast),
-            };
-            AutomationProperties.SetName(resizeHandle, $"Resize {FavColumns[boundary].Header} column");
-            Grid.SetColumn(resizeHandle, boundary);
-            headings.Children.Add(resizeHandle);
-        }
-        Grid.SetRow(headings, 1); layout.Children.Add(headings);
+        var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,28,*") };
+        layout.Children.Add(BuildFavoriteSearch());
+        _favResultCount = new TextBlock { Name = "FavoriteResultCount", Foreground = SecondaryBrush, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetRow(_favResultCount, 1);
+        layout.Children.Add(_favResultCount);
         _favListBox = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), ItemContainerTheme = CompactListItemTheme() }; _favListBox.SelectionChanged += OnFavListSelectionChanged; _favListBox.AddHandler(InputElement.PointerPressedEvent, OnFavListPointerPressed, RoutingStrategies.Bubble, handledEventsToo: true); _favListBox.AddHandler(InputElement.PointerMovedEvent, OnFavListPointerMoved, RoutingStrategies.Bubble, handledEventsToo: true); _favListBox.AddHandler(InputElement.PointerReleasedEvent, OnFavListPointerReleased, RoutingStrategies.Bubble, handledEventsToo: true); _favListBox.AddHandler(InputElement.PointerCaptureLostEvent, OnFavListPointerCaptureLost, RoutingStrategies.Bubble, handledEventsToo: true);
         ScrollViewer.SetHorizontalScrollBarVisibility(_favListBox, ScrollBarVisibility.Disabled);
         ScrollViewer.SetVerticalScrollBarVisibility(_favListBox, ScrollBarVisibility.Auto);
@@ -621,19 +476,10 @@ public partial class MainWindow
                 Setters = { new Setter(RepeatButton.IsVisibleProperty, false) },
             });
         }
-        headings.Name = "FavoriteTableHeader";
-        headings.HorizontalAlignment = HorizontalAlignment.Left;
-        _favListBox.LayoutUpdated += (_, _) =>
-        {
-            var viewer = _favListBox.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
-            if (viewer?.Viewport.Width > 0 && headings.Width != viewer.Viewport.Width)
-            {
-                headings.Width = viewer.Viewport.Width;
-            }
-        };
+        ConfigureFavoriteTables();
         var body = new Grid();
         body.Children.Add(_favListBox);
-        _favEmptyResults = new TextBlock { Name = "FavoriteEmptyResults", Text = "No favorites match these filters.", Foreground = SecondaryBrush, Margin = new Thickness(12, 20), IsHitTestVisible = false, IsVisible = false };
+        _favEmptyResults = new TextBlock { Name = "FavoriteEmptyResults", Text = "No favorites match these filters.", Foreground = SecondaryBrush, Margin = new Thickness(12, 44), IsHitTestVisible = false, IsVisible = false };
         body.Children.Add(_favEmptyResults);
         Grid.SetRow(body, 2);
         layout.Children.Add(body);
@@ -692,7 +538,6 @@ public partial class MainWindow
         _favEditorTitle = new TextBlock { Text = "New Favorite", FontSize = 16, FontWeight = FontWeight.Bold };
         stack.Children.Add(_favEditorTitle);
         _favNameBox = new TextBox { Name = "FavoriteName" };
-        _favCategoryBox = new AutoCompleteBox { Name = "FavoriteCategory", FilterMode = AutoCompleteFilterMode.Contains };
         _favTagsPanel = new WrapPanel { Orientation = Orientation.Horizontal, ItemHeight = 24, ItemWidth = double.NaN, VerticalAlignment = VerticalAlignment.Center };
         _favTagInput = new TextBox { Name = "FavoriteTagInput", Watermark = "Add tag...", BorderThickness = new Thickness(0), Background = Brushes.Transparent, MinWidth = 70, MinHeight = 24, Padding = new Thickness(2, 0) };
         _favTagInput.GotFocus += (_, _) => _favTagsEditor.BorderBrush = AccentBrush;
@@ -704,7 +549,7 @@ public partial class MainWindow
         _favTagsEditor.PointerPressed += (_, _) => _favTagInput.Focus();
         _favPresetSpinner = new NumericUpDown { Name = "FavoritePreset", Minimum = 0, Maximum = 512, FormatString = "0" };
         _favSceneSpinner = new NumericUpDown { Name = "FavoriteScene", Minimum = 1, Maximum = 8, FormatString = "0" };
-        foreach (var field in new (string, Control)[] { ("Name", _favNameBox), ("Collection", _favCategoryBox), ("Tags", _favTagsEditor) })
+        foreach (var field in new (string, Control)[] { ("Name", _favNameBox), ("Tags", _favTagsEditor) })
         {
             stack.Children.Add(ApprovedField(field.Item1, field.Item2));
         }
@@ -780,7 +625,7 @@ public partial class MainWindow
         var card = ApprovedCard("MIDI Connection", "Hardware and routing");
         card.Name = "MidiConnectionCard";
         var stack = new StackPanel { Spacing = 14 };
-        _statusLabel = new TextBlock { Text = "○  Not connected", Foreground = SecondaryBrush, FontWeight = FontWeight.Bold };
+        _statusLabel = new TextBlock { Text = "Not connected", Foreground = SecondaryBrush, FontWeight = FontWeight.Bold };
         stack.Children.Add(_statusLabel);
 
         _inputPortCombo = new ComboBox { Name = "MidiInput", HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -834,8 +679,6 @@ public partial class MainWindow
         Grid.SetColumn(offset, 2); fields.Children.Add(offset);
         Grid.SetColumn(scene, 4); fields.Children.Add(scene);
         stack.Children.Add(fields);
-        _deviceCapacityLabel = new TextBlock { Name = "DeviceCapacity", Foreground = SecondaryBrush };
-        stack.Children.Add(new Border { Background = InsetBrush, Padding = new Thickness(12, 9), CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left, Child = _deviceCapacityLabel });
         stack.Children.Add(new Border { Background = InsetBrush, Padding = new Thickness(14), CornerRadius = new CornerRadius(5), Child = new TextBlock { Text = "Program Change mapping must be disabled on the device when Display Offset is 0.", TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush } }); SetApprovedCardContent(card, stack); return card;
     }
 

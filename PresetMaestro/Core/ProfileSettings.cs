@@ -7,7 +7,6 @@ public sealed class ProfileSettings
     public int DisplayOffset { get; set; }
     public int MaxDisplayedPreset { get; set; } = 511;
     public int SceneCc { get; set; } = 34;
-    public List<string> CategoryOrder { get; set; } = [];
     public Dictionary<int, string> PresetNameCache { get; set; } = [];
     public Dictionary<string, Dictionary<int, SceneCacheEntry>> SceneNameCaches { get; set; } = [];
 
@@ -18,7 +17,6 @@ public sealed class ProfileSettings
         DisplayOffset = settings.DisplayOffset,
         MaxDisplayedPreset = settings.MaxDisplayedPreset,
         SceneCc = settings.SceneCc,
-        CategoryOrder = settings.CategoryOrder,
         PresetNameCache = settings.PresetNameCache,
         SceneNameCaches = settings.SceneNameCaches,
     };
@@ -30,7 +28,6 @@ public sealed class ProfileSettings
         settings.DisplayOffset = DisplayOffset;
         settings.MaxDisplayedPreset = MaxDisplayedPreset;
         settings.SceneCc = SceneCc;
-        settings.CategoryOrder = CategoryOrder;
         settings.PresetNameCache = PresetNameCache;
         settings.SceneNameCaches = SceneNameCaches;
     }

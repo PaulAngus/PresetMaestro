@@ -74,7 +74,6 @@ public partial class FavoriteEditorTests
             Field<ComboBox>(window, "_offsetCombo").SelectedIndex = 1;
             settings.MaxDisplayedPreset = 400; // Legacy value is readable but no longer authoritative.
             Field<NumericUpDown>(window, "_sceneCcSpinner").Value = 58;
-            settings.CategoryOrder = ["Set A"];
             settings.PresetNameCache[100] = "Original preset";
             settings.SceneNameCaches["ports"] = new() { [100] = new() { Names = ["Original scene"] } };
             var originalFavorite = Field<List<Favorite>>(window, "_favorites").Single();
@@ -89,7 +88,6 @@ public partial class FavoriteEditorTests
             Assert.Equal(512, settings.MaxDisplayedPreset);
             Assert.Equal(58, settings.SceneCc);
             Assert.Equal(140, settings.AutoSendDelayMs);
-            Assert.Equal(["Set A"], settings.CategoryOrder);
             Assert.Equal("Original preset", settings.PresetNameCache[100]);
             Assert.Equal("Original scene", settings.SceneNameCaches["ports"][100].Names[0]);
             var copiedFavorite = Field<List<Favorite>>(window, "_favorites").Single();
@@ -139,7 +137,6 @@ public partial class FavoriteEditorTests
         settings.MidiEntryEnabled = false;
         settings.MidiChannel = 6;
         settings.PresetNameCache[1] = "Original";
-        settings.CategoryOrder = ["Original collection"];
         store.SaveSettings(settings);
         store.SaveFavorites("Default", [Clone(Sample)]);
         var midi = new FakeMidi();
@@ -174,7 +171,6 @@ public partial class FavoriteEditorTests
             Assert.Equal("Live", settings.ActiveProfile);
             Assert.Empty(Field<List<Favorite>>(window, "_favorites"));
             Assert.Empty(settings.PresetNameCache);
-            Assert.Empty(settings.CategoryOrder);
             Assert.Equal(1, settings.MidiChannel);
             Assert.Equal(140, settings.AutoSendDelayMs);
             Assert.False(settings.KeyboardEntryEnabled);
@@ -201,7 +197,6 @@ public partial class FavoriteEditorTests
             Assert.Equal("Original", settings.PresetNameCache[1]);
             Assert.False(settings.PresetNameCache.ContainsKey(2));
             Assert.Equal("Clean", Field<List<Favorite>>(window, "_favorites").Single().Name);
-            Assert.Equal(["Original collection"], settings.CategoryOrder);
 
             Find<ComboBox>(window, "ProfileSelector").SelectedItem = "Live";
             Dispatcher.UIThread.RunJobs();

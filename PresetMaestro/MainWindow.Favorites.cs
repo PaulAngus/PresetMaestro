@@ -14,7 +14,6 @@ namespace PresetMaestro;
 
 public partial class MainWindow
 {
-    private const string AllCategoriesSentinel = "All Favorites";
 
     private void AttachFavoritePresetPicker()
     {
@@ -104,170 +103,10 @@ public partial class MainWindow
         }
     }
 
-    private Button _favTagFilter = null!;
-    private TextBlock _favTagFilterLabel = null!;
-    private Popup _favTagFilterPopup = null!;
-    private Border _favTagFilterPopupBorder = null!;
-    private StackPanel _favTagOptionsPanel = null!;
-    private ToggleButton _favTagMatchAllButton = null!;
-    private ToggleButton _favTagMatchAnyButton = null!;
-    private TextBlock _favEmptyResults = null!;
-    private readonly HashSet<string> _favSelectedTags = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<string> _favAvailableTags = [];
-    private bool _favTagMatchAll = true;
-    private bool _refreshingTagOptions;
     private int? _favFilterSelectionId;
     private bool _refreshingFavorites;
     private double? _favPreviousMinWidth;
-    private void RefreshFavoriteTagOptions()
-    {
-        var tags = _favorites.SelectMany(f => f.Tags).Where(t => !string.IsNullOrWhiteSpace(t))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
-
-        var retainedSelections = tags.Where(tag => _favSelectedTags.Contains(tag)).ToList();
-        _favSelectedTags.Clear();
-        _favSelectedTags.UnionWith(retainedSelections);
-
-        _refreshingTagOptions = true;
-        try
-        {
-            bool optionsUnchanged = _favAvailableTags.SequenceEqual(tags, StringComparer.OrdinalIgnoreCase) &&
-                                    _favTagOptionsPanel.Children.Count == tags.Count + 1;
-            if (optionsUnchanged)
-            {
-                foreach (var option in _favTagOptionsPanel.Children.OfType<CheckBox>())
-                {
-                    option.IsChecked = option.Tag is not string tag
-                        ? _favSelectedTags.Count == 0
-                        : _favSelectedTags.Contains(tag);
-                }
-
-                return;
-            }
-
-            _favAvailableTags.Clear();
-            _favAvailableTags.AddRange(tags);
-            _favTagOptionsPanel.Children.Clear();
-            var allTags = new CheckBox
-            {
-                Name = "FavoriteTagAllTags",
-                Classes = { "favoriteTag" },
-                Content = "All tags",
-                IsChecked = _favSelectedTags.Count == 0,
-                MinHeight = 26,
-                Height = 26,
-                Padding = new Thickness(8, 0, 0, 0),
-                VerticalContentAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-            };
-            AutomationProperties.SetName(allTags, "Show favorites with all tags");
-            allTags.Click += (_, _) => ClearFavoriteTagFilter();
-            _favTagOptionsPanel.Children.Add(allTags);
-
-            for (int index = 0; index < tags.Count; index++)
-            {
-                string tag = tags[index];
-                var option = new CheckBox
-                {
-                    Name = $"FavoriteTagOption{index}",
-                    Classes = { "favoriteTag" },
-                    Content = tag,
-                    Tag = tag,
-                    IsChecked = _favSelectedTags.Contains(tag),
-                    MinHeight = 26,
-                    Height = 26,
-                    Padding = new Thickness(8, 0, 0, 0),
-                    VerticalContentAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                };
-                AutomationProperties.SetName(option, $"Filter favorites by tag {tag}");
-                option.Click += OnFavoriteTagOptionClicked;
-                _favTagOptionsPanel.Children.Add(option);
-            }
-        }
-        finally
-        {
-            _refreshingTagOptions = false;
-            UpdateFavoriteTagFilterPresentation();
-        }
-    }
-
-    private void OnFavoriteTagOptionClicked(object? sender, RoutedEventArgs e)
-    {
-        if (_refreshingTagOptions || sender is not CheckBox { Tag: string tag } option)
-        {
-            return;
-        }
-
-        if (option.IsChecked == true)
-        {
-            _favSelectedTags.Add(tag);
-        }
-        else
-        {
-            _favSelectedTags.Remove(tag);
-        }
-
-        RefreshFavoritesList(refreshCategories: false);
-    }
-
-    private void ClearFavoriteTagFilter()
-    {
-        if (_refreshingTagOptions)
-        {
-            return;
-        }
-
-        _favSelectedTags.Clear();
-        RefreshFavoritesList(refreshCategories: false);
-    }
-
-    private void SetFavoriteTagMatchMode(bool matchAll)
-    {
-        if (_favTagMatchAll == matchAll)
-        {
-            UpdateFavoriteTagFilterPresentation();
-            return;
-        }
-
-        _favTagMatchAll = matchAll;
-        UpdateFavoriteTagFilterPresentation();
-        RefreshFavoritesList(refreshCategories: false);
-    }
-
-    private void UpdateFavoriteTagFilterPresentation()
-    {
-        if (_favTagFilterLabel is null)
-        {
-            return;
-        }
-
-        _favTagFilterLabel.Text = _favSelectedTags.Count switch
-        {
-            0 => "Tags: All tags",
-            1 => $"Tags: {_favSelectedTags.Single()}",
-            _ => $"Tags: {_favSelectedTags.Count} selected",
-        };
-
-        _favTagMatchAllButton.IsChecked = _favTagMatchAll;
-        _favTagMatchAnyButton.IsChecked = !_favTagMatchAll;
-        _favTagMatchAllButton.Background = _favTagMatchAll ? AccentBrush : Brushes.Transparent;
-        _favTagMatchAllButton.Foreground = _favTagMatchAll ? Brushes.White : TextBrush;
-        _favTagMatchAnyButton.Background = _favTagMatchAll ? Brushes.Transparent : AccentBrush;
-        _favTagMatchAnyButton.Foreground = _favTagMatchAll ? TextBrush : Brushes.White;
-    }
-
-    private void OnFavoriteTagPopupKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Escape)
-        {
-            _favTagFilterPopup.IsOpen = false;
-            _favTagFilter.Focus();
-            e.Handled = true;
-        }
-    }
-
-    private string _favSelectedCategory = AllCategoriesSentinel;
+    private TextBlock _favEmptyResults = null!;
     private int? _favEditingId; // null = editor hidden, 0 = creating new, >0 = editing that Favorite.Id
     private int _favSortColumn = -1;
     private bool _favSortAscending = true;
@@ -283,13 +122,6 @@ public partial class MainWindow
     private readonly Dictionary<ListBoxItem, Border> _favActiveAccents = [];
     private bool _favInsertAfter;
     private bool _favIsDragging;
-    private string? _favCategoryDragSource;
-    private Point? _favCategoryDragStart;
-    private ListBoxItem? _favCategoryDragItem;
-    private ListBoxItem? _favCategoryInsertionItem;
-    private readonly Dictionary<ListBoxItem, Border> _favCategoryInsertionLines = [];
-    private bool _favCategoryInsertAfter;
-    private bool _favCategoryIsDragging;
     private readonly List<string> _favEditingTags = [];
     private Border _favTagsEditor = null!;
     private WrapPanel _favTagsPanel = null!;
@@ -297,18 +129,7 @@ public partial class MainWindow
 
     private IEnumerable<Favorite> GetFilteredFavorites()
     {
-        string search = _favSearchBox.Text?.Trim() ?? string.Empty;
-
-        IEnumerable<Favorite> result = _favorites.Where(f =>
-            (_favSelectedCategory == AllCategoriesSentinel || string.Equals(f.Category, _favSelectedCategory, StringComparison.OrdinalIgnoreCase)) &&
-            (_favSelectedTags.Count == 0 || (_favTagMatchAll
-                ? _favSelectedTags.All(selected => f.Tags.Contains(selected, StringComparer.OrdinalIgnoreCase))
-                : _favSelectedTags.Any(selected => f.Tags.Contains(selected, StringComparer.OrdinalIgnoreCase)))) &&
-            (search.Length == 0 ||
-             f.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-             f.Category.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-             f.Tags.Any(t => t.Contains(search, StringComparison.OrdinalIgnoreCase))));
-
+        IEnumerable<Favorite> result = _favorites.Where(MatchesFavoriteSearch);
         if (_favSortColumn < 0)
         {
             return result;
@@ -318,66 +139,27 @@ public partial class MainWindow
         {
             0 => f => f.Slot,
             1 => f => f.Name,
-            2 => f => f.Category,
-            3 => f => f.TagsDisplay,
-            4 => f => f.Preset,
-            5 => f => f.Scene,
+            2 => f => f.Preset,
+            3 => f => f.Scene,
             _ => f => f.Slot,
         };
         return _favSortAscending ? result.OrderBy(key) : result.OrderByDescending(key);
     }
 
-    private void RefreshFavoriteCategoryTree()
+    private void RefreshFavoritesList(bool refreshOptions = true, int? selectedFavoriteId = null, int? selectedSlot = null)
     {
-        var categories = GetOrderedCategories();
-        if (_favSelectedCategory != AllCategoriesSentinel &&
-            !categories.Any(category => string.Equals(category, _favSelectedCategory, StringComparison.OrdinalIgnoreCase)))
+        if (refreshOptions)
         {
-            _favSelectedCategory = AllCategoriesSentinel;
+            RefreshFavoriteTagOptions();
         }
-
-        _favCategoryTree.SelectionChanged -= OnFavCategorySelectionChanged;
-        _favCategoryTree.Items.Clear();
-        _favCategoryTree.Items.Add(BuildCategoryRow(AllCategoriesSentinel, _favorites.Count));
-        foreach (var cat in categories)
-        {
-            _favCategoryTree.Items.Add(BuildCategoryRow(cat, _favorites.Count(f => string.Equals(f.Category, cat, StringComparison.OrdinalIgnoreCase))));
-        }
-
-        int wantIndex = _favSelectedCategory == AllCategoriesSentinel
-            ? 0
-            : categories.FindIndex(c => string.Equals(c, _favSelectedCategory, StringComparison.OrdinalIgnoreCase)) + 1;
-        _favCategoryTree.SelectedIndex = wantIndex >= 0 && wantIndex < _favCategoryTree.Items.Count ? wantIndex : 0;
-        _favCategoryTree.SelectionChanged += OnFavCategorySelectionChanged;
-        UpdateCategoryRowStates();
-    }
-
-    private List<string> GetOrderedCategories()
-    {
-        var categories = _favorites.Select(f => f.Category).Where(c => c.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var ordered = _settings.CategoryOrder
-            .Where(saved => categories.Any(category => string.Equals(category, saved, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-        ordered.AddRange(categories.Where(category => !ordered.Any(saved => string.Equals(category, saved, StringComparison.OrdinalIgnoreCase)))
-            .OrderBy(category => category));
-        return ordered;
-    }
-
-    private void RefreshFavoritesList(bool refreshCategories = true, int? selectedFavoriteId = null, int? selectedSlot = null)
-    {
-        RefreshFavoriteTagOptions();
         if (selectedFavoriteId.HasValue || selectedSlot.HasValue)
         {
             _favFilterSelectionId = selectedFavoriteId ?? _favorites.FirstOrDefault(f => f.Slot == selectedSlot)?.Id;
         }
 
         _refreshingFavorites = true;
-        if (refreshCategories)
-        {
-            RefreshFavoriteCategoryTree();
-        }
 
+        ClearFavoriteDragState();
         _favListBox.Items.Clear();
         _favInsertionLines.Clear();
         _favDetailStrips.Clear();
@@ -395,25 +177,36 @@ public partial class MainWindow
             favorite.Id == _favFilterSelectionId);
         _refreshingFavorites = false;
         _favEmptyResults.IsVisible = _favListBox.Items.Count == 0;
+        _favResultCount.Text = $"{_favListBox.Items.Count} of {_favorites.Count} favorites";
         UpdateFavoriteRowStates();
         UpdateFavoriteCommandStates();
     }
 
     private ListBoxItem BuildFavoriteRow(Favorite fav)
     {
+        var title = new TextBlock
+        {
+            Name = "FavoriteTitle",
+            Text = fav.IsEmpty ? "— Empty —" : fav.Name,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Foreground = fav.IsEmpty ? SecondaryBrush : TextBrush,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        ToolTip.SetTip(title, fav.Name);
+        var titleAndTags = new FavoriteTitleTagsPanel { Margin = new Thickness(6, 0), ClipToBounds = true };
+        titleAndTags.Children.Add(title);
+        titleAndTags.Children.Add(BuildFavoriteTagDisplay(fav.Tags));
         var row = BuildFavColumnGrid(
         [
             new TextBlock { Text = fav.Slot.ToString(), Foreground = SecondaryBrush, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-            new TextBlock { Text = fav.IsEmpty ? "— Empty —" : fav.Name, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = fav.IsEmpty ? SecondaryBrush : TextBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(15, 0, 10, 0) },
-            new TextBlock { Text = fav.Category, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(11, 0), TextTrimming = TextTrimming.CharacterEllipsis },
-            BuildFavoriteTagDisplay(fav.Tags),
-            new TextBlock { Text = fav.IsEmpty ? string.Empty : fav.Preset.ToString(), Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(11, 0) },
-            new TextBlock { Text = fav.IsEmpty ? string.Empty : fav.Scene.ToString(), Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(11, 0) },
+            titleAndTags,
+            new TextBlock { Text = fav.IsEmpty ? string.Empty : fav.Preset.ToString(), Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0) },
+            new TextBlock { Text = fav.IsEmpty ? string.Empty : fav.Scene.ToString(), Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0) },
         ]);
         var accent = new Border { Width = 4, Background = AccentBrush, HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false, IsHitTestVisible = false };
         var activeAccent = new Border { Name = "FavoriteActiveAccent", Width = 4, Background = DangerBrush, HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false, IsHitTestVisible = false };
         var divider = new Border { Height = 1, Background = ThemeBrush("RowSeparatorBrush"), VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false };
-        var mainRow = new Grid { Height = 26, Background = Brushes.Transparent };
+        var mainRow = new Grid { Height = 26, Background = Brushes.Transparent, ClipToBounds = true };
         mainRow.Children.Add(row); mainRow.Children.Add(activeAccent); mainRow.Children.Add(accent);
 
         var detailText = new TextBlock
@@ -424,29 +217,11 @@ public partial class MainWindow
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.None,
-            Margin = new Thickness(11, 0),
+            Margin = new Thickness(6, 0, 12, 0),
         };
-        var detailGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions(string.Join(',', FavoriteDetailColumns.Select(column => GridLengthToString(column.Width)))),
-        };
-        var categoryDetail = new TextBlock
-        {
-            Name = "FavoriteCategoryDetail",
-            Text = fav.IsEmpty ? string.Empty : fav.Category,
-            FontSize = 11,
-            Foreground = SecondaryBrush,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(15, 0, 10, 0),
-        };
-        // Keep the category under the favorite name.  The combined preset/scene
-        // detail can use the Tags column as well, so long cached names have room
-        // to remain fully visible while their right edge stays under Scene.
-        Grid.SetColumn(categoryDetail, 1);
-        Grid.SetColumn(detailText, 2);
-        Grid.SetColumnSpan(detailText, 3);
-        detailGrid.Children.Add(categoryDetail);
+        detailText.TextWrapping = TextWrapping.Wrap;
+        detailText.TextAlignment = TextAlignment.Right;
+        var detailGrid = new Grid { ClipToBounds = true };
         detailGrid.Children.Add(detailText);
         var detailStrip = new Border
         {
@@ -495,15 +270,26 @@ public partial class MainWindow
 
     private void SynchronizeFavoriteColumnWidths(Grid header)
     {
-        if (header.ColumnDefinitions.Count != FavColumns.Length)
+        if (_syncingFavoriteWidths || header.ColumnDefinitions.Count != FavColumns.Length)
         {
             return;
         }
 
+        _syncingFavoriteWidths = true;
         for (int index = 0; index < FavColumns.Length; index++)
         {
             FavColumns[index] = (FavColumns[index].Header, header.ColumnDefinitions[index].Width);
         }
+
+        foreach (var other in _favHeaders.Where(other => other != header))
+        {
+            for (int index = 0; index < FavColumns.Length; index++)
+            {
+                other.ColumnDefinitions[index].Width = FavColumns[index].Width;
+            }
+        }
+
+        _syncingFavoriteWidths = false;
 
         foreach (Grid mainRow in _favMainRows.Values)
         {
@@ -534,8 +320,7 @@ public partial class MainWindow
 
         string sceneName = string.Empty;
         if (favorite.Scene is >= 1 and <= 8 &&
-            _settings.SceneNameCaches.TryGetValue(_sceneCacheKey, out var sceneCache) &&
-            sceneCache.TryGetValue(slot, out var entry) &&
+            FindFavoriteSceneCacheEntry(slot) is { } entry &&
             favorite.Scene <= entry.Names.Length)
         {
             sceneName = entry.Names[favorite.Scene - 1]?.Trim() ?? string.Empty;
@@ -550,14 +335,33 @@ public partial class MainWindow
         };
     }
 
+    private SceneCacheEntry? FindFavoriteSceneCacheEntry(int slot)
+    {
+        // Prefer names for the configured MIDI pair. When viewing a profile
+        // offline (or after its ports changed), retain access to its newest
+        // cached names without querying the device merely to render a row.
+        if (_settings.SceneNameCaches.TryGetValue(_sceneCacheKey, out var current) &&
+            current.TryGetValue(slot, out var currentEntry))
+        {
+            return currentEntry;
+        }
+
+        return _settings.SceneNameCaches.Values
+            .Select(cache => cache.TryGetValue(slot, out var entry) ? entry : null)
+            .Where(entry => entry is not null)
+            .OrderByDescending(entry => entry!.RetrievedAt)
+            .FirstOrDefault();
+    }
+
     private Control BuildFavoriteTagDisplay(IEnumerable<string> tags)
     {
-        var panel = new WrapPanel { Orientation = Orientation.Horizontal, ItemHeight = 22, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(11, 0), MaxHeight = 22 };
+        var panel = new WrapPanel { Name = "FavoriteInlineTags", Orientation = Orientation.Horizontal, ItemHeight = 22, VerticalAlignment = VerticalAlignment.Center, MaxHeight = 22, ClipToBounds = true };
         foreach (string tag in tags)
         {
             panel.Children.Add(BuildFavoriteTagChip(tag, removable: false));
         }
 
+        ToolTip.SetTip(panel, string.Join(", ", tags));
         return panel;
     }
 
@@ -633,229 +437,6 @@ public partial class MainWindow
 
     private Favorite? SelectedFavorite() => (_favListBox.SelectedItem as ListBoxItem)?.Tag as Favorite;
 
-    private void OnFavCategorySelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        if (_favCategoryTree.SelectedIndex < 0)
-        {
-            return;
-        }
-
-        _favSelectedCategory = (_favCategoryTree.SelectedItem as ListBoxItem)?.Tag as string ?? AllCategoriesSentinel;
-        RefreshFavoritesList(refreshCategories: false);
-        UpdateCategoryRowStates();
-    }
-
-    private ListBoxItem BuildCategoryRow(string name, int count)
-    {
-        var nameLabel = new TextBlock { Text = name, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(13, 0, 8, 0) };
-        var badge = new Border { Background = ThemeBrush("BadgeBrush"), CornerRadius = new CornerRadius(5), Padding = new Thickness(7, 2), Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Child = new TextBlock { Text = count.ToString(), FontSize = 12, Foreground = SecondaryBrush } };
-        var grid = new Grid { Height = 24, ColumnDefinitions = new ColumnDefinitions("*,Auto"), Background = Brushes.Transparent };
-        grid.Children.Add(nameLabel); Grid.SetColumn(badge, 1); grid.Children.Add(badge);
-        grid.Children.Add(new Border { Width = 4, Background = AccentBrush, HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false, IsHitTestVisible = false });
-        var insertionLine = new Border { Height = 2, Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false };
-        grid.Children.Add(insertionLine);
-        var item = new ListBoxItem { Content = grid, Tag = name, Margin = new Thickness(0, 0, 0, 3) };
-        item.PointerEntered += (_, _) => UpdateCategoryRowStates(item);
-        item.PointerExited += (_, _) => UpdateCategoryRowStates();
-        if (name != AllCategoriesSentinel)
-        {
-            var rename = new MenuItem { Header = "Rename" };
-            rename.Click += async (_, _) => await RenameFavoriteCategoryAsync(name);
-            item.ContextMenu = new ContextMenu { Items = { rename } };
-        }
-        _favCategoryInsertionLines[item] = insertionLine;
-        return item;
-    }
-
-    private void UpdateCategoryRowStates(ListBoxItem? hovered = null)
-    {
-        foreach (var item in _favCategoryTree.Items.OfType<ListBoxItem>())
-        {
-            var grid = (Grid)item.Content!;
-            bool selected = item == _favCategoryTree.SelectedItem;
-            grid.Background = selected ? ThemeBrush("SelectedBrush") : item == hovered ? ThemeBrush("HoverBrush") : Brushes.Transparent;
-            ((Border)grid.Children[2]).IsVisible = selected;
-            // The selected row uses the saturated accent background, so retain the
-            // theme's primary text colour for legibility in dark mode.
-            ((TextBlock)grid.Children[0]).Foreground = TextBrush;
-            ((Border)grid.Children[1]).Background = selected ? ThemeBrush("SelectedBadgeBrush") : ThemeBrush("BadgeBrush");
-        }
-    }
-
-    private void OnFavCategoryPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        var item = FavoriteRowFromSource(e.Source);
-        if (item?.Tag is string category && category != AllCategoriesSentinel && e.GetCurrentPoint(_favCategoryTree).Properties.IsLeftButtonPressed)
-        {
-            _favCategoryDragSource = category;
-            _favCategoryDragStart = e.GetPosition(_favCategoryTree);
-            _favCategoryDragItem = item;
-            _favCategoryIsDragging = false;
-            e.Pointer.Capture(_favCategoryTree);
-            _favCategoryTree.SelectedItem = item;
-        }
-    }
-
-    private void OnFavCategoryPointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (_favCategoryDragSource is null || _favCategoryDragStart is null)
-        {
-            return;
-        }
-
-        var position = e.GetPosition(_favCategoryTree);
-        if (Math.Abs(position.X - _favCategoryDragStart.Value.X) < 6 && Math.Abs(position.Y - _favCategoryDragStart.Value.Y) < 6)
-        {
-            return;
-        }
-
-        _favCategoryIsDragging = true;
-        UpdateCategoryInsertionLine(position);
-        e.Handled = true;
-    }
-
-    private void OnFavCategoryPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        bool wasDragging = _favCategoryIsDragging;
-        if (_favCategoryIsDragging && _favCategoryDragSource is not null && _favCategoryInsertionItem?.Tag is string target)
-        {
-            ReorderCategory(_favCategoryDragSource, target, _favCategoryInsertAfter);
-        }
-
-        ClearCategoryDragState();
-        e.Pointer.Capture(null);
-        e.Handled = wasDragging;
-    }
-
-    private void OnFavCategoryPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e) => ClearCategoryDragState();
-
-    private void UpdateCategoryInsertionLine(Point position)
-    {
-        ListBoxItem? target = null;
-        bool after = false;
-        foreach (var row in _favCategoryTree.Items.OfType<ListBoxItem>())
-        {
-            if (row.Tag is not string category || category == AllCategoriesSentinel)
-            {
-                continue;
-            }
-
-            var origin = row.TranslatePoint(new Point(0, 0), _favCategoryTree);
-            if (origin is null || position.Y < origin.Value.Y || position.Y > origin.Value.Y + row.Bounds.Height)
-            {
-                continue;
-            }
-
-            target = row;
-            after = position.Y >= origin.Value.Y + row.Bounds.Height / 2;
-            break;
-        }
-        if (target is null || target == _favCategoryDragItem)
-        {
-            return;
-        }
-
-        ClearCategoryInsertionLine();
-        _favCategoryInsertionItem = target;
-        _favCategoryInsertAfter = after;
-        var line = _favCategoryInsertionLines[target];
-        line.Background = AccentBrush;
-        line.VerticalAlignment = after ? VerticalAlignment.Bottom : VerticalAlignment.Top;
-    }
-
-    private void ReorderCategory(string source, string target, bool after)
-    {
-        if (source == AllCategoriesSentinel || target == AllCategoriesSentinel)
-        {
-            return;
-        }
-
-        var categories = GetOrderedCategories();
-        int sourceIndex = categories.FindIndex(category => string.Equals(category, source, StringComparison.OrdinalIgnoreCase));
-        int targetIndex = categories.FindIndex(category => string.Equals(category, target, StringComparison.OrdinalIgnoreCase));
-        if (sourceIndex < 0 || targetIndex < 0 || sourceIndex == targetIndex)
-        {
-            return;
-        }
-
-        string category = categories[sourceIndex];
-        categories.RemoveAt(sourceIndex);
-        if (sourceIndex < targetIndex)
-        {
-            targetIndex--;
-        }
-
-        if (after)
-        {
-            targetIndex++;
-        }
-
-        categories.Insert(Math.Clamp(targetIndex, 0, categories.Count), category);
-        _settings.CategoryOrder = categories;
-        _saveSettings(_settings);
-        RefreshFavoriteCategoryTree();
-        RefreshFavoritesList(refreshCategories: false);
-    }
-
-    private void ClearCategoryDragState()
-    {
-        ClearCategoryInsertionLine();
-        _favCategoryDragSource = null;
-        _favCategoryDragStart = null;
-        _favCategoryDragItem = null;
-        _favCategoryIsDragging = false;
-    }
-
-    private void ClearCategoryInsertionLine()
-    {
-        if (_favCategoryInsertionItem is not null)
-        {
-            _favCategoryInsertionLines[_favCategoryInsertionItem].Background = Brushes.Transparent;
-        }
-
-        _favCategoryInsertionItem = null;
-        _favCategoryInsertAfter = false;
-    }
-
-    private async void OnFavRenameCategory(object? sender, RoutedEventArgs e)
-    {
-        await RenameFavoriteCategoryAsync(_favSelectedCategory);
-    }
-
-    private async Task RenameFavoriteCategoryAsync(string category)
-    {
-        if (category == AllCategoriesSentinel)
-        {
-            return;
-        }
-
-        string? name = await ShowTextEntryAsync("Rename Collection", "Collection name", category);
-        name = name?.Trim();
-        if (string.IsNullOrEmpty(name) || string.Equals(name, category, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        foreach (var favorite in _favorites.Where(f => string.Equals(f.Category, category, StringComparison.OrdinalIgnoreCase)))
-        {
-            favorite.Category = name;
-        }
-
-        int orderIndex = _settings.CategoryOrder.FindIndex(savedCategory => string.Equals(savedCategory, category, StringComparison.OrdinalIgnoreCase));
-        if (orderIndex >= 0) { _settings.CategoryOrder[orderIndex] = name; _saveSettings(_settings); }
-        _favSelectedCategory = name;
-        _saveFavorites(_favorites);
-        RefreshFavoritesList();
-    }
-
-    private void RefreshFavoriteCategoryBoxItems()
-    {
-        string prev = _favCategoryBox.Text ?? string.Empty;
-        _favCategoryBox.ItemsSource = _favorites.Select(f => f.Category).Where(c => c.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c).ToList();
-        _favCategoryBox.Text = prev;
-    }
-
     private void OnFavNew(object? sender, RoutedEventArgs e)
     {
         _favListBox.SelectedItem = null;
@@ -873,12 +454,10 @@ public partial class MainWindow
 
     internal void ShowFavoriteEditor(Favorite fav, bool isNew)
     {
-        RefreshFavoriteCategoryBoxItems();
 
         _favEditingId = isNew ? 0 : fav.Id;
         _favEditorTitle.Text = isNew ? "New Favorite" : $"Edit: {(fav.IsEmpty ? "— Empty —" : fav.Name)}";
         _favNameBox.Text = fav.Name;
-        _favCategoryBox.Text = fav.Category;
         _favEditingTags.Clear();
         _favEditingTags.AddRange(fav.Tags.Distinct(StringComparer.OrdinalIgnoreCase));
         _favTagInput.Text = string.Empty;
@@ -900,14 +479,14 @@ public partial class MainWindow
         if (!_favoritesPage.Children.Contains(_favEditorCard))
         {
             _favPreviousMinWidth = MinWidth;
-            MinWidth = Math.Max(MinWidth, 1200);
+            MinWidth = Math.Max(MinWidth, 1320);
             if (Width < MinWidth)
             {
                 Width = MinWidth;
             }
 
-            _favoritesPage.ColumnDefinitions = new ColumnDefinitions("210,16,*,16,300");
-            Grid.SetColumn(_favEditorCard, 4);
+            _favoritesPage.ColumnDefinitions = new ColumnDefinitions("*,16,300");
+            Grid.SetColumn(_favEditorCard, 2);
             _favoritesPage.Children.Add(_favEditorCard);
         }
     }
@@ -925,7 +504,7 @@ public partial class MainWindow
         _favEditorPlaceholder.IsVisible = true;
         _favEditorCard.IsVisible = false;
         _favoritesPage.Children.Remove(_favEditorCard);
-        _favoritesPage.ColumnDefinitions = new ColumnDefinitions("210,16,*");
+        _favoritesPage.ColumnDefinitions = new ColumnDefinitions("*");
     }
 
     private void OnFavListSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -968,9 +547,7 @@ public partial class MainWindow
                 ? FavoriteDetailText(favorite)
                 : string.Empty;
             _favDetailTexts[item].Text = detail;
-            _favDetailStrips[item].IsVisible = detail.Length > 0 ||
-                                               (showDetails && item.Tag is Favorite detailFavorite &&
-                                                !detailFavorite.IsEmpty && detailFavorite.Category.Length > 0);
+            _favDetailStrips[item].IsVisible = detail.Length > 0;
         }
     }
 
@@ -1054,7 +631,8 @@ public partial class MainWindow
         foreach (var row in _favListBox.Items.OfType<ListBoxItem>())
         {
             var origin = row.TranslatePoint(new Point(0, 0), _favListBox);
-            if (origin is null || position.Y < origin.Value.Y || position.Y > origin.Value.Y + row.Bounds.Height)
+            if (origin is null || position.Y < origin.Value.Y || position.Y > origin.Value.Y + row.Bounds.Height ||
+                position.X < origin.Value.X || position.X > origin.Value.X + row.Bounds.Width)
             {
                 continue;
             }
@@ -1078,6 +656,11 @@ public partial class MainWindow
 
     private void ReorderFavorite(Favorite source, Favorite target, bool after)
     {
+        if (_favSortColumn >= 0 || HasFavoriteSearch)
+        {
+            return;
+        }
+
         int sourceIndex = _favorites.IndexOf(source);
         int targetIndex = _favorites.FindIndex(f => f.Id == target.Id);
         if (sourceIndex < 0 || targetIndex < 0 || sourceIndex == targetIndex)
@@ -1121,8 +704,7 @@ public partial class MainWindow
         _favInsertAfter = false;
     }
 
-    private static ListBoxItem? FavoriteRowFromSource(object? source) => (source as Visual)?
-        .FindAncestorOfType<ListBoxItem>();
+    private static ListBoxItem? FavoriteRowFromSource(object? source) => source as ListBoxItem ?? (source as Visual)?.FindAncestorOfType<ListBoxItem>();
 
     private async void OnFavSave(object? sender, RoutedEventArgs e)
     {
@@ -1159,7 +741,6 @@ public partial class MainWindow
                 Id = FavoritesManager.NextId(_favorites),
                 Slot = _favorites.Count + 1,
                 Name = name,
-                Category = _favCategoryBox.Text?.Trim() ?? string.Empty,
                 Tags = tags,
                 Preset = (int)preset,
                 Scene = (int)scene,
@@ -1175,7 +756,6 @@ public partial class MainWindow
             }
 
             _favorites[idx].Name = name;
-            _favorites[idx].Category = _favCategoryBox.Text?.Trim() ?? string.Empty;
             _favorites[idx].Tags = tags;
             _favorites[idx].Preset = (int)preset;
             _favorites[idx].Scene = (int)scene;
@@ -1440,7 +1020,8 @@ public partial class MainWindow
     {
         if (_favSortColumn == column)
         {
-            _favSortAscending = !_favSortAscending;
+            if (_favSortAscending) { _favSortAscending = false; }
+            else { _favSortColumn = -1; _favSortAscending = true; }
         }
         else { _favSortColumn = column; _favSortAscending = true; }
         RefreshFavoritesList();

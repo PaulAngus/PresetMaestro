@@ -18,13 +18,12 @@ public class AppSettings
     public bool DebugMode { get; set; }
     public int SceneCc { get; set; } = 34; // Scene Select CC# (must match device's MIDI/Remote setup)
     public string Theme { get; set; } = "Dark";
-    public List<string> CategoryOrder { get; set; } = [];
-    public Dictionary<int, string> NoteMap { get; set; } = DefaultNoteMap();
+    public Dictionary<int, string> MidiNoteMap { get; set; } = DefaultMidiNoteMap();
     public Dictionary<int, string> PresetNameCache { get; set; } = [];
     // Scope names to a port pair; slots are always MIDI 0-511, independent of display offset.
     public Dictionary<string, Dictionary<int, SceneCacheEntry>> SceneNameCaches { get; set; } = [];
 
-    public static Dictionary<int, string> DefaultNoteMap() => new()
+    public static Dictionary<int, string> DefaultMidiNoteMap() => new()
     {
         { 36, "1" }, { 37, "2" }, { 38, "3" }, { 39, "4" }, { 40, "5" },
         { 41, "6" }, { 42, "7" }, { 43, "8" }, { 44, "9" }, { 45, "0" },

@@ -131,19 +131,28 @@ public partial class MainWindow
     {
         foreach (string port in GetCheckedThruPorts())
         {
-            if (reopen)
+            try
             {
-                _midi.CloseThruInput(port);
-            }
+                if (reopen)
+                {
+                    _midi.CloseThruInput(port);
+                }
 
-            bool opened = _midi.OpenThruInput(port, out var error);
-            if (opened)
-            {
-                AppendLog(reopen ? $"THRU: reopened '{port}' after connection" : $"THRU: opened '{port}' on connection");
+                bool opened = _midi.OpenThruInput(port, out var error);
+                if (opened)
+                {
+                    AppendLog(reopen ? $"THRU: reopened '{port}' after connection" : $"THRU: opened '{port}' on connection");
+                }
+                else
+                {
+                    AppendLog($"THRU: failed to {(reopen ? "reopen" : "open")} '{port}' — {error}");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                AppendLog($"THRU: failed to {(reopen ? "reopen" : "open")} '{port}' — {error}");
+                // A secondary controller must not terminate an otherwise valid
+                // Fractal connection when its driver throws from a WinMM call.
+                AppendLog($"THRU: failed to {(reopen ? "reopen" : "open")} '{port}' — {ex.Message}");
             }
         }
     }
@@ -152,8 +161,6 @@ public partial class MainWindow
     {
         _settings.MaxDisplayedPreset = EffectiveMaximum;
         _favPresetSpinner.Maximum = EffectiveMaximum;
-        string model = PickerDeviceModel == Core.DeviceModel.AxeFxIII ? "Axe-Fx III" : PickerDeviceModel.ToString();
-        string source = _detectedDevice is null ? "saved model" : "detected";
-        _deviceCapacityLabel.Text = $"{model} · {Core.DevicePresets.Capacity(PickerDeviceModel)} presets ({source})";
+        // The preset capacity is kept in settings for device limits, but the UI no longer shows it.
     }
 }

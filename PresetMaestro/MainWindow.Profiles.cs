@@ -180,9 +180,7 @@ public partial class MainWindow
             _currentPreset = _lastPreset = null;
             _currentFavoriteName = null;
             _currentFavoriteScene = null;
-            _favSelectedCategory = AllCategoriesSentinel;
-            _favSelectedTags.Clear();
-            _favTagMatchAll = true;
+            ResetFavoriteSearch();
             _favFilterSelectionId = null;
             _favSearchBox.Text = "";
             ApplyProfileSettingsToUI();

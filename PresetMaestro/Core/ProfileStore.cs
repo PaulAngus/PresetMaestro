@@ -79,6 +79,7 @@ public sealed class ProfileStore(string directory)
         var updated = names.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToList();
         var json = File.Exists(MachinePath) ? JsonNode.Parse(File.ReadAllText(MachinePath))!.AsObject() : new JsonObject();
         json[nameof(AppSettings.Profiles)] = JsonSerializer.SerializeToNode(updated);
+        json.Remove("CategoryOrder");
         WriteJson(MachinePath, json);
         _profiles = updated;
     }
@@ -159,6 +160,7 @@ public sealed class ProfileStore(string directory)
             json.Remove(property.Name);
         }
 
+        json.Remove("CategoryOrder");
         WriteJson(MachinePath, json);
     }
 
@@ -273,6 +275,7 @@ public sealed class ProfileStore(string directory)
                     JsonSerializer.Serialize(stream, favorites, JsonOptions);
                 }
             }
+            LegacyFavoritesStorage.PreserveOriginal(path);
             File.Move(temporary, path, true);
         }
         finally
@@ -344,7 +347,7 @@ public sealed class ProfileStore(string directory)
         var settings = JsonSerializer.Deserialize<ProfileSettings>(json, JsonOptions)!;
         if (settings.MidiChannel is < 0 or > 16 || settings.DisplayOffset is < 0 or > 1 ||
             settings.MaxDisplayedPreset is < 1 or > 1024 || settings.SceneCc is < 0 or > 127 ||
-            settings.CategoryOrder is null || settings.PresetNameCache is null || settings.SceneNameCaches is null ||
+            settings.PresetNameCache is null || settings.SceneNameCaches is null ||
             settings.SceneNameCaches.Values.Any(cache => cache is null || cache.Values.Any(entry => entry is null || entry.Names is null)))
         {
             throw new InvalidDataException("The profile contains invalid mapping or cache values.");
@@ -356,7 +359,7 @@ public sealed class ProfileStore(string directory)
     private static List<Favorite> ValidateFavorites(string json)
     {
         var favorites = JsonSerializer.Deserialize<List<Favorite>>(json, JsonOptions) ?? throw new InvalidDataException("The favorites file is empty.");
-        if (favorites.Any(favorite => favorite is null || favorite.Tags is null || favorite.Name is null || favorite.Category is null))
+        if (favorites.Any(favorite => favorite is null || favorite.Tags is null || favorite.Name is null))
         {
             throw new InvalidDataException("The favorites file contains invalid entries.");
         }
@@ -371,6 +374,7 @@ public sealed class ProfileStore(string directory)
         try
         {
             File.WriteAllText(temporary, JsonSerializer.Serialize(value, JsonOptions));
+            LegacyFavoritesStorage.PreserveOriginal(path);
             File.Move(temporary, path, true);
         }
         finally

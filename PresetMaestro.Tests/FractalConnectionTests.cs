@@ -79,7 +79,7 @@ public class FractalConnectionTests
             await window.ConnectAsync();
             Assert.False(midi.InputOpen);
             Assert.False(midi.OutputOpen);
-            Assert.Equal("○ Not connected", Header(window).Text);
+            Assert.Equal("Not connected", Header(window).Text);
             Assert.Equal(MainWindow.ConnectionError, Assert.Single(errors));
         }
         finally { window.Close(); }
@@ -96,7 +96,7 @@ public class FractalConnectionTests
         {
             var pending = window.ConnectAsync();
             Assert.True(midi.InputOpen && midi.OutputOpen);
-            Assert.Equal("○ Not connected", Header(window).Text);
+            Assert.Equal("Not connected", Header(window).Text);
             midi.Send = request => { if (request[5] == 1) { midi.Reply(FractalDeviceInformationTests.Capture("name-pm-test")); } };
             midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9"));
             await pending;
@@ -109,7 +109,7 @@ public class FractalConnectionTests
             }
             Assert.Empty(errors);
             Invoke(window, "Disconnect");
-            Assert.Equal("○ Not connected", header.Text);
+            Assert.Equal("Not connected", header.Text);
             Assert.False(midi.InputOpen || midi.OutputOpen);
         }
         finally { window.Close(); }
@@ -145,6 +145,38 @@ public class FractalConnectionTests
     }
 
     [AvaloniaFact]
+    public async Task ThrowingThruDriverDoesNotCrashValidatedConnection()
+    {
+        var midi = new DeviceMidi { ThrowThru = true };
+        midi.InputPorts.Add("FootCtrlPlus");
+        midi.Send = request => { if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9")); } };
+        var settings = new AppSettings
+        {
+            Theme = "Light",
+            MidiInputPort = "FM9",
+            MidiOutputPort = "FM9",
+            ThruInputPorts = ["FootCtrlPlus"]
+        };
+        var errors = new List<string>();
+        var window = new MainWindow(settings, [], midi, saveSettings: _ => { }, saveFavorites: _ => { })
+        {
+            ConnectionErrorOverride = message => { errors.Add(message); return Task.CompletedTask; },
+            DeviceInformationTimeout = TimeSpan.FromMilliseconds(20),
+            ThruInputRetryDelay = TimeSpan.Zero
+        };
+        window.Show();
+        try
+        {
+            await window.ConnectAsync();
+
+            Assert.True(midi.InputOpen && midi.OutputOpen);
+            Assert.Equal("FM9", Header(window).Text);
+            Assert.Empty(errors);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task DisconnectDuringQueryPreventsLateConnectedLabel()
     {
         var midi = new DeviceMidi();
@@ -157,7 +189,7 @@ public class FractalConnectionTests
             Invoke(window, "Disconnect");
             late?.Invoke(midi, FractalDeviceInformationTests.Capture("identity-fm9"));
             await pending;
-            Assert.Equal("○ Not connected", Header(window).Text);
+            Assert.Equal("Not connected", Header(window).Text);
             Assert.False(midi.InputOpen || midi.OutputOpen);
             Assert.Empty(errors);
         }
@@ -178,7 +210,7 @@ public class FractalConnectionTests
             Assert.Equal("FM9", Header(window).Text);
             if (removed) { midi.Removed = true; await Task.Delay(1200); }
             else { midi.FailTransport(); Dispatcher.UIThread.RunJobs(); }
-            Assert.Equal("○ Not connected", Header(window).Text);
+            Assert.Equal("Not connected", Header(window).Text);
             Assert.False(midi.InputOpen || midi.OutputOpen);
         }
         finally { window.Close(); }

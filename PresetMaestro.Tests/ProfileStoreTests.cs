@@ -31,7 +31,6 @@ public sealed class ProfileStoreTests : IDisposable
             AutoSend = true,
             KeyboardEntryEnabled = false,
             MidiEntryEnabled = false,
-            CategoryOrder = ["Live"],
             PresetNameCache = new() { [3] = "Clean" },
             SceneNameCaches = new() { ["ports"] = new() { [3] = new() { Names = ["Lead"] } } },
         };
@@ -62,7 +61,7 @@ public sealed class ProfileStoreTests : IDisposable
         Assert.Equal("Keyboard", machine["MidiInputPort"]!.GetValue<string>());
         Assert.True(machine["AutoSend"]!.GetValue<bool>());
         Assert.False(profile.ContainsKey("MidiInputPort"));
-        Assert.False(profile.ContainsKey("NoteMap"));
+        Assert.False(profile.ContainsKey("MidiNoteMap"));
         Assert.False(profile.ContainsKey("AutoSend"));
         Assert.Equal(400, profile["MaxDisplayedPreset"]!.GetValue<int>());
 
@@ -193,7 +192,6 @@ public sealed class ProfileStoreTests : IDisposable
         settings.DisplayOffset = 1;
         settings.MaxDisplayedPreset = 1024;
         settings.SceneCc = 55;
-        settings.CategoryOrder = ["Gig"];
         settings.PresetNameCache[3] = "Preset";
         settings.SceneNameCaches["ports"] = new() { [3] = new() { Names = ["Scene"] } };
         store.SaveSettings(settings);
@@ -216,7 +214,6 @@ public sealed class ProfileStoreTests : IDisposable
         Assert.Equal(DeviceModel.AxeFxIII, store.LoadProfile(imported).DeviceModel);
         Assert.Equal(1024, store.LoadProfile(imported).MaxDisplayedPreset);
         Assert.Equal(55, store.LoadProfile(imported).SceneCc);
-        Assert.Equal(["Gig"], store.LoadProfile(imported).CategoryOrder);
         Assert.Equal("Scene", store.LoadProfile(imported).SceneNameCaches["ports"][3].Names[0]);
         Assert.Equal("Song", store.LoadFavorites(imported).Single().Name);
         Assert.Equal("Private computer port", store.LoadSettings().MidiInputPort);

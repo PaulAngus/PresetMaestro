@@ -15,7 +15,7 @@ public sealed class SettingsManagerTests
         Assert.Equal(511, settings.MaxDisplayedPreset);
         Assert.Equal(34, settings.SceneCc);
         Assert.Equal("Dark", settings.Theme);
-        Assert.Equal("1", settings.NoteMap[36]);
+        Assert.Equal("1", settings.MidiNoteMap[36]);
     }
 
     [Fact]
@@ -34,8 +34,7 @@ public sealed class SettingsManagerTests
                 DisplayOffset = 1,
                 MaxDisplayedPreset = 512,
                 AutoSend = true,
-                CategoryOrder = ["Clean", "Lead"],
-                NoteMap = new Dictionary<int, string> { [60] = "SEND" },
+                MidiNoteMap = new Dictionary<int, string> { [60] = "SEND" },
                 PresetNameCache = new Dictionary<int, string> { [128] = "Preset" },
                 SceneNameCaches = new Dictionary<string, Dictionary<int, SceneCacheEntry>>
                 {
@@ -61,8 +60,7 @@ public sealed class SettingsManagerTests
             Assert.Equal(expected.DisplayOffset, actual.DisplayOffset);
             Assert.Equal(expected.MaxDisplayedPreset, actual.MaxDisplayedPreset);
             Assert.True(actual.AutoSend);
-            Assert.Equal(expected.CategoryOrder, actual.CategoryOrder);
-            Assert.Equal("SEND", actual.NoteMap[60]);
+            Assert.Equal("SEND", actual.MidiNoteMap[60]);
             Assert.Equal("Preset", actual.PresetNameCache[128]);
             SceneCacheEntry scene = actual.SceneNameCaches["ports"][128];
             Assert.Equal(["One", "Two"], scene.Names);

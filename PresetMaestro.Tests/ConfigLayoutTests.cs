@@ -119,7 +119,7 @@ public partial class FavoriteEditorTests
             window.Show();
             Assert.Equal(expected, Field<NumericUpDown>(window, "_favPresetSpinner").Maximum);
             Assert.Equal(expected, settings.MaxDisplayedPreset);
-            Assert.Contains("saved model", Field<TextBlock>(window, "_deviceCapacityLabel").Text);
+            Assert.Null(window.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(block => block.Name == "DeviceCapacity"));
         }
         finally { window.Close(); }
     }

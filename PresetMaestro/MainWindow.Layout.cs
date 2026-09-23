@@ -17,7 +17,6 @@ public partial class MainWindow
     private NumericUpDown _autoSendDelaySpinner = null!;
     private CheckBox _keyboardEntryCheck = null!;
     private CheckBox _midiEntryCheck = null!;
-    private TextBlock _activePresetStatusLabel = null!;
     private TextBlock _currentPresetNameLabel = null!;
     private TextBlock _currentSceneNameLabel = null!;
     private TextBlock _diagLastRxLabel = null!;
@@ -50,7 +49,6 @@ public partial class MainWindow
     private RadioButton _lightThemeRadio = null!;
 
     // ── Favorites tab ────────────────────────────────────────────────
-    private ListBox _favCategoryTree = null!;
     private Grid _favoritesPage = null!;
     private TextBox _favSearchBox = null!;
     private Button _favNewBtn = null!;
@@ -63,9 +61,6 @@ public partial class MainWindow
     private TextBlock _favEditorPlaceholder = null!;
     private TextBlock _favEditorTitle = null!;
     private TextBox _favNameBox = null!;
-    private AutoCompleteBox _favCategoryBox = null!;
-    private TextBox _favTagsBox = null!;
-    private NumericUpDown _favSlotSpinner = null!;
     private NumericUpDown _favPresetSpinner = null!;
     private TextBlock _favPresetDisplayLabel = null!;
     private Button _favPresetPickerButton = null!;
@@ -75,36 +70,20 @@ public partial class MainWindow
     private Button _favSaveBtn = null!;
     private Button _favDeleteBtn = null!;
     private Button _favCancelBtn = null!;
-    // Legacy layout only; the approved editor uses the Delete confirmation dialog.
-    private Button _favClearSlotBtn = null!;
-    private Button _favRemoveSlotBtn = null!;
     private Button _favSyncPresetsButton = null!;
     private Border _deleteSlotDialogBackdrop = null!;
     private Button _deleteSlotDialogRemoveBtn = null!;
     private Favorite? _deleteSlotDialogFavorite;
     private bool _showFavoriteDetailsForAll;
 
-    // Preserve the existing detail-strip geometry independently of main-table columns.
-    private static readonly (string Header, GridLength Width)[] FavoriteDetailColumns =
+    private readonly (string Header, GridLength Width)[] FavColumns =
     [
-        ("Slot", new GridLength(54)),
+        ("Slot", new GridLength(38)),
         ("Name", new GridLength(1, GridUnitType.Star)),
-        ("Tags", new GridLength(1.12, GridUnitType.Star)),
-        ("Preset", new GridLength(106)),
-        ("Scene", new GridLength(66)),
+        ("Preset", new GridLength(54)),
+        ("Scene", new GridLength(48)),
     ];
-
-    private static readonly (string Header, GridLength Width)[] FavColumns =
-    [
-        ("Slot", new GridLength(54)),
-        ("Name", new GridLength(1.8, GridUnitType.Star)),
-        ("Collection", new GridLength(1, GridUnitType.Star)),
-        ("Tags", new GridLength(1.12, GridUnitType.Star)),
-        ("Preset", new GridLength(62)),
-        ("Scene", new GridLength(52)),
-    ];
-
-    private static readonly double[] FavColumnMinimumWidths = [44, 120, 90, 100, 58, 50];
+    private static readonly double[] FavColumnMinimumWidths = [36, 252, 52, 46];
 
     private void BuildLegacyLayout()
     {
@@ -319,7 +298,7 @@ public partial class MainWindow
         _debugCheck.IsCheckedChanged += (_, _) => _settings.DebugMode = _debugCheck.IsChecked == true;
         midiStack.Children.Add(_debugCheck);
 
-        _statusLabel = new TextBlock { Text = "○ Not connected", Foreground = Brushes.Gray, FontWeight = FontWeight.Bold };
+        _statusLabel = new TextBlock { Text = "Not connected", Foreground = Brushes.Gray, FontWeight = FontWeight.Bold };
         midiStack.Children.Add(_statusLabel);
 
         stack.Children.Add(Card("MIDI Connection", midiStack));
@@ -393,75 +372,9 @@ public partial class MainWindow
         tab.Content = new ScrollViewer { Content = stack };
     }
 
-    // ── Favorites tab (category tree + list, inline editor) ──────────
-    private void BuildFavoritesTab(TabItem tab)
-    {
-        var grid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("170,4,*,4,280"),
-            Margin = new Thickness(12),
-        };
+    private void BuildFavoritesTab(TabItem tab) => tab.Content = BuildApprovedFavorites();
 
-        _favCategoryTree = new ListBox();
-        _favCategoryTree.SelectionChanged += OnFavCategorySelectionChanged;
-        var treeCard = Card("Collections", _favCategoryTree);
-        grid.Children.Add(treeCard);
-
-        var splitter1 = new GridSplitter { Width = 4, Background = Brushes.Transparent };
-        Grid.SetColumn(splitter1, 1);
-        grid.Children.Add(splitter1);
-
-        var listPane = BuildFavoritesListPane();
-        Grid.SetColumn(listPane, 2);
-        grid.Children.Add(listPane);
-
-        var splitter2 = new GridSplitter { Width = 4, Background = Brushes.Transparent };
-        Grid.SetColumn(splitter2, 3);
-        grid.Children.Add(splitter2);
-
-        var editorPane = BuildFavoritesEditorPane();
-        Grid.SetColumn(editorPane, 4);
-        grid.Children.Add(editorPane);
-
-        tab.Content = grid;
-    }
-
-    private Control BuildFavoritesListPane()
-    {
-        var stack = new StackPanel { Spacing = 8 };
-
-        var toolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,70") };
-        _favSearchBox = new TextBox { Watermark = "Search name / collection / tag..." };
-        _favSearchBox.TextChanged += OnFavFilterChanged;
-        _favNewBtn = new Button { Content = "+ New", HorizontalAlignment = HorizontalAlignment.Stretch };
-        _favNewBtn.Click += OnFavNew;
-        Grid.SetColumn(_favNewBtn, 1);
-        toolbar.Children.Add(_favSearchBox);
-        toolbar.Children.Add(_favNewBtn);
-        stack.Children.Add(toolbar);
-
-        var header = BuildFavColumnGrid(FavColumns.Select((c, i) =>
-        {
-            var btn = new Button { Content = c.Header, HorizontalContentAlignment = HorizontalAlignment.Left, Background = Brushes.Transparent };
-            int col = i;
-            btn.Click += (_, _) => OnFavColumnClick(col);
-            return (Control)btn;
-        }).ToArray());
-        stack.Children.Add(header);
-
-        _favListBox = new ListBox { Height = 320 };
-        _favListBox.SelectionChanged += OnFavListSelectionChanged;
-        _favListBox.DoubleTapped += OnFavListDoubleClick;
-        stack.Children.Add(_favListBox);
-
-        _favSendBtn = new Button { Content = "Send", Background = Brushes.DodgerBlue, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Left };
-        _favSendBtn.Click += OnFavSend;
-        stack.Children.Add(_favSendBtn);
-
-        return Card("Favorites", stack);
-    }
-
-    private static Grid BuildFavColumnGrid(Control[] cells)
+    private Grid BuildFavColumnGrid(Control[] cells)
     {
         var grid = new Grid();
         foreach (var column in FavColumns)
@@ -479,57 +392,6 @@ public partial class MainWindow
 
     private static string GridLengthToString(GridLength length) =>
         length.IsStar ? "*" : length.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-    private Control BuildFavoritesEditorPane()
-    {
-        var container = new Panel();
-
-        _favEditorPlaceholder = new TextBlock
-        {
-            Text = "Select a favorite to edit,\nor click \"+ New\" to create one.",
-            Foreground = Brushes.Gray,
-            TextWrapping = TextWrapping.Wrap,
-        };
-        container.Children.Add(_favEditorPlaceholder);
-
-        var editorStack = new StackPanel { Spacing = 10 };
-        _favEditorTitle = new TextBlock { Text = "New Favorite", FontWeight = FontWeight.Bold, FontSize = 14 };
-        editorStack.Children.Add(_favEditorTitle);
-
-        _favNameBox = new TextBox();
-        _favCategoryBox = new AutoCompleteBox { FilterMode = AutoCompleteFilterMode.Contains, HorizontalAlignment = HorizontalAlignment.Stretch };
-        _favTagsBox = new TextBox { Watermark = "comma, separated, tags" };
-        _favSlotSpinner = new NumericUpDown { Minimum = 1, Maximum = 999, FormatString = "0" };
-        _favPresetSpinner = new NumericUpDown { Minimum = 0, Maximum = 512, FormatString = "0" };
-        _favSceneSpinner = new NumericUpDown { Minimum = 1, Maximum = 8, FormatString = "0" };
-
-        editorStack.Children.Add(EditorField("Name", _favNameBox));
-        editorStack.Children.Add(EditorField("Collection", _favCategoryBox));
-        editorStack.Children.Add(EditorField("Tags", _favTagsBox));
-        editorStack.Children.Add(EditorField("Slot #", _favSlotSpinner));
-        editorStack.Children.Add(EditorField("Preset", _favPresetSpinner));
-        editorStack.Children.Add(EditorField("Scene", _favSceneSpinner));
-
-        var buttonsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        _favSaveBtn = new Button { Content = "Save", Background = Brushes.DodgerBlue, Foreground = Brushes.White };
-        _favSaveBtn.Click += OnFavSave;
-        _favClearSlotBtn = new Button { Content = "Clear Slot" };
-        _favClearSlotBtn.Click += OnFavClearSlot;
-        _favRemoveSlotBtn = new Button { Content = "Remove Slot…", Background = Brushes.IndianRed, Foreground = Brushes.White };
-        _favRemoveSlotBtn.Click += OnFavRemoveSlot;
-        _favCancelBtn = new Button { Content = "Cancel" };
-        _favCancelBtn.Click += OnFavCancel;
-        buttonsRow.Children.Add(_favSaveBtn);
-        buttonsRow.Children.Add(_favClearSlotBtn);
-        buttonsRow.Children.Add(_favRemoveSlotBtn);
-        buttonsRow.Children.Add(_favCancelBtn);
-        editorStack.Children.Add(buttonsRow);
-
-        _favEditorPanel = new Panel { IsVisible = false, Children = { editorStack } };
-        container.Children.Add(_favEditorPanel);
-
-        return Card("Favorite", container);
-    }
 
     private static StackPanel EditorField(string label, Control input)
     {

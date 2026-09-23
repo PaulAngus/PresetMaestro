@@ -458,11 +458,11 @@ public partial class MainWindow
             AppendLog($"DEBUG: ch filter bypassed — note {e.NoteNumber} arrived on ch{e.Channel}, filter=ch{_settings.MidiChannel}");
         }
 
-        if (!_settings.NoteMap.TryGetValue(e.NoteNumber, out string? cmdStr))
+        if (!_settings.MidiNoteMap.TryGetValue(e.NoteNumber, out string? cmdStr))
         {
             _diagLastRxLabel.Text = $"note {e.NoteNumber} ch{e.Channel} — UNMAPPED";
             AppendLog(_settings.DebugMode
-                ? $"DEBUG: note {e.NoteNumber} ch{e.Channel} — not in NoteMap (no action)"
+                ? $"DEBUG: note {e.NoteNumber} ch{e.Channel} — not in MidiNoteMap (no action)"
                 : $"INPUT: Unmapped note {e.NoteNumber} (ignored)");
             return;
         }
@@ -589,7 +589,28 @@ public partial class MainWindow
         }
     }
 
-    private async void Connect() => await ConnectAsync();
+    private async void Connect()
+    {
+        try
+        {
+            await ConnectAsync();
+        }
+        catch (Exception ex)
+        {
+            // Button event handlers are async void. Keep an unexpected driver or
+            // UI follow-up exception from escaping the dispatcher and closing the app.
+            AppendLog($"CONNECT ERROR: {ex.Message}");
+            Disconnect();
+            if (ConnectionErrorOverride is { } show)
+            {
+                await show(ConnectionError);
+            }
+            else
+            {
+                await ShowMessageAsync("Connection error", ConnectionError);
+            }
+        }
+    }
 
     private void Disconnect()
     {
@@ -603,7 +624,7 @@ public partial class MainWindow
         _midi.CloseOutput();
         _detectedDevice = null;
         UpdatePresetCapacityUI();
-        SetStatus("○ Not connected", StatusKind.NotConnected);
+        SetStatus("Not connected", StatusKind.NotConnected);
         UpdateConnectButtons();
     }
 
@@ -615,18 +636,20 @@ public partial class MainWindow
         {
             StatusKind.ConnectedBoth => Avalonia.Application.Current!.RequestedThemeVariant == Avalonia.Styling.ThemeVariant.Light ? Brushes.LimeGreen : SuccessBrush,
             StatusKind.InputOnly or StatusKind.OutputOnly => Brushes.Goldenrod,
-            StatusKind.DeviceError => Brushes.Red,
+            StatusKind.DeviceError or StatusKind.NotConnected or StatusKind.Disconnected => Brushes.Red,
             _ => Brushes.Gray,
         };
         _statusLabel.Text = text;
         _statusLabel.Foreground = foreground;
         _headerStatusLabel.Text = text;
         _headerStatusLabel.Foreground = kind == StatusKind.ConnectedBoth ? TextBrush : foreground;
-        if (_connectionDot is not null) { _connectionDot.IsVisible = kind == StatusKind.ConnectedBoth; }
+        if (_connectionDot is not null)
+        {
+            _connectionDot.IsVisible = true;
+            _connectionDot.Background = kind == StatusKind.ConnectedBoth ? SuccessBrush : Brushes.Red;
+        }
         _senderStatusLabel.Text = text;
         _senderStatusLabel.Foreground = foreground;
-        _activePresetStatusLabel.Text = text;
-        _activePresetStatusLabel.Foreground = foreground;
         UpdatePresetSyncButtons();
     }
 
