@@ -1,3 +1,4 @@
 {
-    "dotnet.defaultSolution": "PresetMaestro.slnx"
+    "dotnet.defaultSolution": "PresetMaestro.slnx",
+    "terminal.integrated.defaultProfile.windows": "PowerShell"
 }

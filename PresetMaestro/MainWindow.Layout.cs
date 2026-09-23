@@ -38,7 +38,6 @@ public partial class MainWindow
     private ComboBox _channelCombo = null!;
     private ComboBox _offsetCombo = null!;
     private NumericUpDown _maxPresetSpinner = null!;
-    private NumericUpDown _sceneCcSpinner = null!;
     private Button _connectButton = null!;
     private Button _disconnectButton = null!;
     private CheckBox _debugCheck = null!;
@@ -350,11 +349,10 @@ public partial class MainWindow
         mapStack.Children.Add(maxRow);
 
         var sceneRow = new Grid { ColumnDefinitions = new ColumnDefinitions("120,*") };
-        _sceneCcSpinner = new NumericUpDown { Minimum = 0, Maximum = 127, Value = 34, Width = 100, FormatString = "0" };
-        _sceneCcSpinner.ValueChanged += (_, _) => _settings.SceneCc = (int)(_sceneCcSpinner.Value ?? 34);
-        Grid.SetColumn(_sceneCcSpinner, 1);
-        sceneRow.Children.Add(new TextBlock { Text = "Scene CC#:", VerticalAlignment = VerticalAlignment.Center });
-        sceneRow.Children.Add(_sceneCcSpinner);
+        var mappingButton = BuildMidiMappingButton();
+        Grid.SetColumn(mappingButton, 1);
+        sceneRow.Children.Add(new TextBlock { Text = "MIDI Mapping:", VerticalAlignment = VerticalAlignment.Center });
+        sceneRow.Children.Add(mappingButton);
         mapStack.Children.Add(sceneRow);
 
         stack.Children.Add(Card("Preset Mapping", mapStack));

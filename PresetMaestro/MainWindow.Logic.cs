@@ -671,7 +671,6 @@ public partial class MainWindow
         if (_detectedDevice is not null) { _settings.DeviceModel = _detectedDevice.Model; }
         _channelCombo.SelectedIndex = Math.Clamp(_settings.MidiChannel, 0, 16);
         _offsetCombo.SelectedIndex = Math.Clamp(_settings.DisplayOffset, 0, 1);
-        _sceneCcSpinner.Value = Math.Clamp(_settings.SceneCc, 0, 127);
         UpdatePresetCapacityUI();
     }
 
@@ -702,7 +701,6 @@ public partial class MainWindow
         _settings.KeyboardEntryEnabled = _keyboardEntryCheck.IsChecked == true;
         _settings.MidiEntryEnabled = _midiEntryCheck.IsChecked == true;
         _settings.DebugMode = _debugCheck.IsChecked == true;
-        _settings.SceneCc = (int)(_sceneCcSpinner.Value ?? 34);
         _saveSettings(_settings);
     }
 

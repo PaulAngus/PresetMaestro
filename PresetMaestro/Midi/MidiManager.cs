@@ -346,10 +346,21 @@ public sealed class MidiManager : IMidiManager
             try { _midiOut.Send(e.RawMessage); }
             catch (Exception ex) { LogMessage?.Invoke(this, $"THRU ERROR: {ex.Message}"); return; }
         }
-        LogMessage?.Invoke(this, $"THRU: forwarded 0x{status:X2} data={(e.RawMessage >> 8) & 0x7F},{(e.RawMessage >> 16) & 0x7F}");
-        if ((status & 0xf0) == 0xc0)
+        int command = status & 0xF0;
+        int channel = (status & 0x0F) + 1;
+        int data1 = (e.RawMessage >> 8) & 0x7F;
+        int data2 = (e.RawMessage >> 16) & 0x7F;
+
+        LogMessage?.Invoke(this, $"THRU: forwarded 0x{status:X2} data={data1},{data2}");
+
+        if (command == 0xc0)
         {
-            PresetChangeReceived?.Invoke(this, (status & 0x0f) + 1);
+            PresetChangeReceived?.Invoke(this, channel);
+        }
+        else if (command == 0x90 && data2 > 0)
+        {
+            LogMessage?.Invoke(this, $"THRU: Note On ch{channel} note={data1} velocity={data2}");
+            NoteOnReceived?.Invoke(this, new NoteOnEventArgs(data1, data2, channel));
         }
     }
 

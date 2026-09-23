@@ -24,9 +24,11 @@ internal sealed class FavoriteTablesPanel : Panel, INavigableContainer
         // a different viewport. Our distribution depends on that viewport too.
         InvalidateArrange();
         Columns = FavoriteTableLayout.TableCount(width);
-        // Tables stay at their minimum width rather than stretching to fill the viewport.
-        double cell = FavoriteTableLayout.MinimumWidth + 2;
-        _width = Columns * cell + (Columns - 1) * FavoriteTableLayout.Gap;
+        // Tables grow to fill the viewport, but never shrink below the minimum width
+        // that determined the current column count.
+        double minRequired = Columns * (FavoriteTableLayout.MinimumWidth + 2) + (Columns - 1) * FavoriteTableLayout.Gap;
+        _width = Math.Max(width, minRequired);
+        double cell = (_width - (Columns - 1) * FavoriteTableLayout.Gap) / Columns;
         _heights = new double[Columns];
         var ranges = FavoriteTableLayout.Distribute(Children.Count, Columns);
         for (int column = 0; column < Columns; column++)

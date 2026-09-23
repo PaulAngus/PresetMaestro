@@ -73,7 +73,7 @@ public partial class FavoriteEditorTests
             Field<ComboBox>(window, "_channelCombo").SelectedIndex = 9;
             Field<ComboBox>(window, "_offsetCombo").SelectedIndex = 1;
             settings.MaxDisplayedPreset = 400; // Legacy value is readable but no longer authoritative.
-            Field<NumericUpDown>(window, "_sceneCcSpinner").Value = 58;
+            SetSceneCcThroughMapping(window, 58);
             settings.PresetNameCache[100] = "Original preset";
             settings.SceneNameCaches["ports"] = new() { [100] = new() { Names = ["Original scene"] } };
             var originalFavorite = Field<List<Favorite>>(window, "_favorites").Single();
@@ -185,7 +185,7 @@ public partial class FavoriteEditorTests
             Field<ComboBox>(window, "_channelCombo").SelectedIndex = 9;
             Field<ComboBox>(window, "_offsetCombo").SelectedIndex = 1;
             settings.MaxDisplayedPreset = 400; // Legacy value is normalized when this profile is saved.
-            Field<NumericUpDown>(window, "_sceneCcSpinner").Value = 58;
+            SetSceneCcThroughMapping(window, 58);
             settings.PresetNameCache[2] = "Live name";
             settings.SceneNameCaches["live"] = new() { [2] = new() { Names = ["Solo"] } };
             Field<List<Favorite>>(window, "_favorites").Add(new() { Id = 2, Slot = 1, Name = "Live favorite" });

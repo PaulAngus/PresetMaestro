@@ -116,10 +116,10 @@ dotnet run --project .\PresetMaestro\PresetMaestro.csproj
 dotnet build .\PresetMaestro.slnx --configuration Release
 dotnet test .\PresetMaestro.slnx --configuration Release
 dotnet format .\PresetMaestro.slnx --verify-no-changes --no-restore
-dotnet publish .\PresetMaestro\PresetMaestro.csproj --configuration Release
+.\Publish-App.ps1
 ```
 
-Publishing creates the single-file executable `.\publish\PresetMaestro.exe`.
+`Publish-App.ps1` is a local, untracked helper that prompts for the version before publishing (showing the current one from `PresetMaestro\Version.txt`), then runs `dotnet publish` and optionally hands off to `Copy-PublishedExe.ps1`. Publishing creates the single-file executable `.\publish\PresetMaestro.exe`.
 
 The solution-level test command runs both the controller and probe suites. The controller suite includes preset-catalog and headless Avalonia dialog tests for ordering, filtering, resizing, selection, and keyboard interaction. Scene tests use simulated MIDI and synthetic compressed presets; **physical device scene-name verification is still outstanding**. Builds enforce the repository's `.editorconfig`, Microsoft recommended .NET analyzers, nullable reference types, and warnings-as-errors.
 

@@ -669,12 +669,10 @@ public partial class MainWindow
         _channelCombo.SelectionChanged += (_, _) => { if (_channelCombo.SelectedIndex >= 0) { _settings.MidiChannel = _channelCombo.SelectedIndex; } };
         _offsetCombo = new ComboBox { Name = "DisplayOffset", ItemsSource = new[] { "0 (device mapping disabled)", "1 (display starts at 001)" } };
         _offsetCombo.SelectionChanged += OnOffsetChanged;
-        _sceneCcSpinner = new NumericUpDown { Name = "SceneCc", Minimum = 0, Maximum = 127, FormatString = "0", MinWidth = 86, MaxWidth = 100 };
-        _sceneCcSpinner.ValueChanged += (_, _) => _settings.SceneCc = (int)(_sceneCcSpinner.Value ?? 34);
         var fields = new Grid { ColumnDefinitions = new ColumnDefinitions("126,12,*,12,100") };
         var channelField = ApprovedField("MIDI Channel", _channelCombo);
         var offset = ApprovedField("Display Offset", _offsetCombo);
-        var scene = ApprovedField("Scene CC#", _sceneCcSpinner);
+        var scene = ApprovedField("MIDI Mapping", BuildMidiMappingButton());
         fields.Children.Add(channelField);
         Grid.SetColumn(offset, 2); fields.Children.Add(offset);
         Grid.SetColumn(scene, 4); fields.Children.Add(scene);
