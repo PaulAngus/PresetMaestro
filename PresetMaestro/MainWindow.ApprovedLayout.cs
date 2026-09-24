@@ -625,7 +625,7 @@ public partial class MainWindow
     private Control BuildApprovedConfig(Action showDiagnostics)
     {
         var page = new Grid { Name = "ConfigLayout", Margin = new Thickness(24) };
-        var connection = new StackPanel { Name = "ConfigLeftColumn", Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), BuildPresetNameSyncCard(), ApprovedEntryOptions() } };
+        var connection = new StackPanel { Name = "ConfigLeftColumn", Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), BuildPresetNameSyncCard(), BuildSceneCard(), ApprovedEntryOptions() } };
         var mapping = new StackPanel { Name = "ConfigRightColumn", Spacing = 16, Children = { BuildProfileCard(), BuildApprovedMapping(), BuildApprovedAppearance() } };
         page.Children.Add(connection); page.Children.Add(mapping);
 

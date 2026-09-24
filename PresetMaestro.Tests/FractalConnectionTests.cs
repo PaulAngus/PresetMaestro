@@ -57,6 +57,36 @@ public class FractalConnectionTests
     }
 
     [AvaloniaTheory]
+    [InlineData(0x10)]
+    [InlineData(0x11)]
+    public async Task UnverifiedModelsKeepPresetSendingButDisableNameReads(int model)
+    {
+        var midi = new DeviceMidi();
+        midi.Send = request => { if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Frame((byte)model, 0x64, [0, 0])); } };
+        var window = Create(midi, []);
+        window.ThruInputRetryDelay = TimeSpan.Zero;
+        try
+        {
+            await window.ConnectAsync();
+            window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "NavConfig")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            var sync = window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ConfigPresetSync");
+            Assert.False(sync.IsEnabled);
+            Assert.False(window.GetVisualDescendants().OfType<Button>()
+                .Single(button => Equals(button.Content, "Sync all stored scene names")).IsEnabled);
+            await window.SyncPresetNamesAsync();
+            Assert.Contains("FM9 only", window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "PresetSyncStatus").Text);
+            window.GetVisualDescendants().OfType<RadioButton>().Single(radio => Equals(radio.Content, "Dark")).IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Contains("FM9 only", window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "PresetSyncStatus").Text);
+            Assert.All(midi.Sent, frame => Assert.Equal((byte)0, frame[5]));
+            Assert.True(midi.InputOpen && midi.OutputOpen);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
     [InlineData("timeout")]
     [InlineData("malformed")]
     [InlineData("non-fractal")]

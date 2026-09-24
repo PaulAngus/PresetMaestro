@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using PresetMaestro.Core;
 using PresetNameSync.Core;
 
 namespace PresetMaestro.Midi;
@@ -14,12 +15,14 @@ public sealed class PresetNameClient : IDisposable
     private long _quietUntil;
     private bool _disposed;
     private long _presetRevision;
+    private DeviceModel _deviceModel = DeviceModel.FM9;
 
     public PresetNameClient(IMidiManager midi)
     {
         _midi = midi; _midi.SysexMessageReceived += OnSysexMessageReceived;
         _midi.PresetChangeReceived += OnPresetChange;
     }
+    public void SetDeviceModel(DeviceModel model) => _deviceModel = model;
     public Task<PresetNameResult> QueryAsync(int slot, TimeSpan timeout, CancellationToken token) =>
         Locked(ct => Exchange(SysexProtocol.BuildPresetNameQuery(slot), f =>
             SysexProtocol.TryParsePresetNameResponse(f, out var r, out _) && r!.Slot == slot ? r : null, timeout, ct), token);
@@ -84,6 +87,10 @@ public sealed class PresetNameClient : IDisposable
         await _requestGate.WaitAsync(linked.Token).ConfigureAwait(false);
         try
         {
+            if (_deviceModel != DeviceModel.FM9)
+            {
+                throw new NotSupportedException("Preset and scene name reads are verified for FM9 only.");
+            }
             if (!_midi.InputOpen || !_midi.OutputOpen)
             {
                 throw new InvalidOperationException("Connect both MIDI input and output.");

@@ -179,6 +179,14 @@ public partial class MainWindow
             UpdateDisplay();
             return;
         }
+        if (fav.Scene is < 1 or > 8)
+        {
+            AppendLog($"ERROR: favorite '{fav.Name}' has invalid scene {fav.Scene}");
+            ShowSendFeedback("Favorite scene is invalid", "Edit the favorite and choose scene 1–8.", warning: true, favoritesOnly: true);
+            _enteredDigits = string.Empty;
+            UpdateDisplay();
+            return;
+        }
 
         int sendCh = _settings.MidiChannel == 0 ? 1 : _settings.MidiChannel;
         var t = PresetTranslation.Translate(fav.Preset, _settings.DisplayOffset, sendCh);
@@ -701,6 +709,7 @@ public partial class MainWindow
         _midi.CloseInput();
         _midi.CloseOutput();
         _detectedDevice = null;
+        _presetNameClient.SetDeviceModel(Core.DeviceModel.FM9);
         UpdatePresetCapacityUI();
         SetStatus("Not connected", StatusKind.NotConnected);
         UpdateConnectButtons();
@@ -729,6 +738,7 @@ public partial class MainWindow
         _senderStatusLabel.Text = text;
         _senderStatusLabel.Foreground = foreground;
         UpdatePresetSyncButtons();
+        UpdateSceneReadButtons();
     }
 
     private void UpdateConnectButtons()

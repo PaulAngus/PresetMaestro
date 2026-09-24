@@ -2,6 +2,8 @@
 
 A Windows 10 version 2004 or later desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10, Avalonia, and NAudio. MIDI input uses NAudio's WinRT backend so long-running systems are not exposed to the legacy WinMM signed timestamp overflow; output continues to use WinMM.
 
+FM9 preset and scene name reads are supported by the current protocol code. FM3 and Axe-Fx III can be identified and used for numeric preset sending, but name reads and scene-state tracking are disabled for those models until their device transactions are verified. The Axe-Fx III picker still offers all 1024 numeric preset slots; names for those slots cannot currently be synchronized.
+
 ## Start here when you have forgotten how it works
 
 1. Connect your device over USB, or connect both MIDI directions through a MIDI interface.
@@ -22,6 +24,8 @@ Each profile has two files in `%APPDATA%\PresetMaestro`:
 - `<profile>-settings.json`: MIDI channel, display offset, maximum preset, Scene CC, and cached preset/scene names.
 
 `settings.json` keeps computer settings: MIDI input/output and thru ports, debug mode, entry options and note mappings, appearance, the available profile names (`Profiles`), and the last selected profile (`ActiveProfile`). Startup restores that profile. If its files are missing or unreadable, the app reports this and loads another readable profile, creating a new default profile if needed while preserving the original files.
+
+If `settings.json` itself contains invalid JSON, startup preserves it as `settings.json.unreadable.<id>.bak`, discovers readable profile pairs, and starts with default computer settings.
 
 **Rescan** checks `%APPDATA%\PresetMaestro` for new matching `<name>-settings.json` / `<name>-favorites.json` pairs and refreshes the saved profile list. Incomplete or unreadable pairs are skipped and counted in the status message. Adding files manually requires a rescan; creating, copying, renaming, deleting and importing through the app update the list immediately.
 
@@ -82,7 +86,7 @@ Developer notes and the verification procedure are in [FAVORITES.md](FAVORITES.m
 
 The dialog has five columns at its default size, fewer when narrowed, and a vertical scrollbar. Arrow keys navigate the grid; Up/Down from the search box moves focus into the grid. Home/End move within a row, Ctrl+Home/Ctrl+End go to the first/last result, Page Up/Down move by a page, and Ctrl+F returns to search. The blue highlight and left-edge marker identify the selected preset.
 
-Names come from the existing preset-name cache. Before syncing, unknown slots show `(name unavailable)` but can still be selected by number. Use **Config → Preset Name Sync → Sync Preset Names** to populate names, then reopen the picker. A completed stored-scene scan also supplies preset names.
+Names come from the existing preset-name cache. Before syncing, unknown slots show `(name unavailable)` but can still be selected by number. On FM9, use **Config → Preset Name Sync → Sync Preset Names** to populate names, then reopen the picker. A completed stored-scene scan also supplies preset names.
 
 The picker uses device numbering even when **Display Offset** is 1: selecting `000` fills the Favorite's displayed preset field with `1`. Choosing a preset here does **not** send MIDI, change the device's current preset, or save the Favorite automatically. The scene picker refreshes from cached names for the chosen preset.
 
@@ -105,7 +109,7 @@ A preset change interrupts the bulk scan. A timeout or invalid dump stops it and
 
 ## Saved data
 
-The settings file is `%APPDATA%\PresetMaestro\settings.json`. It contains the preset-name cache and scene-name caches, including when and how each scene-name entry was read. The app does not automatically expire old scene names.
+Computer settings are in `%APPDATA%\PresetMaestro\settings.json`. Each `<profile>-settings.json` contains that profile's preset-name and scene-name caches, including when and how each scene-name entry was read. The app does not automatically expire old scene names.
 
 ## Build, run, and test
 

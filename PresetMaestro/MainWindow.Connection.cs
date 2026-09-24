@@ -8,6 +8,8 @@ public partial class MainWindow
 {
     private Core.DeviceModel PickerDeviceModel => _detectedDevice?.Model ?? _settings.DeviceModel;
     private int EffectiveMaximum => Core.DevicePresets.Capacity(PickerDeviceModel) - 1 + _settings.DisplayOffset;
+    private bool CanReadDeviceNames => _detectedDevice?.Model is null or Core.DeviceModel.FM9;
+    private const string UnsupportedNameReads = "Preset and scene name reads are currently verified for FM9 only. Preset sending remains available.";
 
     internal const string ConnectionError = "Could not connect to a supported Fractal device. Check the selected MIDI IN and MIDI OUT ports, then try again.";
     private CancellationTokenSource? _connectionCts;
@@ -63,10 +65,17 @@ public partial class MainWindow
             }
 
             _detectedDevice = device;
+            _presetNameClient.SetDeviceModel(device.Model);
             _settings.DeviceModel = device.Model;
             UpdatePresetCapacityUI();
             UpdateFavoritePresetDisplay();
             SetStatus(device.Label, StatusKind.ConnectedBoth);
+            if (!CanReadDeviceNames)
+            {
+                _presetNamesStatus.Text = UnsupportedNameReads;
+                _sceneStatus.Text = UnsupportedNameReads;
+                AppendLog($"CONNECT: {UnsupportedNameReads}");
+            }
             AppendLog($"CONNECT: validated {device.ModelLabel} on selected MIDI IN '{input}'.");
             // A fresh timer avoids retaining a previous connection's selected port names.
             _connectionMonitor?.Stop();

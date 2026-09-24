@@ -2,6 +2,8 @@
 
 Shared, read-only preset/scene-name and stored-dump parsing used by the controller and probe applications. For user instructions, start with the [main README](../README.md).
 
+The frames below are verified for FM9 only. The controller prevents these queries on FM3 and Axe-Fx III until their corresponding transactions have been captured and tested.
+
 ## Contract
 
 `SysexProtocol.BuildPresetNameQuery(slot)` creates only:

@@ -221,7 +221,7 @@ public sealed class MidiManager : IMidiManager
     // Sends Bank Select + Program Change to reach the preset, then a Scene Select CC (scene 1-8 -> value 0-7).
     public bool SendFavorite(int bank, int pc, int scene, int sceneCc, int midiChannel)
     {
-        if (_midiOut == null)
+        if (_midiOut == null || scene is < 1 or > 8 || sceneCc is < 0 or > 127 || midiChannel is < 1 or > 16)
         {
             return false;
         }
@@ -234,7 +234,7 @@ public sealed class MidiManager : IMidiManager
                 LogMessage?.Invoke(this, $"OUTPUT: CC ch{midiChannel} CC#0 value={bank}");
                 _midiOut.Send(MidiMessage.ChangePatch(pc, midiChannel).RawData);
                 LogMessage?.Invoke(this, $"OUTPUT: PC ch{midiChannel} program={pc}");
-                int sceneValue = Math.Clamp(scene - 1, 0, 7);
+                int sceneValue = scene - 1;
                 _midiOut.Send(MidiMessage.ChangeControl(sceneCc, sceneValue, midiChannel).RawData);
                 LogMessage?.Invoke(this, $"OUTPUT: CC ch{midiChannel} CC#{sceneCc} value={sceneValue} (scene {scene})");
             }

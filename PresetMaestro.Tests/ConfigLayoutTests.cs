@@ -12,6 +12,29 @@ namespace PresetMaestro.Tests;
 public partial class FavoriteEditorTests
 {
     [AvaloniaFact]
+    public void ChangingThemeKeepsTheSelectedMidiInputPort()
+    {
+        var midi = new DeviceMidi();
+        midi.InputPorts.Add("Other controller");
+        var settings = new AppSettings { Theme = "Light", MidiInputPort = "FM9", MidiOutputPort = "FM9" };
+        var window = new MainWindow(settings, [], midi, saveSettings: _ => { }, saveFavorites: _ => { });
+        try
+        {
+            window.Show();
+            window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "NavConfig")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            window.GetVisualDescendants().OfType<ComboBox>().Single(combo => combo.Name == "MidiInput").SelectedItem = "Other controller";
+            window.GetVisualDescendants().OfType<RadioButton>().Single(radio => Equals(radio.Content, "Dark")).IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("Other controller", window.GetVisualDescendants().OfType<ComboBox>().Single(combo => combo.Name == "MidiInput").SelectedItem);
+            Assert.Equal("Other controller", settings.MidiInputPort);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void ConfigUsesRequiredActionsAndMovesDebugToDiagnostics()
     {
         var settings = new AppSettings { Theme = "Light" };

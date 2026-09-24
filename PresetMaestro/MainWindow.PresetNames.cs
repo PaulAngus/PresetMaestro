@@ -13,7 +13,7 @@ public partial class MainWindow
     private TextBlock _presetNamesStatus = null!;
     private CancellationTokenSource? _presetNamesCts;
 
-    private bool CanSyncPresetNames => _connectionCts is null && _presetNamesCts is null && _midi.InputOpen && _midi.OutputOpen;
+    private bool CanSyncPresetNames => CanReadDeviceNames && _connectionCts is null && _presetNamesCts is null && _midi.InputOpen && _midi.OutputOpen;
 
     private Control BuildPresetNameSyncCard()
     {
@@ -31,7 +31,14 @@ public partial class MainWindow
 
         _presetNamesProgress = new ProgressBar { Minimum = 0, Maximum = 512, Height = 8 };
         stack.Children.Add(_presetNamesProgress);
-        _presetNamesStatus = new TextBlock { Name = "PresetSyncStatus", Text = $"{_settings.PresetNameCache.Count} cached preset names in this profile.", Foreground = SecondaryBrush };
+        _presetNamesStatus = new TextBlock
+        {
+            Name = "PresetSyncStatus",
+            Text = CanReadDeviceNames
+                ? $"{_settings.PresetNameCache.Count} cached preset names in this profile."
+                : UnsupportedNameReads,
+            Foreground = SecondaryBrush,
+        };
         stack.Children.Add(_presetNamesStatus);
 
         SetApprovedCardContent(card, stack);
@@ -41,6 +48,11 @@ public partial class MainWindow
 
     internal async Task SyncPresetNamesAsync()
     {
+        if (!CanReadDeviceNames)
+        {
+            _presetNamesStatus.Text = UnsupportedNameReads;
+            return;
+        }
         if (_connectionCts is not null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen)
         {
             if (!_midi.InputOpen || !_midi.OutputOpen)
@@ -142,18 +154,18 @@ public partial class MainWindow
 
     private void UpdatePresetSyncButtons()
     {
-        bool connected = _midi.InputOpen && _midi.OutputOpen;
+        bool connected = _midi.InputOpen && _midi.OutputOpen && CanReadDeviceNames;
         bool syncing = _presetNamesCts is not null;
         if (_syncPresetNamesButton is not null)
         {
-            _syncPresetNamesButton.IsEnabled = connected && !syncing;
+            _syncPresetNamesButton.IsEnabled = CanSyncPresetNames;
         }
 
         if (_favSyncPresetsButton is not null)
         {
-            _favSyncPresetsButton.IsEnabled = connected && !syncing;
+            _favSyncPresetsButton.IsEnabled = CanSyncPresetNames;
             _favSyncPresetsButton.Content = syncing ? "Syncing…" : "↻ Sync";
-            ToolTip.SetTip(_favSyncPresetsButton, connected
+            ToolTip.SetTip(_favSyncPresetsButton, !CanReadDeviceNames ? UnsupportedNameReads : connected
                 ? syncing ? "Preset synchronization is already running." : "Sync preset names from the connected device."
                 : "Connect to the device to sync presets.");
         }

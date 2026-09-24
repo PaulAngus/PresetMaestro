@@ -188,8 +188,9 @@ public partial class MainWindow
             UpdateDisplay();
             RenderScenes();
             _presetNamesProgress.Value = 0;
-            _presetNamesStatus.Text = $"{_settings.PresetNameCache.Count} cached preset names in this profile.";
-            if (_midi.InputOpen && _midi.OutputOpen)
+            _presetNamesStatus.Text = CanReadDeviceNames
+                ? $"{_settings.PresetNameCache.Count} cached preset names in this profile." : UnsupportedNameReads;
+            if (CanReadDeviceNames && _midi.InputOpen && _midi.OutputOpen)
             {
                 _scenePoll.Start();
             }

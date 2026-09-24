@@ -147,6 +147,41 @@ public sealed class ProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public void MalformedMachineSettingsArePreservedAndExistingProfilesRemainAvailable()
+    {
+        var store = new ProfileStore(_directory);
+        store.LoadSettings();
+        store.Create("Gig");
+        string machinePath = Path.Combine(_directory, "settings.json");
+        File.WriteAllText(machinePath, "{ invalid }");
+
+        var restarted = new ProfileStore(_directory);
+        var settings = restarted.LoadSettings();
+
+        Assert.Equal(["Default", "Gig"], settings.Profiles);
+        Assert.Equal("Default", settings.ActiveProfile);
+        Assert.Equal(["Default", "Gig"], restarted.ListProfiles());
+        Assert.Equal("{ invalid }", File.ReadAllText(Assert.Single(Directory.GetFiles(_directory, "settings.json.unreadable.*.bak"))));
+        Assert.Contains("preserved", restarted.StartupMessage);
+    }
+
+    [Fact]
+    public void MalformedLegacyMachineSettingsStillMigrateLegacyFavorites()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(Path.Combine(_directory, "settings.json"), "{ invalid }");
+        FavoritesManager.Save([new Favorite { Id = 1, Slot = 1, Name = "Legacy", Preset = 4, Scene = 2 }],
+            Path.Combine(_directory, "favorites.json"));
+
+        var store = new ProfileStore(_directory);
+        var settings = store.LoadSettings();
+
+        Assert.Equal("Default", settings.ActiveProfile);
+        Assert.Equal("Legacy", store.LoadFavorites("Default").Single().Name);
+        Assert.Contains("preserved", store.StartupMessage);
+    }
+
+    [Fact]
     public void RegistryPersistsAndRescanFindsNewPairsButSkipsIncompleteAndCorruptFiles()
     {
         var store = new ProfileStore(_directory);
@@ -246,5 +281,21 @@ public sealed class ProfileStoreTests : IDisposable
         File.WriteAllText(Path.Combine(_directory, "Partial-favorites.json"), "[]");
         Assert.Throws<InvalidDataException>(() => store.Import(Path.Combine(_directory, "Partial-settings.json")));
         Assert.Equal(["Default"], SettingsManager.Load(Path.Combine(_directory, "settings.json")).Profiles);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(9)]
+    public void ImportRejectsFavoriteScenesOutsideDeviceRange(int scene)
+    {
+        var store = new ProfileStore(_directory);
+        store.LoadSettings();
+        File.Copy(Path.Combine(_directory, "Default-settings.json"), Path.Combine(_directory, "External-settings.json"));
+        string favoritesPath = Path.Combine(_directory, "External-favorites.json");
+        File.WriteAllText(favoritesPath, $"[{{\"Id\":1,\"Slot\":1,\"Name\":\"Bad\",\"Tags\":[],\"Preset\":1,\"Scene\":{scene}}}]");
+
+        Assert.Throws<InvalidDataException>(() => store.Import(favoritesPath));
+        Assert.Equal(["Default"], store.ListProfiles());
+        Assert.True(File.Exists(favoritesPath));
     }
 }

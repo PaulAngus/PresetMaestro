@@ -187,15 +187,53 @@ public partial class MainWindow : Window
         }
 
         _isApplyingTheme = true;
-        Application.Current!.RequestedThemeVariant = string.Equals(name, "Light", StringComparison.OrdinalIgnoreCase)
-            ? ThemeVariant.Light
-            : ThemeVariant.Dark;
-        ApplyThemePalette();
-        BuildLayout();
-        ApplySettingsToUI();
-        RefreshPortLists();
-        RefreshFavoritesList();
-        UpdateDisplay();
-        _isApplyingTheme = false;
+        try
+        {
+            // Rebuilding the visual tree must not discard values that still live in controls.
+            if (_inputPortCombo.Items.Count > 0)
+            {
+                _settings.MidiInputPort = _inputPortCombo.SelectedItem as string ?? string.Empty;
+                _settings.MidiOutputPort = _outputPortCombo.SelectedItem as string ?? string.Empty;
+                _settings.ThruInputPorts = GetCheckedThruPorts();
+            }
+            string? profileName = _profileName.Text;
+            string? searchText = _favSearchBox.Text;
+            int? editingId = _favEditingId;
+            string? favoriteName = editingId.HasValue ? _favNameBox.Text : null;
+            decimal? favoritePreset = editingId.HasValue ? _favPresetSpinner.Value : null;
+            decimal? favoriteScene = editingId.HasValue ? _favSceneSpinner.Value : null;
+            string? pendingTag = editingId.HasValue ? _favTagInput.Text : null;
+            string[] editingTags = [.. _favEditingTags];
+            double? previousMinWidth = _favPreviousMinWidth;
+
+            Application.Current!.RequestedThemeVariant = string.Equals(name, "Light", StringComparison.OrdinalIgnoreCase)
+                ? ThemeVariant.Light
+                : ThemeVariant.Dark;
+            ApplyThemePalette();
+            BuildLayout();
+            ApplySettingsToUI();
+            RefreshPortLists();
+            _profileName.Text = profileName;
+            _favSearchBox.Text = searchText;
+            RefreshFavoritesList();
+            if (editingId is int id)
+            {
+                Favorite? favorite = id == 0 ? new Favorite() : _favorites.FirstOrDefault(item => item.Id == id);
+                if (favorite is not null)
+                {
+                    ShowFavoriteEditor(favorite, isNew: id == 0);
+                    _favPreviousMinWidth = previousMinWidth;
+                    _favNameBox.Text = favoriteName;
+                    _favPresetSpinner.Value = favoritePreset;
+                    _favSceneSpinner.Value = favoriteScene;
+                    _favEditingTags.Clear();
+                    _favEditingTags.AddRange(editingTags);
+                    RefreshFavoriteTagEditor();
+                    _favTagInput.Text = pendingTag;
+                }
+            }
+            UpdateDisplay();
+        }
+        finally { _isApplyingTheme = false; }
     }
 }

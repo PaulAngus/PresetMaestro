@@ -162,6 +162,52 @@ public partial class FavoriteEditorTests
     }
 
     [AvaloniaFact]
+    public void ChangingThemePreservesUnsavedFavoriteAndProfileDrafts()
+    {
+        var favorites = new List<Favorite> { Clone(Sample) };
+        var window = CreateWindow(favorites: favorites);
+        try
+        {
+            ShowEditor(window, favorites[0]);
+            Find<TextBox>(window, "FavoriteName").Text = "Draft favorite";
+            Field<NumericUpDown>(window, "_favPresetSpinner").Value = 123;
+            Find<TextBox>(window, "FavoriteTagInput").Text = "pending tag";
+            Click(Find<Button>(window, "NavConfig"));
+            Dispatcher.UIThread.RunJobs();
+            Find<TextBox>(window, "ProfileName").Text = "Draft profile";
+
+            Field<RadioButton>(window, "_darkThemeRadio").IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("Draft profile", Find<TextBox>(window, "ProfileName").Text);
+            Click(Find<Button>(window, "NavFavorites"));
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(Find<Border>(window, "FavoriteEditorCard").IsVisible);
+            Assert.Equal("Draft favorite", Find<TextBox>(window, "FavoriteName").Text);
+            Assert.Equal(123, Field<NumericUpDown>(window, "_favPresetSpinner").Value);
+            Assert.Equal("pending tag", Find<TextBox>(window, "FavoriteTagInput").Text);
+            Assert.Equal("Clean", favorites[0].Name);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void InvalidFavoriteSceneIsNeverSentToMidi()
+    {
+        var midi = new FakeMidi { OutputOpen = true };
+        var favorite = Clone(Sample);
+        favorite.Scene = 9;
+        var window = CreateWindow(midi, [favorite]);
+        try
+        {
+            window.Show();
+            Invoke(window, "SendFavorite", favorite);
+            Assert.Equal(0, midi.FavoriteSendCount);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void FavoritesScreenSendsTheFavoritesPresetAndScene()
     {
         var midi = new FakeMidi { OutputOpen = true };

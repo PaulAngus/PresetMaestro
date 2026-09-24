@@ -86,10 +86,29 @@ public sealed class ProfileStore(string directory)
 
     public AppSettings LoadSettings()
     {
-        var settings = SettingsManager.Load(MachinePath);
+        AppSettings settings;
+        bool recoveredMachineSettings = false;
+        try
+        {
+            settings = SettingsManager.Load(MachinePath);
+        }
+        catch (JsonException) when (File.Exists(MachinePath))
+        {
+            // Keep the unreadable file intact so computer-specific settings can be recovered.
+            string backup = MachinePath + ".unreadable." + Guid.NewGuid().ToString("N") + ".bak";
+            File.Move(MachinePath, backup);
+            _profiles = ScanProfiles().Names;
+            settings = new AppSettings
+            {
+                Profiles = [.. _profiles],
+                ActiveProfile = _profiles.FirstOrDefault() ?? "Default",
+            };
+            StartupMessage = $"Computer settings were unreadable and preserved as '{Path.GetFileName(backup)}'. Loaded available profiles with default computer settings.";
+            recoveredMachineSettings = true;
+        }
         // A missing ActiveProfile identifies the pre-profile format. Preserve both originals.
-        bool legacy = !File.Exists(MachinePath) ||
-            JsonNode.Parse(File.ReadAllText(MachinePath))?[nameof(AppSettings.ActiveProfile)] is null;
+        bool legacy = (!recoveredMachineSettings || _profiles?.Count == 0) && (!File.Exists(MachinePath) ||
+            JsonNode.Parse(File.ReadAllText(MachinePath))?[nameof(AppSettings.ActiveProfile)] is null);
         if (legacy)
         {
             if (File.Exists(MachinePath) && !File.Exists(MachinePath + ".pre-profiles.bak"))
@@ -118,7 +137,8 @@ public sealed class ProfileStore(string directory)
                 Create(fallback);
             }
             settings.ActiveProfile = fallback;
-            StartupMessage = $"Profile '{unavailable}' is missing or unreadable. Loaded '{fallback}'; the original files were preserved.";
+            string message = $"Profile '{unavailable}' is missing or unreadable. Loaded '{fallback}'; the original files were preserved.";
+            StartupMessage = StartupMessage is null ? message : StartupMessage + " " + message;
         }
         if (!ListProfiles().Contains(settings.ActiveProfile, StringComparer.OrdinalIgnoreCase))
         {
@@ -359,9 +379,10 @@ public sealed class ProfileStore(string directory)
     private static List<Favorite> ValidateFavorites(string json)
     {
         var favorites = JsonSerializer.Deserialize<List<Favorite>>(json, JsonOptions) ?? throw new InvalidDataException("The favorites file is empty.");
-        if (favorites.Any(favorite => favorite is null || favorite.Tags is null || favorite.Name is null))
+        if (favorites.Any(favorite => favorite is null || favorite.Tags is null || favorite.Name is null ||
+            (!favorite.IsEmpty && favorite.Scene is < 1 or > 8)))
         {
-            throw new InvalidDataException("The favorites file contains invalid entries.");
+            throw new InvalidDataException("The favorites file contains invalid entries or scene numbers.");
         }
 
         return favorites;
