@@ -71,7 +71,7 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
 
             var choices = window.GetVisualDescendants().OfType<StackPanel>().Single(panel => panel.Name == "ThruInputs")
-                .Children.OfType<CheckBox>().ToArray();
+                .GetVisualDescendants().OfType<CheckBox>().ToArray();
             Assert.Equal(3, choices.Length);
             Assert.Equal(2, choices.Count(choice => choice.IsChecked == true));
             choices.Single(choice => Equals(choice.Content, "Studio 68 MIDI In")).IsChecked = true;

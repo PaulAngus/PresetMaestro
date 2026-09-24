@@ -147,6 +147,7 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
             Click(Find<Button>(window, "NavConfig"));
             Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Profile: Default", Find<TextBlock>(window, "HeaderActiveProfile").Text);
             var input = Field<ComboBox>(window, "_inputPortCombo");
             var output = Field<ComboBox>(window, "_outputPortCombo");
             input.Items.Add("Computer input");
@@ -169,6 +170,10 @@ public partial class FavoriteEditorTests
             Click(Find<Button>(window, "ProfileCreate"));
             Dispatcher.UIThread.RunJobs();
             Assert.Equal("Live", settings.ActiveProfile);
+            Assert.Equal("Profile: Live", Find<TextBlock>(window, "HeaderActiveProfile").Text);
+            Click(Find<Button>(window, "NavFavorites"));
+            Assert.Equal("Profile: Live", Find<TextBlock>(window, "HeaderActiveProfile").Text);
+            Click(Find<Button>(window, "NavConfig"));
             Assert.Empty(Field<List<Favorite>>(window, "_favorites"));
             Assert.Empty(settings.PresetNameCache);
             Assert.Equal(1, settings.MidiChannel);
@@ -193,6 +198,7 @@ public partial class FavoriteEditorTests
             Find<ComboBox>(window, "ProfileSelector").SelectedItem = "Default";
             Dispatcher.UIThread.RunJobs();
             Assert.Equal("Default", settings.ActiveProfile);
+            Assert.Equal("Profile: Default", Find<TextBlock>(window, "HeaderActiveProfile").Text);
             Assert.Equal(6, settings.MidiChannel);
             Assert.Equal("Original", settings.PresetNameCache[1]);
             Assert.False(settings.PresetNameCache.ContainsKey(2));
@@ -209,9 +215,11 @@ public partial class FavoriteEditorTests
             Find<TextBox>(window, "ProfileName").Text = "Tour";
             Click(Find<Button>(window, "ProfileRename"));
             Assert.Equal("Tour", store.LoadSettings().ActiveProfile);
+            Assert.Equal("Profile: Tour", Find<TextBlock>(window, "HeaderActiveProfile").Text);
             Assert.Equal(512, store.LoadProfile("Tour").MaxDisplayedPreset);
             Click(Find<Button>(window, "ProfileDelete"));
             Assert.Equal("Default", settings.ActiveProfile);
+            Assert.Equal("Profile: Default", Find<TextBlock>(window, "HeaderActiveProfile").Text);
             Assert.Equal(["Default"], store.ListProfiles());
             Assert.Equal("Default", store.LoadSettings().ActiveProfile);
         }

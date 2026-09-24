@@ -211,6 +211,7 @@ public partial class MainWindow
         finally
         {
             RefreshProfileList();
+            UpdateActiveProfileIndicator();
             _changingProfile = false;
         }
     }

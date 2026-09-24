@@ -53,6 +53,10 @@ public partial class MainWindow
         resources["SecondaryBrush"] = Brush(palette.Item7);
         resources["SuccessBrush"] = Brush(palette.Item8);
         resources["DangerBrush"] = Brush(palette.Item9);
+        resources["SendSuccessBackgroundBrush"] = Brush(light ? "#E5F8ED" : "#163D32");
+        resources["SendSuccessForegroundBrush"] = Brush(light ? "#08734C" : "#55D5A3");
+        resources["SendWarningBackgroundBrush"] = Brush(light ? "#FFF1D7" : "#543A1B");
+        resources["SendWarningForegroundBrush"] = Brush(light ? "#8C4F00" : "#FFCB76");
         resources["HoverBrush"] = Brush(light ? "#F3F7FB" : "#202936");
         resources["SelectedBrush"] = Brush(light ? "#EAF4FE" : "#244D87");
         resources["BadgeBrush"] = Brush(light ? "#EDF1F5" : "#3B4653");
@@ -136,18 +140,65 @@ public partial class MainWindow
         var statusContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         statusContent.Children.Add(_connectionDot);
         statusContent.Children.Add(_headerStatusLabel);
-        var state = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(12, 7), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Child = statusContent };
-        Grid.SetColumn(state, 2); grid.Children.Add(state); header.Child = grid; return header;
+        var state = new Border { Height = 36, Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 0), VerticalAlignment = VerticalAlignment.Center, Child = statusContent };
+        _activeProfileLabel = new TextBlock { Name = "HeaderActiveProfile", FontWeight = FontWeight.SemiBold, Foreground = TextBrush, MaxWidth = 190, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
+        _activeProfileBadge = new Border { Name = "HeaderActiveProfileBadge", Height = 36, Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 0), VerticalAlignment = VerticalAlignment.Center, Child = _activeProfileLabel };
+        UpdateActiveProfileIndicator();
+        var indicators = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Children = { state, _activeProfileBadge } };
+        Grid.SetColumn(indicators, 2); grid.Children.Add(indicators); header.Child = grid; return header;
+    }
+
+    private void UpdateActiveProfileIndicator()
+    {
+        _activeProfileLabel.Text = $"Profile: {_settings.ActiveProfile}";
+        ToolTip.SetTip(_activeProfileBadge, $"Active profile: {_settings.ActiveProfile}");
+        AutomationProperties.SetName(_activeProfileBadge, $"Active profile: {_settings.ActiveProfile}");
     }
 
     private Control BuildApprovedSender()
     {
-        var page = new Grid { Margin = new Thickness(24), ColumnDefinitions = new ColumnDefinitions("390,*") };
-        var left = new StackPanel { Spacing = 16 };
+        var page = new Grid { Margin = new Thickness(24), ColumnDefinitions = new ColumnDefinitions("390,16,*"), RowDefinitions = new RowDefinitions("Auto,16,170,16,Auto") };
         _senderStatusLabel = new TextBlock { Foreground = SecondaryBrush };
-        left.Children.Add(_senderStatusLabel);
-        left.Children.Add(ApprovedDisplay()); left.Children.Add(ApprovedKeypad()); page.Children.Add(left);
+        Grid.SetColumnSpan(_senderStatusLabel, 3);
+        page.Children.Add(_senderStatusLabel);
+        var display = ApprovedDisplay();
+        Grid.SetRow(display, 2);
+        page.Children.Add(display);
+        _senderFeedbackPanel = BuildSendFeedbackPanel("SenderSendFeedback", out _senderFeedbackIcon, out _senderFeedbackTitle, out _senderFeedbackDetail, prominent: true);
+        Grid.SetRow(_senderFeedbackPanel, 2);
+        Grid.SetColumn(_senderFeedbackPanel, 2);
+        page.Children.Add(_senderFeedbackPanel);
+        var keypad = ApprovedKeypad();
+        Grid.SetRow(keypad, 4);
+        page.Children.Add(keypad);
         return page;
+    }
+
+    private static Border BuildSendFeedbackPanel(string name, out TextBlock icon, out TextBlock title, out TextBlock detail, bool prominent = false)
+    {
+        var foreground = ThemeBrush("SendSuccessForegroundBrush");
+        icon = new TextBlock { Text = "✓", FontSize = prominent ? 24 : 20, FontWeight = FontWeight.Bold, Foreground = foreground, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+        title = new TextBlock { FontSize = prominent ? 20 : 17, FontWeight = FontWeight.Bold, Foreground = foreground, TextWrapping = TextWrapping.Wrap };
+        detail = new TextBlock { FontSize = prominent ? 14 : 12, Foreground = foreground, TextWrapping = TextWrapping.Wrap };
+        var message = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center, Children = { title, detail } };
+        Control iconContainer = prominent
+            ? new Border { Width = 40, Height = 40, CornerRadius = new CornerRadius(20), BorderBrush = foreground, BorderThickness = new Thickness(2), VerticalAlignment = VerticalAlignment.Center, Child = icon }
+            : icon;
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = prominent ? 14 : 10, VerticalAlignment = prominent ? VerticalAlignment.Center : VerticalAlignment.Top, Children = { iconContainer, message } };
+        return new Border
+        {
+            Name = name,
+            Width = prominent ? 280 : double.NaN,
+            Height = prominent ? 170 : double.NaN,
+            HorizontalAlignment = prominent ? HorizontalAlignment.Left : HorizontalAlignment.Stretch,
+            Background = ThemeBrush("SendSuccessBackgroundBrush"),
+            BorderBrush = foreground,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(prominent ? 4 : 7),
+            Padding = prominent ? new Thickness(20) : new Thickness(12, 10),
+            IsVisible = false,
+            Child = content,
+        };
     }
 
     private Control BuildApprovedDiagnosticsPage(Action showConfig)
@@ -195,7 +246,7 @@ public partial class MainWindow
         Grid.SetRow(_displayLabel, 0); grid.Children.Add(_displayLabel);
         Grid.SetRow(_currentPresetNameLabel, 1); grid.Children.Add(_currentPresetNameLabel);
         Grid.SetRow(_currentSceneNameLabel, 2); grid.Children.Add(_currentSceneNameLabel);
-        return new Border { Height = 170, Background = InsetBrush, BorderBrush = AccentBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(20), BoxShadow = Elevation, Child = grid };
+        return new Border { Name = "PresetDisplayCard", Height = 170, Background = InsetBrush, BorderBrush = AccentBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(20), BoxShadow = Elevation, Child = grid };
     }
 
     private Control ApprovedKeypad()
@@ -343,7 +394,7 @@ public partial class MainWindow
     {
         _favoritesDisplayLabel = new TextBlock { Text = "---", FontFamily = new FontFamily("Bahnschrift"), FontSize = 24, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var card = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(16, 11, 12, 17), BoxShadow = Elevation };
-        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,11,*") };
+        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,11,*") };
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         title.Children.Add(new TextBlock
@@ -355,22 +406,6 @@ public partial class MainWindow
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(0, 6, 0, 0)
         });
-        var headerTitle = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        Grid.SetColumn(title, 0);
-        headerTitle.Children.Add(title);
-        _favoriteSentLabel = new TextBlock
-        {
-            Text = "SENT",
-            FontSize = 13,
-            FontWeight = FontWeight.Bold,
-            Foreground = AccentBrush,
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            IsVisible = false,
-            Margin = new Thickness(12, 0, 20, 0),
-        };
-        Grid.SetColumn(_favoriteSentLabel, 1);
-        headerTitle.Children.Add(_favoriteSentLabel);
         _favNewBtn = new Button
         {
             Name = "FavoriteAdd",
@@ -409,7 +444,7 @@ public partial class MainWindow
             VerticalContentAlignment = VerticalAlignment.Center,
         };
         _favNewBtn.Click += OnFavNew;
-        header.Children.Add(headerTitle);
+        header.Children.Add(title);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
         actions.Children.Add(_favNewBtn);
         actions.Children.Add(new Border { Width = 84, Height = 36, Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Child = _favoritesDisplayLabel });
@@ -451,6 +486,10 @@ public partial class MainWindow
         Grid.SetColumn(actions, 1);
         header.Children.Add(actions);
         content.Children.Add(header);
+        _favoriteFeedbackPanel = BuildSendFeedbackPanel("FavoriteSendFeedback", out _favoriteFeedbackIcon, out _favoriteFeedbackTitle, out _favoriteFeedbackDetail);
+        _favoriteFeedbackPanel.Margin = new Thickness(0, 10, 0, 0);
+        Grid.SetRow(_favoriteFeedbackPanel, 1);
+        content.Children.Add(_favoriteFeedbackPanel);
         var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,28,*") };
         layout.Children.Add(BuildFavoriteSearch());
         _favResultCount = new TextBlock { Name = "FavoriteResultCount", Foreground = SecondaryBrush, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
@@ -484,7 +523,7 @@ public partial class MainWindow
         Grid.SetRow(body, 2);
         layout.Children.Add(body);
         _favSendBtn = new Button { IsVisible = false }; _favSendBtn.Click += OnFavSend;
-        Grid.SetRow(layout, 2);
+        Grid.SetRow(layout, 3);
         content.Children.Add(layout);
         card.Child = content;
         return card;
@@ -629,11 +668,32 @@ public partial class MainWindow
         stack.Children.Add(_statusLabel);
 
         _inputPortCombo = new ComboBox { Name = "MidiInput", HorizontalAlignment = HorizontalAlignment.Stretch };
-        _inputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions();
+        _mainInputChannelCombo = BuildChannelCombo(0);
+        _mainInputChannelCombo.SelectionChanged += (_, _) =>
+        {
+            string port = _inputPortCombo.SelectedItem as string ?? string.Empty;
+            if (port.Length > 0 && _mainInputChannelCombo.SelectedIndex >= 0)
+            {
+                _settings.NoteInputChannels[port] = _mainInputChannelCombo.SelectedIndex;
+            }
+        };
+        _inputPortCombo.SelectionChanged += (_, _) =>
+        {
+            RefreshThruInputOptions();
+            string port = _inputPortCombo.SelectedItem as string ?? string.Empty;
+            _mainInputChannelCombo.SelectedIndex = port.Length > 0 && _settings.NoteInputChannels.TryGetValue(port, out int savedChannel)
+                ? Math.Clamp(savedChannel, 0, 16)
+                : 0;
+        };
+        var inputRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,8,Auto") };
+        Grid.SetColumn(_inputPortCombo, 0);
+        Grid.SetColumn(_mainInputChannelCombo, 2);
+        inputRow.Children.Add(_inputPortCombo);
+        inputRow.Children.Add(_mainInputChannelCombo);
         _outputPortCombo = new ComboBox { Name = "MidiOutput", HorizontalAlignment = HorizontalAlignment.Stretch };
         _outputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions();
         _thruInputPanel = new StackPanel { Name = "ThruInputs", Spacing = 4 };
-        var routing = new StackPanel { Spacing = 14, Children = { ApprovedField("MIDI In", _inputPortCombo), ApprovedField("MIDI Out", _outputPortCombo), ApprovedField("Thru In(s)", _thruInputPanel) } };
+        var routing = new StackPanel { Spacing = 14, Children = { ApprovedField("MIDI In", inputRow), ApprovedField("MIDI Out", _outputPortCombo), ApprovedField("Thru In(s)", _thruInputPanel) } };
 
         var settingsActions = new StackPanel { Name = "ConnectionActions", Spacing = 8 };
         _connectButton = new Button { Name = "Connect", Content = "Connect", Background = AccentBrush, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Stretch };

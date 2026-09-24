@@ -685,7 +685,7 @@ public partial class FavoriteEditorTests
             Invoke(window, "UpdateDisplay");
 
             Assert.Equal("High Landrons", Field<TextBlock>(window, "_currentPresetNameLabel").Text);
-            Assert.Equal("Scene 2 � Lead", Field<TextBlock>(window, "_currentSceneNameLabel").Text);
+            Assert.Equal("Scene 2 · Lead", Field<TextBlock>(window, "_currentSceneNameLabel").Text);
         }
         finally { window.Close(); }
     }
@@ -811,7 +811,7 @@ public partial class FavoriteEditorTests
             Click(sync);
             await Task.Yield();
             Assert.False(sync.IsEnabled);
-            Assert.Equal("Syncing�", sync.Content);
+            Assert.Equal("Syncing…", sync.Content);
 
             firstQuery.SetResult(true);
             while (queryCount < 512 || !sync.IsEnabled)

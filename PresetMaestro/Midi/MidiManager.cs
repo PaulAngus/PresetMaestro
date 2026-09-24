@@ -5,6 +5,7 @@ namespace PresetMaestro.Midi;
 public sealed class MidiManager : IMidiManager
 {
     private IMidiInput? _midiIn;
+    private string? _mainInputPortName;
     private MidiOut? _midiOut;
     private bool _disposed;
 
@@ -60,12 +61,14 @@ public sealed class MidiManager : IMidiManager
                 _midiIn.MessageReceived += OnMidiMessage;
                 _midiIn.SysexMessageReceived += OnSysexMessageReceived;
                 _midiIn.Start();
+                _mainInputPortName = portName;
                 return true;
             }
             catch (Exception ex)
             {
                 _midiIn?.Dispose();
                 _midiIn = null;
+                _mainInputPortName = null;
                 // WinMM returns MMSYSERR_ALLOCATED when another app holds the port.
                 errorMessage = ex.Message.Contains("allocated", StringComparison.OrdinalIgnoreCase)
                         || ex.HResult == unchecked((int)0x80004005)
@@ -116,6 +119,7 @@ public sealed class MidiManager : IMidiManager
         try { _midiIn.Stop(); } catch { }
         try { _midiIn.Dispose(); } catch { }
         _midiIn = null;
+        _mainInputPortName = null;
     }
 
     public void CloseOutput()
@@ -316,7 +320,7 @@ public sealed class MidiManager : IMidiManager
         if (command == 0x90 && data2 > 0)
         {
             LogMessage?.Invoke(this, $"INPUT: Note On ch{channel} note={data1} velocity={data2}");
-            NoteOnReceived?.Invoke(this, new NoteOnEventArgs(data1, data2, channel));
+            NoteOnReceived?.Invoke(this, new NoteOnEventArgs(data1, data2, channel, _mainInputPortName));
         }
         else if (command == 0x90 || command == 0x80)
         {
@@ -360,7 +364,8 @@ public sealed class MidiManager : IMidiManager
         else if (command == 0x90 && data2 > 0)
         {
             LogMessage?.Invoke(this, $"THRU: Note On ch{channel} note={data1} velocity={data2}");
-            NoteOnReceived?.Invoke(this, new NoteOnEventArgs(data1, data2, channel));
+            string? sourcePort = _thruInputs.FirstOrDefault(kv => ReferenceEquals(kv.Value, sender)).Key;
+            NoteOnReceived?.Invoke(this, new NoteOnEventArgs(data1, data2, channel, sourcePort));
         }
     }
 
@@ -384,9 +389,11 @@ public sealed class MidiManager : IMidiManager
         Task.Run(async () => await WinRTMidiIn.CreateAsync(deviceId)).GetAwaiter().GetResult();
 }
 
-public sealed class NoteOnEventArgs(int noteNumber, int velocity, int channel) : EventArgs
+public sealed class NoteOnEventArgs(int noteNumber, int velocity, int channel, string? sourcePort = null) : EventArgs
 {
     public int NoteNumber { get; } = noteNumber;
     public int Velocity { get; } = velocity;
     public int Channel { get; } = channel;
+    // The MIDI port the note arrived on (main input or a thru port); null if unknown.
+    public string? SourcePort { get; } = sourcePort;
 }

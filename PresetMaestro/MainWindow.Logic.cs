@@ -13,6 +13,7 @@ public partial class MainWindow
     // ── Digit / command entry ──────────────────────────────────────
     private void HandleDigit(int digit)
     {
+        HideSendFeedback();
         if (_enteredDigits.Length >= 3)
         {
             _autoSendTimer.Stop();
@@ -50,6 +51,7 @@ public partial class MainWindow
 
     private void HandleClear()
     {
+        HideSendFeedback();
         _autoSendTimer.Stop();
         _enteredDigits = string.Empty;
         AppendLog("CLEAR");
@@ -63,6 +65,7 @@ public partial class MainWindow
             return;
         }
 
+        HideSendFeedback();
         _autoSendTimer.Stop();
         _enteredDigits = _enteredDigits[..^1];
         UpdateDisplay();
@@ -152,10 +155,12 @@ public partial class MainWindow
 
     private void SendFavoriteBySlot(int slot)
     {
+        HideSendFeedback();
         var fav = _favorites.FirstOrDefault(f => f.Slot == slot && !f.IsEmpty);
         if (fav == null)
         {
             AppendLog($"ERROR: no favorite assigned to slot {slot}");
+            ShowSendFeedback($"Favorite {slot} doesn't exist", "Choose an existing favorite to send.", warning: true, favoritesOnly: true);
             UpdateDisplay();
             return;
         }
@@ -165,6 +170,7 @@ public partial class MainWindow
     private void SendFavorite(Favorite fav)
     {
         if (_connectionCts is not null) { return; }
+        HideSendFeedback();
         if (!PresetTranslation.IsValid(fav.Preset, _settings.DisplayOffset, EffectiveMaximum))
         {
             AppendLog($"ERROR: favorite '{fav.Name}' preset {fav.Preset} is out of range " +
@@ -189,7 +195,7 @@ public partial class MainWindow
                 _currentFavoriteName = fav.Name;
                 _currentFavoriteScene = fav.Scene;
                 PresetSent(t.MidiPreset, fav.Scene);
-                ShowFavoriteSentFeedback();
+                ShowSendFeedback("SENT", $"Favorite {fav.Slot} · {fav.Name} sent.");
                 AppendLog($"RESULT: Favorite '{fav.Name}' -> device display {t.DisplayedPreset}, " +
                           $"Bank {t.Bank}, PC {t.ProgramChange}, Scene {fav.Scene}");
             }
@@ -207,6 +213,7 @@ public partial class MainWindow
     private void SendPreset(int displayed)
     {
         if (_connectionCts is not null) { return; }
+        HideSendFeedback();
         if (!PresetTranslation.IsValid(displayed, _settings.DisplayOffset, EffectiveMaximum))
         {
             AppendLog($"ERROR: {displayed} is out of range " +
@@ -231,6 +238,7 @@ public partial class MainWindow
                 _currentFavoriteName = null;
                 _currentFavoriteScene = null;
                 PresetSent(t.MidiPreset, null);
+                ShowSendFeedback("SENT", $"Preset {displayed} sent.");
                 AppendLog($"RESULT: device display {t.DisplayedPreset} <- " +
                           $"MIDI preset {t.MidiPreset}, Bank {t.Bank}, PC {t.ProgramChange}");
             }
@@ -246,11 +254,39 @@ public partial class MainWindow
     }
 
     // ── UI update ────────────────────────────────────────────────
-    private void ShowFavoriteSentFeedback()
+    private void ShowSendFeedback(string title, string detail, bool warning = false, bool favoritesOnly = false)
     {
-        _favoriteSentTimer.Stop();
-        _favoriteSentLabel.IsVisible = true;
-        _favoriteSentTimer.Start();
+        HideSendFeedback();
+        if (!favoritesOnly)
+        {
+            SetSendFeedbackPanel(_senderFeedbackPanel, _senderFeedbackIcon, _senderFeedbackTitle, _senderFeedbackDetail, title, detail, warning);
+        }
+
+        SetSendFeedbackPanel(_favoriteFeedbackPanel, _favoriteFeedbackIcon, _favoriteFeedbackTitle, _favoriteFeedbackDetail, title, detail, warning);
+        _sendFeedbackTimer.Interval = TimeSpan.FromSeconds(warning ? 8 : 6);
+        _sendFeedbackTimer.Start();
+    }
+
+    private static void SetSendFeedbackPanel(Border panel, TextBlock icon, TextBlock titleBlock, TextBlock detailBlock, string title, string detail, bool warning)
+    {
+        string prefix = warning ? "SendWarning" : "SendSuccess";
+        IBrush foreground = ThemeBrush($"{prefix}ForegroundBrush");
+        panel.Background = ThemeBrush($"{prefix}BackgroundBrush");
+        panel.BorderBrush = foreground;
+        icon.Text = warning ? "!" : "✓";
+        icon.Foreground = foreground;
+        titleBlock.Text = title;
+        titleBlock.Foreground = foreground;
+        detailBlock.Text = detail;
+        detailBlock.Foreground = foreground;
+        panel.IsVisible = true;
+    }
+
+    private void HideSendFeedback()
+    {
+        _sendFeedbackTimer.Stop();
+        _senderFeedbackPanel.IsVisible = false;
+        _favoriteFeedbackPanel.IsVisible = false;
     }
 
     private void UpdateDisplay()
@@ -447,15 +483,20 @@ public partial class MainWindow
             return;
         }
 
-        bool channelFiltered = _settings.MidiChannel != 0 && e.Channel != _settings.MidiChannel;
+        // Each port (main input or a thru port) has its own note-input channel filter, independent
+        // of MidiChannel (which is only the transmit channel for outgoing Bank/PC/CC).
+        string portKey = e.SourcePort ?? string.Empty;
+        int filterChannel = portKey.Length > 0 && _settings.NoteInputChannels.TryGetValue(portKey, out int ch) ? ch : 0;
+        bool channelFiltered = filterChannel != 0 && e.Channel != filterChannel;
         if (channelFiltered)
         {
+            string portLabel = portKey.Length > 0 ? portKey : "unknown port";
             if (!_settings.DebugMode)
             {
-                AppendLog($"INPUT: note {e.NoteNumber} ch{e.Channel} ignored (filter=ch{_settings.MidiChannel})");
+                AppendLog($"INPUT: note {e.NoteNumber} ch{e.Channel} ignored (filter=ch{filterChannel} on '{portLabel}')");
                 return;
             }
-            AppendLog($"DEBUG: ch filter bypassed — note {e.NoteNumber} arrived on ch{e.Channel}, filter=ch{_settings.MidiChannel}");
+            AppendLog($"DEBUG: ch filter bypassed — note {e.NoteNumber} arrived on ch{e.Channel} via '{portLabel}', filter=ch{filterChannel}");
         }
 
         if (!_settings.MidiNoteMap.TryGetValue(e.NoteNumber, out string? cmdStr))
@@ -519,6 +560,11 @@ public partial class MainWindow
         RestoreCombo(_inputPortCombo, prevIn, _settings.MidiInputPort);
         RestoreCombo(_outputPortCombo, prevOut, _settings.MidiOutputPort);
 
+        string restoredInput = _inputPortCombo.SelectedItem as string ?? string.Empty;
+        _mainInputChannelCombo.SelectedIndex = restoredInput.Length > 0 && _settings.NoteInputChannels.TryGetValue(restoredInput, out int restoredChannel)
+            ? Math.Clamp(restoredChannel, 0, 16)
+            : 0;
+
         RefreshThruInputOptions(prevThru.Count > 0 ? prevThru : _settings.ThruInputPorts);
     }
 
@@ -549,12 +595,44 @@ public partial class MainWindow
 
             var cb = new CheckBox { Content = n, Tag = n, IsChecked = wantedThru.Contains(n) };
             cb.IsCheckedChanged += OnThruInputItemCheck;
-            _thruInputPanel.Children.Add(cb);
+            int savedChannel = _settings.NoteInputChannels.TryGetValue(n, out int existingChannel) ? existingChannel : 0;
+            var channelCombo = BuildChannelCombo(savedChannel);
+            channelCombo.SelectionChanged += (_, _) =>
+            {
+                if (channelCombo.SelectedIndex >= 0)
+                {
+                    _settings.NoteInputChannels[n] = channelCombo.SelectedIndex;
+                }
+            };
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,8,Auto"), Tag = n };
+            Grid.SetColumn(cb, 0);
+            Grid.SetColumn(channelCombo, 2);
+            row.Children.Add(cb);
+            row.Children.Add(channelCombo);
+            _thruInputPanel.Children.Add(row);
         }
     }
 
+    // Omni + channels 1-16; index 0 (Omni) means the filter is disabled for that port.
+    private static ComboBox BuildChannelCombo(int selectedChannel)
+    {
+        var combo = new ComboBox { MinWidth = 90 };
+        combo.Items.Add("Omni");
+        for (int ch = 1; ch <= 16; ch++)
+        {
+            combo.Items.Add(ch.ToString());
+        }
+
+        combo.SelectedIndex = Math.Clamp(selectedChannel, 0, 16);
+        return combo;
+    }
+
     private List<string> GetCheckedThruPorts() =>
-        _thruInputPanel.Children.OfType<CheckBox>().Where(c => c.IsChecked == true).Select(c => (string)c.Tag!).ToList();
+        _thruInputPanel.Children.OfType<Grid>()
+            .Select(row => row.Children.OfType<CheckBox>().FirstOrDefault())
+            .Where(cb => cb?.IsChecked == true)
+            .Select(cb => (string)cb!.Tag!)
+            .ToList();
 
     private void OnThruInputItemCheck(object? sender, RoutedEventArgs e)
     {
@@ -711,6 +789,7 @@ public partial class MainWindow
         StopSceneTracking();
         _midi.PresetChangeReceived -= OnDevicePresetChange;
         _autoSendTimer.Stop();
+        _sendFeedbackTimer.Stop();
         _presetNamesCts?.Cancel();
         SaveSettingsFromUI();
         _saveFavorites(_favorites);

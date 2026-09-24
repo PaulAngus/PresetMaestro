@@ -40,7 +40,7 @@ public partial class MainWindow : Window
     private readonly Func<PresetSelectionWindow, Task<int?>>? _presetPickerOverride;
     private readonly Func<SceneSelectionWindow, Task<int?>>? _scenePickerOverride;
     private readonly DispatcherTimer _autoSendTimer;
-    private readonly DispatcherTimer _favoriteSentTimer;
+    private readonly DispatcherTimer _sendFeedbackTimer;
 
     public MainWindow() : this(new ProfileStore(Path.GetDirectoryName(SettingsManager.SettingsPath)!))
     {
@@ -85,15 +85,8 @@ public partial class MainWindow : Window
 
         _autoSendTimer = new DispatcherTimer();
         _autoSendTimer.Tick += (_, _) => { _autoSendTimer.Stop(); ExecuteSend(); };
-        _favoriteSentTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        _favoriteSentTimer.Tick += (_, _) =>
-        {
-            _favoriteSentTimer.Stop();
-            if (_favoriteSentLabel is not null)
-            {
-                _favoriteSentLabel.IsVisible = false;
-            }
-        };
+        _sendFeedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
+        _sendFeedbackTimer.Tick += (_, _) => HideSendFeedback();
 
         InitializeComponent();
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);

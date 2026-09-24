@@ -12,7 +12,14 @@ public partial class MainWindow
     // ── Preset Sender tab ────────────────────────────────────────────
     private TextBlock _displayLabel = null!;
     private TextBlock _favoritesDisplayLabel = null!;
-    private TextBlock _favoriteSentLabel = null!;
+    private Border _senderFeedbackPanel = null!;
+    private TextBlock _senderFeedbackIcon = null!;
+    private TextBlock _senderFeedbackTitle = null!;
+    private TextBlock _senderFeedbackDetail = null!;
+    private Border _favoriteFeedbackPanel = null!;
+    private TextBlock _favoriteFeedbackIcon = null!;
+    private TextBlock _favoriteFeedbackTitle = null!;
+    private TextBlock _favoriteFeedbackDetail = null!;
     private CheckBox _autoSendCheck = null!;
     private NumericUpDown _autoSendDelaySpinner = null!;
     private CheckBox _keyboardEntryCheck = null!;
@@ -33,6 +40,7 @@ public partial class MainWindow
 
     // ── Config tab ────────────────────────────────────────────────
     private ComboBox _inputPortCombo = null!;
+    private ComboBox _mainInputChannelCombo = null!;
     private ComboBox _outputPortCombo = null!;
     private StackPanel _thruInputPanel = null!;
     private ComboBox _channelCombo = null!;
@@ -43,6 +51,8 @@ public partial class MainWindow
     private CheckBox _debugCheck = null!;
     private TextBlock _statusLabel = null!;
     private TextBlock _headerStatusLabel = null!;
+    private TextBlock _activeProfileLabel = null!;
+    private Border _activeProfileBadge = null!;
     private TextBlock _senderStatusLabel = null!;
     private RadioButton _darkThemeRadio = null!;
     private RadioButton _lightThemeRadio = null!;

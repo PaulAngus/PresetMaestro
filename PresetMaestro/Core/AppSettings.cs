@@ -7,6 +7,9 @@ public class AppSettings
     public string MidiInputPort { get; set; } = string.Empty;
     public string MidiOutputPort { get; set; } = string.Empty;
     public List<string> ThruInputPorts { get; set; } = [];
+    // Per-port note-input channel filter (0 = Omni), keyed by MIDI port name (main input or a thru port).
+    // Independent of MidiChannel, which is only the transmit channel for outgoing Bank/PC/CC.
+    public Dictionary<string, int> NoteInputChannels { get; set; } = [];
     public DeviceModel DeviceModel { get; set; } = DeviceModel.FM9;
     public int MidiChannel { get; set; } = 1;
     public int DisplayOffset { get; set; }
