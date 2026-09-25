@@ -73,7 +73,6 @@ public partial class MainWindow
             if (!CanReadDeviceNames)
             {
                 _presetNamesStatus.Text = UnsupportedNameReads;
-                _sceneStatus.Text = UnsupportedNameReads;
                 AppendLog($"CONNECT: {UnsupportedNameReads}");
             }
             AppendLog($"CONNECT: validated {device.ModelLabel} on selected MIDI IN '{input}'.");

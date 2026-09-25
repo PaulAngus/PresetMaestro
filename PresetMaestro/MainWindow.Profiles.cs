@@ -19,8 +19,8 @@ public partial class MainWindow
 
     private Control BuildProfileCard()
     {
-        var card = ApprovedCard("Profiles", "Favorites, preset mapping and cached names");
-        var stack = new StackPanel { Spacing = 12, IsEnabled = _profileStore is not null };
+        var card = ApprovedCard("Profiles", "Favorites, preset mapping and cached names", compact: true);
+        var stack = new StackPanel { Spacing = 8, IsEnabled = _profileStore is not null };
         _profileCombo = new ComboBox { Name = "ProfileSelector", HorizontalAlignment = HorizontalAlignment.Stretch };
         _profileCombo.SelectionChanged += async (_, _) =>
         {
@@ -36,13 +36,13 @@ public partial class MainWindow
         rescan.Click += async (_, _) => await RunProfileActionAsync("rescan", "");
         Grid.SetColumn(rescan, 1);
         selection.Children.Add(rescan);
-        stack.Children.Add(ApprovedField("Active profile", selection));
+        stack.Children.Add(CompactField("Active profile", selection));
         _profileName = new TextBox { Name = "ProfileName", Watermark = "New, copied or renamed profile name" };
         stack.Children.Add(_profileName);
-        var actions = new WrapPanel { Orientation = Orientation.Horizontal };
+        var actions = new Grid { Name = "ProfileActions", ColumnDefinitions = new ColumnDefinitions("*,8,*,8,*"), RowDefinitions = new RowDefinitions("Auto,8,Auto") };
         foreach (var (label, action) in new[] { ("Create", "create"), ("Copy", "copy"), ("Rename", "rename"), ("Delete", "delete") })
         {
-            var button = new Button { Name = "Profile" + label, Content = label, Margin = new Avalonia.Thickness(0, 0, 8, 4) };
+            var button = new Button { Name = "Profile" + label, Content = label, HorizontalAlignment = HorizontalAlignment.Stretch };
             if (action == "delete")
             {
                 button.Foreground = DangerBrush;
@@ -51,14 +51,19 @@ public partial class MainWindow
             button.Click += async (_, _) => await RunProfileActionAsync(action, _profileName.Text ?? "");
             actions.Children.Add(button);
         }
-        var import = new Button { Name = "ProfileImport", Content = "Import…", Margin = new Avalonia.Thickness(0, 0, 8, 4) };
-        var export = new Button { Name = "ProfileExport", Content = "Export…", Margin = new Avalonia.Thickness(0, 0, 0, 4) };
+        var import = new Button { Name = "ProfileImport", Content = "Import…", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var export = new Button { Name = "ProfileExport", Content = "Export…", HorizontalAlignment = HorizontalAlignment.Stretch };
         import.Click += async (_, _) => await TransferProfileAsync(export: false);
         export.Click += async (_, _) => await TransferProfileAsync(export: true);
         ToolTip.SetTip(import, "Import a profile ZIP or a matching JSON file pair. Optional new name above.");
         ToolTip.SetTip(export, "Export the active profile and its cached names as a ZIP file.");
         actions.Children.Add(import);
         actions.Children.Add(export);
+        for (int index = 0; index < actions.Children.Count; index++)
+        {
+            Grid.SetColumn(actions.Children[index], index % 3 * 2);
+            Grid.SetRow(actions.Children[index], index / 3 * 2);
+        }
         stack.Children.Add(actions);
         _profileStatus = new TextBlock { Name = "ProfileStatus", Text = _profileStore?.StartupMessage, TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush };
         stack.Children.Add(_profileStatus);
@@ -100,7 +105,7 @@ public partial class MainWindow
                 _profileStatus.Text = $"Rescan complete: {result.Added} new profiles; {result.Skipped} incomplete or unreadable pairs skipped.";
                 return;
             }
-            if (_presetNamesCts is not null || _sceneSyncCts is not null)
+            if (_presetNamesCts is not null)
             {
                 throw new InvalidOperationException("Wait for name synchronization to finish, or cancel it, before changing profiles.");
             }
@@ -130,7 +135,7 @@ public partial class MainWindow
             }
 
             // A confirmation can yield to other UI events; recheck before touching storage.
-            if (_presetNamesCts is not null || _sceneSyncCts is not null)
+            if (_presetNamesCts is not null)
             {
                 throw new InvalidOperationException("Wait for name synchronization to finish before changing profiles.");
             }
@@ -186,7 +191,6 @@ public partial class MainWindow
             ApplyProfileSettingsToUI();
             RefreshFavoritesList();
             UpdateDisplay();
-            RenderScenes();
             _presetNamesProgress.Value = 0;
             _presetNamesStatus.Text = CanReadDeviceNames
                 ? $"{_settings.PresetNameCache.Count} cached preset names in this profile." : UnsupportedNameReads;

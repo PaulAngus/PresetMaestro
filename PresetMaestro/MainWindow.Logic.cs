@@ -729,6 +729,7 @@ public partial class MainWindow
         _statusLabel.Text = text;
         _statusLabel.Foreground = foreground;
         _headerStatusLabel.Text = text;
+        ToolTip.SetTip(_headerStatusLabel, text);
         _headerStatusLabel.Foreground = kind == StatusKind.ConnectedBoth ? TextBrush : foreground;
         if (_connectionDot is not null)
         {
@@ -738,7 +739,7 @@ public partial class MainWindow
         _senderStatusLabel.Text = text;
         _senderStatusLabel.Foreground = foreground;
         UpdatePresetSyncButtons();
-        UpdateSceneReadButtons();
+        UpdateFavoriteSceneReadButton();
     }
 
     private void UpdateConnectButtons()

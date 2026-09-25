@@ -90,7 +90,7 @@ public partial class MainWindow
             _ => sender,
         };
         SetMode(_mode);
-        var root = new Grid { RowDefinitions = new RowDefinitions("64,*") };
+        var root = new Grid { RowDefinitions = new RowDefinitions("48,*") };
         root.Children.Add(ApprovedHeader(host, sender, favorites, config));
         Grid.SetRow(host, 1);
         root.Children.Add(host);
@@ -103,18 +103,18 @@ public partial class MainWindow
 
     private Control ApprovedHeader(ContentControl host, Control sender, Control favorites, Control config)
     {
-        var header = new Border { Padding = new Thickness(24, 0), Background = AppBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(0, 0, 0, 1) };
+        var header = new Border { Name = "ApplicationHeader", Padding = new Thickness(16, 0), Background = AppBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(0, 0, 0, 1) };
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
-        var identity = new StackPanel { Name = "AppIdentity", Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-        identity.Children.Add(new Image { Name = "AppLogo", Source = AppLogo, Width = 32, Height = 32, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center });
+        var identity = new StackPanel { Name = "AppIdentity", Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        identity.Children.Add(new Image { Name = "AppLogo", Source = AppLogo, Width = 24, Height = 24, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center });
         identity.Children.Add(new TextBlock { Name = "AppTitle", Text = "Preset Maestro", FontSize = 18, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center });
         grid.Children.Add(identity);
         var nav = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, VerticalAlignment = VerticalAlignment.Center };
         Button Nav(string label, Control page, AppPage pageKind, EntryMode? entryMode = null)
         {
             bool active = _currentPage == pageKind;
-            double width = label switch { "Preset Sender" => 132, "Favorites" => 96, "Config" => 76, _ => 0 };
-            var button = new Button { Name = $"Nav{label.Replace(" ", string.Empty)}", Content = label, Width = width, Height = 38, MinHeight = 38, Padding = new Thickness(12, 0), FontSize = 14, FontWeight = FontWeight.Medium, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(0), Background = active ? AccentBrush : Brushes.Transparent, Foreground = active ? Brushes.White : TextBrush };
+            double width = label switch { "Preset Sender" => 120, "Favorites" => 88, "Config" => 68, _ => 0 };
+            var button = new Button { Name = $"Nav{label.Replace(" ", string.Empty)}", Content = label, Width = width, Height = 32, MinHeight = 32, Padding = new Thickness(10, 0), FontSize = 14, FontWeight = FontWeight.Medium, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(0), Background = active ? AccentBrush : Brushes.Transparent, Foreground = active ? Brushes.White : TextBrush };
             button.Click += (_, _) =>
             {
                 _currentPage = pageKind;
@@ -133,16 +133,16 @@ public partial class MainWindow
         nav.Children.Add(Nav("Preset Sender", sender, AppPage.PresetSender, EntryMode.Preset));
         nav.Children.Add(Nav("Favorites", favorites, AppPage.Favorites, EntryMode.Favorite));
         nav.Children.Add(Nav("Config", config, AppPage.Config));
-        var navigation = new Border { Height = 46, Padding = new Thickness(3), Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = nav };
+        var navigation = new Border { Height = 40, Margin = new Thickness(12, 0), Padding = new Thickness(3), Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = nav };
         Grid.SetColumn(navigation, 1); grid.Children.Add(navigation);
-        _headerStatusLabel = new TextBlock { Name = "HeaderConnectionStatus", FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        _headerStatusLabel = new TextBlock { Name = "HeaderConnectionStatus", FontSize = 13, MaxWidth = 180, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
         _connectionDot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Background = SuccessBrush, VerticalAlignment = VerticalAlignment.Center, IsVisible = true };
         var statusContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         statusContent.Children.Add(_connectionDot);
         statusContent.Children.Add(_headerStatusLabel);
-        var state = new Border { Height = 36, Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 0), VerticalAlignment = VerticalAlignment.Center, Child = statusContent };
-        _activeProfileLabel = new TextBlock { Name = "HeaderActiveProfile", FontWeight = FontWeight.SemiBold, Foreground = TextBrush, MaxWidth = 190, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
-        _activeProfileBadge = new Border { Name = "HeaderActiveProfileBadge", Height = 36, Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 0), VerticalAlignment = VerticalAlignment.Center, Child = _activeProfileLabel };
+        var state = new Border { Height = 28, VerticalAlignment = VerticalAlignment.Center, Child = statusContent };
+        _activeProfileLabel = new TextBlock { Name = "HeaderActiveProfile", FontSize = 13, Foreground = TextBrush, MaxWidth = 160, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
+        _activeProfileBadge = new Border { Name = "HeaderActiveProfileBadge", Height = 28, Padding = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Child = _activeProfileLabel };
         UpdateActiveProfileIndicator();
         var indicators = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Children = { state, _activeProfileBadge } };
         Grid.SetColumn(indicators, 2); grid.Children.Add(indicators); header.Child = grid; return header;
@@ -283,9 +283,9 @@ public partial class MainWindow
 
     private Control ApprovedEntryOptions()
     {
-        var card = ApprovedCard("Entry Options", "Keyboard and MIDI entry behaviour");
+        var card = ApprovedCard("Entry Options", "Keyboard and MIDI entry behaviour", compact: true);
         card.Name = "EntryOptionsCard";
-        var stack = new StackPanel { Spacing = 14 };
+        var stack = new StackPanel { Spacing = 8 };
 
         var auto = new Grid { Name = "AutoSendOptions" };
         _autoSendCheck = new CheckBox { Name = "AutoSend", Content = "Auto-send after 3 digits", VerticalAlignment = VerticalAlignment.Bottom };
@@ -298,12 +298,12 @@ public partial class MainWindow
         var unit = new TextBlock { Text = "ms", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = SecondaryBrush };
         Grid.SetColumn(unit, 1);
         delay.Children.Add(unit);
-        var delayField = ApprovedField("Delay", delay);
+        var delayField = CompactField("Delay", delay);
         auto.Children.Add(delayField);
         stack.Children.Add(auto);
 
         stack.Children.Add(new Border { Height = 1, Background = UiBorderBrush });
-        stack.Children.Add(new TextBlock { Text = "ENTRY SOURCES", FontSize = 11, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush });
+        stack.Children.Add(new TextBlock { Text = "Entry sources", FontSize = 12, Foreground = SecondaryBrush });
         var entrySources = new Grid { Name = "EntrySources" };
         _keyboardEntryCheck = new CheckBox { Name = "KeyboardEntry", Content = "Keyboard entry" };
         _keyboardEntryCheck.IsCheckedChanged += (_, _) => _settings.KeyboardEntryEnabled = _keyboardEntryCheck.IsChecked == true;
@@ -315,7 +315,7 @@ public partial class MainWindow
 
         void ArrangeEntryOptions(double width)
         {
-            bool compact = width < 480;
+            bool compact = width < 400;
             auto.ColumnDefinitions.Clear();
             auto.RowDefinitions.Clear();
             entrySources.ColumnDefinitions.Clear();
@@ -337,7 +337,7 @@ public partial class MainWindow
             {
                 auto.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
                 auto.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(16)));
-                auto.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(174)));
+                auto.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(140)));
                 Grid.SetColumn(_autoSendCheck, 0); Grid.SetRow(_autoSendCheck, 0);
                 Grid.SetColumn(delayField, 2); Grid.SetRow(delayField, 0);
                 entrySources.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -384,7 +384,7 @@ public partial class MainWindow
 
     private Control BuildApprovedFavorites()
     {
-        _favoritesPage = new Grid { Margin = new Thickness(20), ColumnDefinitions = new ColumnDefinitions("*") };
+        _favoritesPage = new Grid { Margin = new Thickness(20, 12, 20, 20), ColumnDefinitions = new ColumnDefinitions("*") };
         _favoritesPage.Children.Add(BuildApprovedFavoriteLibrary());
         BuildApprovedFavoriteEditor();
         return _favoritesPage;
@@ -392,10 +392,10 @@ public partial class MainWindow
 
     private Control BuildApprovedFavoriteLibrary()
     {
-        _favoritesDisplayLabel = new TextBlock { Text = "---", FontFamily = new FontFamily("Bahnschrift"), FontSize = 24, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        _favoritesDisplayLabel = new TextBlock { Text = "---", FontFamily = new FontFamily("Bahnschrift"), FontSize = 20, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var card = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(16, 11, 12, 17), BoxShadow = Elevation };
-        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,11,*") };
-        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,8,*") };
+        var header = new Grid { Name = "FavoriteToolbar", ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         title.Children.Add(new TextBlock
         {
@@ -403,8 +403,7 @@ public partial class MainWindow
             FontSize = 16,
             FontWeight = FontWeight.Bold,
             Foreground = TextBrush,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 6, 0, 0)
+            VerticalAlignment = VerticalAlignment.Center,
         });
         _favNewBtn = new Button
         {
@@ -436,18 +435,19 @@ public partial class MainWindow
             Background = InsetBrush,
             BorderBrush = UiBorderBrush,
             BorderThickness = new Thickness(1),
-            Height = 32,
-            MinHeight = 32,
-            Padding = new Thickness(10, 0),
+            Height = 28,
+            MinHeight = 28,
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(9, 0),
             FontWeight = FontWeight.SemiBold,
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
         _favNewBtn.Click += OnFavNew;
         header.Children.Add(title);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         actions.Children.Add(_favNewBtn);
-        actions.Children.Add(new Border { Width = 84, Height = 36, Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Child = _favoritesDisplayLabel });
+        actions.Children.Add(new Border { Name = "FavoritePresetReadout", Width = 64, Height = 28, Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Child = _favoritesDisplayLabel });
         _favDetailsToggleIcon = new PathIcon
         {
             Width = 16,
@@ -460,9 +460,10 @@ public partial class MainWindow
         {
             Name = "FavoriteDetailsToggle",
             Content = _favDetailsToggleIcon,
-            Width = 32,
-            Height = 32,
-            MinHeight = 32,
+            Width = 28,
+            Height = 28,
+            MinHeight = 28,
+            CornerRadius = new CornerRadius(5),
             Padding = new Thickness(0),
             FontSize = 12,
             FontWeight = FontWeight.SemiBold,
@@ -477,10 +478,10 @@ public partial class MainWindow
             UpdateFavoriteRowStates();
         };
         actions.Children.Add(_favDetailsToggleBtn);
-        var clear = new Button { Name = "FavoriteClearCommand", Content = "CLR", Width = 50, Height = 32, MinHeight = 32, Padding = new Thickness(8, 0), FontSize = 12, Foreground = DangerBrush, FontWeight = FontWeight.SemiBold };
+        var clear = new Button { Name = "FavoriteClearCommand", Content = "CLR", Width = 42, Height = 28, MinHeight = 28, CornerRadius = new CornerRadius(5), Padding = new Thickness(8, 0), FontSize = 12, Foreground = DangerBrush, FontWeight = FontWeight.SemiBold };
         clear.Click += (_, _) => HandleClear();
         actions.Children.Add(clear);
-        var send = new Button { Name = "FavoriteSendCommand", Content = "SEND", Width = 58, Height = 32, MinHeight = 32, Padding = new Thickness(8, 0), FontSize = 12, Background = AccentBrush, Foreground = Brushes.White, FontWeight = FontWeight.SemiBold };
+        var send = new Button { Name = "FavoriteSendCommand", Content = "SEND", Width = 52, Height = 28, MinHeight = 28, CornerRadius = new CornerRadius(5), Padding = new Thickness(8, 0), FontSize = 12, Background = AccentBrush, Foreground = Brushes.White, FontWeight = FontWeight.SemiBold };
         send.Click += OnFavSend;
         actions.Children.Add(send);
         Grid.SetColumn(actions, 1);
@@ -490,7 +491,7 @@ public partial class MainWindow
         _favoriteFeedbackPanel.Margin = new Thickness(0, 10, 0, 0);
         Grid.SetRow(_favoriteFeedbackPanel, 1);
         content.Children.Add(_favoriteFeedbackPanel);
-        var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,28,*") };
+        var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,24,*") };
         layout.Children.Add(BuildFavoriteSearch());
         _favResultCount = new TextBlock { Name = "FavoriteResultCount", Foreground = SecondaryBrush, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetRow(_favResultCount, 1);
@@ -535,7 +536,7 @@ public partial class MainWindow
         {
             Name = "FavoritePresetSync",
             Content = "↻ Sync",
-            MinHeight = 38,
+            MinHeight = 32,
             Background = SurfaceBrush,
             Foreground = TextBrush,
             FontWeight = FontWeight.SemiBold,
@@ -551,15 +552,16 @@ public partial class MainWindow
             Background = AccentBrush,
             Foreground = Brushes.White,
             FontWeight = FontWeight.SemiBold,
-            MinHeight = 38,
+            MinHeight = 32,
             HorizontalAlignment = HorizontalAlignment.Left,
         };
         newFavorite.Click += OnFavNew;
 
-        _favEditorCard = ApprovedCard();
+        _favEditorCard = ApprovedCard(compact: true);
         _favEditorCard.Name = "FavoriteEditorCard";
+        _favEditorCard.Classes.Add("compactFavoriteEditor");
         _favEditorCard.IsVisible = false;
-        var cardLayout = new Grid { RowDefinitions = new RowDefinitions("Auto,16,*") };
+        var cardLayout = new Grid { RowDefinitions = new RowDefinitions("Auto,8,*") };
         var heading = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         heading.Children.Add(newFavorite);
         Grid.SetColumn(_favSyncPresetsButton, 1);
@@ -573,8 +575,8 @@ public partial class MainWindow
         var container = new Panel();
         _favEditorPlaceholder = new TextBlock { Text = "Select a favorite to edit, or create a new favorite.", TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush };
         container.Children.Add(_favEditorPlaceholder);
-        var stack = new StackPanel { Spacing = 12 };
-        _favEditorTitle = new TextBlock { Text = "New Favorite", FontSize = 16, FontWeight = FontWeight.Bold };
+        var stack = new StackPanel { Spacing = 8 };
+        _favEditorTitle = new TextBlock { Text = "New Favorite", FontSize = 16, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap };
         stack.Children.Add(_favEditorTitle);
         _favNameBox = new TextBox { Name = "FavoriteName" };
         _favTagsPanel = new WrapPanel { Orientation = Orientation.Horizontal, ItemHeight = 24, ItemWidth = double.NaN, VerticalAlignment = VerticalAlignment.Center };
@@ -584,29 +586,29 @@ public partial class MainWindow
         _favTagInput.KeyDown += OnFavTagInputKeyDown;
         _favTagInput.TextChanged += OnFavTagInputTextChanged;
         _favTagsPanel.Children.Add(_favTagInput);
-        _favTagsEditor = new Border { Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(7, 5), MinHeight = 38, Child = _favTagsPanel };
+        _favTagsEditor = new Border { Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(7, 3), MinHeight = 32, Child = _favTagsPanel };
         _favTagsEditor.PointerPressed += (_, _) => _favTagInput.Focus();
         _favPresetSpinner = new NumericUpDown { Name = "FavoritePreset", Minimum = 0, Maximum = 512, FormatString = "0" };
         _favSceneSpinner = new NumericUpDown { Name = "FavoriteScene", Minimum = 1, Maximum = 8, FormatString = "0" };
         foreach (var field in new (string, Control)[] { ("Name", _favNameBox), ("Tags", _favTagsEditor) })
         {
-            stack.Children.Add(ApprovedField(field.Item1, field.Item2));
+            stack.Children.Add(CompactField(field.Item1, field.Item2));
         }
 
         // The displayed values are transformed into picker buttons after the editor is built.
-        var presetField = (StackPanel)ApprovedField("Preset", _favPresetSpinner);
-        var sceneField = (StackPanel)ApprovedField("Scene", _favSceneSpinner);
+        var presetField = (StackPanel)CompactField("Preset", _favPresetSpinner);
+        var sceneField = (StackPanel)CompactField("Scene", _favSceneSpinner);
         _favPickerActions = new StackPanel { Spacing = 8 };
         stack.Children.Add(presetField);
         stack.Children.Add(sceneField);
         stack.Children.Add(_favPickerActions);
 
         var actions = new Grid { Name = "FavoriteActions", ColumnDefinitions = new ColumnDefinitions("*,8,*,8,*") };
-        _favSaveBtn = new Button { Name = "FavoriteSave", Content = "Save", Background = AccentBrush, Foreground = Brushes.White, MinHeight = 38, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Stretch };
+        _favSaveBtn = new Button { Name = "FavoriteSave", Content = "Save", Background = AccentBrush, Foreground = Brushes.White, MinHeight = 32, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Stretch };
         _favSaveBtn.Click += OnFavSave;
-        _favCancelBtn = new Button { Name = "FavoriteCancel", Content = "Cancel", MinHeight = 38, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Stretch };
+        _favCancelBtn = new Button { Name = "FavoriteCancel", Content = "Cancel", MinHeight = 32, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Stretch };
         _favCancelBtn.Click += OnFavCancel;
-        _favDeleteBtn = new Button { Name = "FavoriteDelete", Content = "Delete", Background = DangerBrush, Foreground = Brushes.White, MinHeight = 38, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Stretch };
+        _favDeleteBtn = new Button { Name = "FavoriteDelete", Content = "Delete", Background = DangerBrush, Foreground = Brushes.White, MinHeight = 32, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Stretch };
         _favDeleteBtn.Click += OnFavDelete;
         actions.Children.Add(_favSaveBtn);
         Grid.SetColumn(_favCancelBtn, 2);
@@ -617,21 +619,27 @@ public partial class MainWindow
         stack.Children.Add(actions);
         _favEditorPanel = new Panel { IsVisible = false, Children = { stack } };
         container.Children.Add(_favEditorPanel);
-        SetApprovedCardContent(_favEditorCard, container);
+        SetApprovedCardContent(_favEditorCard, new ScrollViewer
+        {
+            Name = "FavoriteEditorScroll",
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = container,
+        });
         UpdatePresetSyncButtons();
         return _favEditorCard;
     }
 
     private Control BuildApprovedConfig(Action showDiagnostics)
     {
-        var page = new Grid { Name = "ConfigLayout", Margin = new Thickness(24) };
-        var connection = new StackPanel { Name = "ConfigLeftColumn", Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), BuildPresetNameSyncCard(), BuildSceneCard(), ApprovedEntryOptions() } };
+        var page = new Grid { Name = "ConfigLayout", Classes = { "compactConfig" }, Margin = new Thickness(16) };
+        var connection = new StackPanel { Name = "ConfigLeftColumn", Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), BuildPresetNameSyncCard(), ApprovedEntryOptions() } };
         var mapping = new StackPanel { Name = "ConfigRightColumn", Spacing = 16, Children = { BuildProfileCard(), BuildApprovedMapping(), BuildApprovedAppearance() } };
         page.Children.Add(connection); page.Children.Add(mapping);
 
         void Arrange()
         {
-            bool compact = page.Bounds.Width < 980;
+            bool compact = page.Bounds.Width < 900;
             page.ColumnDefinitions.Clear(); page.RowDefinitions.Clear();
             if (compact)
             {
@@ -661,9 +669,9 @@ public partial class MainWindow
 
     private Control BuildApprovedConnection(Action showDiagnostics)
     {
-        var card = ApprovedCard("MIDI Connection", "Hardware and routing");
+        var card = ApprovedCard("MIDI Connection", "Hardware and routing", compact: true);
         card.Name = "MidiConnectionCard";
-        var stack = new StackPanel { Spacing = 14 };
+        var stack = new StackPanel { Spacing = 8 };
         _statusLabel = new TextBlock { Text = "Not connected", Foreground = SecondaryBrush, FontWeight = FontWeight.Bold };
         stack.Children.Add(_statusLabel);
 
@@ -693,7 +701,7 @@ public partial class MainWindow
         _outputPortCombo = new ComboBox { Name = "MidiOutput", HorizontalAlignment = HorizontalAlignment.Stretch };
         _outputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions();
         _thruInputPanel = new StackPanel { Name = "ThruInputs", Spacing = 4 };
-        var routing = new StackPanel { Spacing = 14, Children = { ApprovedField("MIDI In", inputRow), ApprovedField("MIDI Out", _outputPortCombo), ApprovedField("Thru In(s)", _thruInputPanel) } };
+        var routing = new StackPanel { Spacing = 8, Children = { CompactField("MIDI In", inputRow), CompactField("MIDI Out", _outputPortCombo), CompactField("Thru In(s)", _thruInputPanel) } };
 
         var settingsActions = new StackPanel { Name = "ConnectionActions", Spacing = 8 };
         _connectButton = new Button { Name = "Connect", Content = "Connect", Background = AccentBrush, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -709,9 +717,9 @@ public partial class MainWindow
         settingsActions.Children.Add(refresh);
         settingsActions.Children.Add(diagnostics);
 
-        var columns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,16,0.72*") };
+        var columns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,16,144") };
         columns.Children.Add(routing);
-        var actions = ApprovedField("Actions", settingsActions);
+        var actions = CompactField("Actions", settingsActions);
         Grid.SetColumn(actions, 2);
         columns.Children.Add(actions);
         stack.Children.Add(columns);
@@ -721,7 +729,7 @@ public partial class MainWindow
 
     private Control BuildApprovedMapping()
     {
-        var card = ApprovedCard("Preset Mapping", "Translation settings · detected limits are applied automatically"); var stack = new StackPanel { Spacing = 14 }; _channelCombo = new ComboBox { Name = "MidiChannel", MinWidth = 100 }; _channelCombo.Items.Add("Omni"); for (int channel = 1; channel <= 16; channel++)
+        var card = ApprovedCard("Preset Mapping", "Translation settings · detected limits are applied automatically", compact: true); var stack = new StackPanel { Spacing = 8 }; _channelCombo = new ComboBox { Name = "MidiChannel", MinWidth = 80 }; _channelCombo.Items.Add("Omni"); for (int channel = 1; channel <= 16; channel++)
         {
             _channelCombo.Items.Add(channel.ToString());
         }
@@ -729,34 +737,40 @@ public partial class MainWindow
         _channelCombo.SelectionChanged += (_, _) => { if (_channelCombo.SelectedIndex >= 0) { _settings.MidiChannel = _channelCombo.SelectedIndex; } };
         _offsetCombo = new ComboBox { Name = "DisplayOffset", ItemsSource = new[] { "0 (device mapping disabled)", "1 (display starts at 001)" } };
         _offsetCombo.SelectionChanged += OnOffsetChanged;
-        var fields = new Grid { ColumnDefinitions = new ColumnDefinitions("126,12,*,12,100") };
-        var channelField = ApprovedField("MIDI Channel", _channelCombo);
-        var offset = ApprovedField("Display Offset", _offsetCombo);
-        var scene = ApprovedField("MIDI Mapping", BuildMidiMappingButton());
+        var fields = new Grid { ColumnDefinitions = new ColumnDefinitions("80,12,*"), RowDefinitions = new RowDefinitions("Auto,8,Auto") };
+        var channelField = CompactField("MIDI channel", _channelCombo);
+        _offsetCombo.HorizontalAlignment = HorizontalAlignment.Stretch;
+        var offset = CompactField("Display offset", _offsetCombo);
+        var scene = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children = { new TextBlock { Text = "MIDI mapping", FontSize = 12, Foreground = SecondaryBrush, VerticalAlignment = VerticalAlignment.Center }, BuildMidiMappingButton() },
+        };
         fields.Children.Add(channelField);
         Grid.SetColumn(offset, 2); fields.Children.Add(offset);
-        Grid.SetColumn(scene, 4); fields.Children.Add(scene);
+        Grid.SetRow(scene, 2); Grid.SetColumnSpan(scene, 3); fields.Children.Add(scene);
         stack.Children.Add(fields);
-        stack.Children.Add(new Border { Background = InsetBrush, Padding = new Thickness(14), CornerRadius = new CornerRadius(5), Child = new TextBlock { Text = "Program Change mapping must be disabled on the device when Display Offset is 0.", TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush } }); SetApprovedCardContent(card, stack); return card;
+        stack.Children.Add(new Border { Background = InsetBrush, Padding = new Thickness(8), CornerRadius = new CornerRadius(5), Child = new TextBlock { Text = "Program Change mapping must be disabled on the device when Display Offset is 0.", FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush } }); SetApprovedCardContent(card, stack); return card;
     }
 
     private Control BuildApprovedAppearance()
     {
         bool isLight = string.Equals(_settings.Theme, "Light", StringComparison.OrdinalIgnoreCase);
-        var card = ApprovedCard("Appearance", "Application theme"); var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 }; _darkThemeRadio = new RadioButton { Content = "Dark", IsChecked = !isLight }; _lightThemeRadio = new RadioButton { Content = "Light", IsChecked = isLight }; _darkThemeRadio.IsCheckedChanged += (_, _) => { if (_darkThemeRadio.IsChecked == true) { _lightThemeRadio.IsChecked = false; _settings.Theme = "Dark"; SetTheme("Dark"); } }; _lightThemeRadio.IsCheckedChanged += (_, _) => { if (_lightThemeRadio.IsChecked == true) { _darkThemeRadio.IsChecked = false; _settings.Theme = "Light"; SetTheme("Light"); } }; row.Children.Add(_darkThemeRadio); row.Children.Add(_lightThemeRadio); SetApprovedCardContent(card, row); return card;
+        var card = ApprovedCard("Appearance", "Application theme", compact: true); var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 }; _darkThemeRadio = new RadioButton { Content = "Dark", IsChecked = !isLight }; _lightThemeRadio = new RadioButton { Content = "Light", IsChecked = isLight }; _darkThemeRadio.IsCheckedChanged += (_, _) => { if (_darkThemeRadio.IsChecked == true) { _lightThemeRadio.IsChecked = false; _settings.Theme = "Dark"; SetTheme("Dark"); } }; _lightThemeRadio.IsCheckedChanged += (_, _) => { if (_lightThemeRadio.IsChecked == true) { _darkThemeRadio.IsChecked = false; _settings.Theme = "Light"; SetTheme("Light"); } }; row.Children.Add(_darkThemeRadio); row.Children.Add(_lightThemeRadio); SetApprovedCardContent(card, row); return card;
     }
 
-    private static Border ApprovedCard(string? title = null, string? subtitle = null, Control? headerRight = null, FontWeight? titleFontWeight = null)
+    private static Border ApprovedCard(string? title = null, string? subtitle = null, Control? headerRight = null, FontWeight? titleFontWeight = null, bool compact = false)
     {
-        var card = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(18), BoxShadow = Elevation };
+        var card = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(compact ? 12 : 18), BoxShadow = Elevation };
         if (title is null)
         {
             return card;
         }
 
-        var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,16,*") }; var heading = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") }; var titleStack = new StackPanel { Spacing = 2 }; titleStack.Children.Add(new TextBlock { Text = title, FontSize = 16, FontWeight = titleFontWeight ?? FontWeight.Bold, Foreground = TextBrush }); if (subtitle is not null)
+        var layout = new Grid { RowDefinitions = new RowDefinitions(compact ? "Auto,8,*" : "Auto,16,*") }; var heading = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") }; var titleStack = new StackPanel { Spacing = 2 }; titleStack.Children.Add(new TextBlock { Text = title, FontSize = 16, FontWeight = titleFontWeight ?? (compact ? FontWeight.SemiBold : FontWeight.Bold), Foreground = TextBrush }); if (subtitle is not null)
         {
-            titleStack.Children.Add(new TextBlock { Text = subtitle, FontSize = 12, Foreground = SecondaryBrush });
+            titleStack.Children.Add(new TextBlock { Text = subtitle, FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap });
         }
 
         heading.Children.Add(titleStack); if (headerRight is not null) { Grid.SetColumn(headerRight, 1); heading.Children.Add(headerRight); }
@@ -765,6 +779,7 @@ public partial class MainWindow
     private static void SetApprovedCardContent(Border card, Control content) => ((ContentControl)card.Tag!).Content = content;
     private static ControlTheme CompactListItemTheme() => new(typeof(ListBoxItem)) { Setters = { new Setter(ListBoxItem.PaddingProperty, new Thickness(0)), new Setter(ListBoxItem.MinHeightProperty, 0d), new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch), new Setter(ListBoxItem.BackgroundProperty, Brushes.Transparent) } };
     private static Control ApprovedField(string label, Control input) => new StackPanel { Spacing = 5, Children = { new TextBlock { Text = label.ToUpperInvariant(), FontSize = 11, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush }, input } };
+    private static Control CompactField(string label, Control input) => new StackPanel { Spacing = 4, Children = { new TextBlock { Text = label, FontSize = 12, Foreground = SecondaryBrush }, input } };
     private static TextBlock Value() => new() { Text = "---", FontFamily = new FontFamily("Cascadia Mono"), FontWeight = FontWeight.SemiBold, Foreground = TextBrush, Margin = new Thickness(0, 7) };
     private static IBrush ThemeBrush(string key) => (IBrush)Application.Current!.Resources[key]!;
     private static IBrush Brush(string hex) => new SolidColorBrush(Color.Parse(hex));

@@ -48,6 +48,7 @@ public partial class FavoriteEditorTests
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), button => button.Name == "OpenSettingsJson");
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<CheckBox>(), check => check.Name == "DebugMode");
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "MAX PRESET");
+            Assert.DoesNotContain(Find<Grid>(window, "ConfigLayout").GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "Scenes");
 
             var actions = Find<StackPanel>(window, "ConnectionActions");
             Assert.Equal(new[] { "Connect", "Disconnect", "RefreshDevices", "OpenDiagnostics" },
@@ -184,6 +185,9 @@ public partial class FavoriteEditorTests
             Assert.Equal(2, Grid.GetColumn(right));
             Assert.Equal(0, Grid.GetRow(right));
 
+            // Exercise the single-column fallback independently of the minimum
+            // width retained for the Favorites tables.
+            window.MinWidth = 0;
             window.Width = 800;
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(0, Grid.GetColumn(right));

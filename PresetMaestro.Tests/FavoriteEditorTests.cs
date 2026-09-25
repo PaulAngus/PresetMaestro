@@ -75,10 +75,10 @@ public partial class FavoriteEditorTests
 
             Assert.Equal("Preset Maestro", title.Text);
             Assert.NotNull(logo.Source);
-            Assert.Equal(32, logo.Width);
-            Assert.Equal(32, logo.Height);
+            Assert.Equal(24, logo.Width);
+            Assert.Equal(24, logo.Height);
             Assert.Equal(18, title.FontSize);
-            Assert.Equal(12, identity.Spacing);
+            Assert.Equal(8, identity.Spacing);
             Assert.Equal(Orientation.Horizontal, identity.Orientation);
         }
         finally { window.Close(); }

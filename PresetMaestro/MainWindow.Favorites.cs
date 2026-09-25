@@ -45,8 +45,8 @@ public partial class MainWindow
         _favPresetPickerButton = new Button
         {
             Name = "FavoritePresetPicker",
-            MinHeight = 40,
-            Padding = new Thickness(12, 0),
+            MinHeight = 32,
+            Padding = new Thickness(8, 0),
             Background = InsetBrush,
             BorderBrush = UiBorderBrush,
             BorderThickness = new Thickness(1),
