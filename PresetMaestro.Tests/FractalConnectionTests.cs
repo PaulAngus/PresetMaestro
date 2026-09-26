@@ -247,4 +247,32 @@ public class FractalConnectionTests
         }
         finally { window.Close(); }
     }
+
+    [AvaloniaFact]
+    public async Task DeviceEnumerationFailureKeepsConnectionAndRecovers()
+    {
+        var midi = new DeviceMidi();
+        midi.Send = request => { if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9")); } };
+        var window = Create(midi, []);
+        window.ThruInputRetryDelay = TimeSpan.Zero;
+        try
+        {
+            await window.ConnectAsync();
+            midi.OutputEnumerationError = new NAudio.MmException(NAudio.MmResult.NoDriver, "midiOutGetDevCaps");
+            window.CheckConnectedDevices("FM9", "FM9");
+            window.CheckConnectedDevices("FM9", "FM9");
+            Assert.True(midi.InputOpen && midi.OutputOpen);
+            Assert.Equal("FM9", Header(window).Text);
+
+            midi.OutputEnumerationError = null;
+            window.CheckConnectedDevices("FM9", "FM9");
+            Assert.Equal("FM9", Header(window).Text);
+
+            midi.OutputRemoved = true;
+            window.CheckConnectedDevices("FM9", "FM9");
+            Assert.False(midi.InputOpen || midi.OutputOpen);
+            Assert.Equal("Not connected", Header(window).Text);
+        }
+        finally { window.Close(); }
+    }
 }

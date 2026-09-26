@@ -1,3 +1,4 @@
+using NAudio;
 using NAudio.Midi;
 
 namespace PresetMaestro.Midi;
@@ -7,6 +8,7 @@ public sealed class MidiManager : IMidiManager
     private IMidiInput? _midiIn;
     private string? _mainInputPortName;
     private MidiOut? _midiOut;
+    private string? _outputPortName;
     private bool _disposed;
 
     // Extra input ports whose raw messages are forwarded straight to _midiOut (MIDI thru/merge).
@@ -31,13 +33,21 @@ public sealed class MidiManager : IMidiManager
 
     public static IReadOnlyList<string> GetOutputPortNames()
     {
-        var names = new string[MidiOut.NumberOfDevices];
-        for (int i = 0; i < MidiOut.NumberOfDevices; i++)
+        return GetOutputPorts(MidiOut.NumberOfDevices, index => MidiOut.DeviceInfo(index).ProductName)
+            .Select(port => port.Name).ToArray();
+    }
+
+    internal static IReadOnlyList<(int Index, string Name)> GetOutputPorts(int deviceCount, Func<int, string> getName)
+    {
+        var ports = new List<(int Index, string Name)>();
+        for (int i = 0; i < deviceCount; i++)
         {
-            names[i] = MidiOut.DeviceInfo(i).ProductName;
+            try { ports.Add((i, getName(i))); }
+            // A stale or unavailable driver entry must not hide the other outputs.
+            catch (MmException) { }
         }
 
-        return names;
+        return ports;
     }
 
     // Instance wrappers so callers can depend on IMidiManager instead of the static members directly.
@@ -84,16 +94,17 @@ public sealed class MidiManager : IMidiManager
     {
         errorMessage = null;
         CloseOutput();
-        for (int i = 0; i < MidiOut.NumberOfDevices; i++)
+        foreach (var port in GetOutputPorts(MidiOut.NumberOfDevices, index => MidiOut.DeviceInfo(index).ProductName))
         {
-            if (!string.Equals(MidiOut.DeviceInfo(i).ProductName, portName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(port.Name, portName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
             try
             {
-                _midiOut = new MidiOut(i);
+                _midiOut = new MidiOut(port.Index);
+                _outputPortName = portName;
                 return true;
             }
             catch (Exception ex)
@@ -126,6 +137,7 @@ public sealed class MidiManager : IMidiManager
     {
         try { _midiOut?.Dispose(); } catch { }
         _midiOut = null;
+        _outputPortName = null;
     }
 
     // Opens an additional input port whose messages are forwarded as-is to the shared MIDI out.
@@ -340,22 +352,26 @@ public sealed class MidiManager : IMidiManager
             return; // ignore real-time messages (clock/active-sense would flood the merged output)
         }
 
+        string? sourcePort = _thruInputs.FirstOrDefault(kv => ReferenceEquals(kv.Value, sender)).Key;
+        string? outputPort;
         lock (_outLock)
         {
             if (_midiOut == null)
             {
+                LogMessage?.Invoke(this, $"THRU: dropped 0x{status:X2} from '{sourcePort ?? "unknown"}' (no MIDI output connected)");
                 return;
             }
 
             try { _midiOut.Send(e.RawMessage); }
             catch (Exception ex) { LogMessage?.Invoke(this, $"THRU ERROR: {ex.Message}"); return; }
+            outputPort = _outputPortName;
         }
         int command = status & 0xF0;
         int channel = (status & 0x0F) + 1;
         int data1 = (e.RawMessage >> 8) & 0x7F;
         int data2 = (e.RawMessage >> 16) & 0x7F;
 
-        LogMessage?.Invoke(this, $"THRU: forwarded 0x{status:X2} data={data1},{data2}");
+        LogMessage?.Invoke(this, $"THRU: forwarded 0x{status:X2} data={data1},{data2} ch{channel} from '{sourcePort ?? "unknown"}' to '{outputPort}' unchanged");
 
         if (command == 0xc0)
         {
@@ -364,7 +380,6 @@ public sealed class MidiManager : IMidiManager
         else if (command == 0x90 && data2 > 0)
         {
             LogMessage?.Invoke(this, $"THRU: Note On ch{channel} note={data1} velocity={data2}");
-            string? sourcePort = _thruInputs.FirstOrDefault(kv => ReferenceEquals(kv.Value, sender)).Key;
             NoteOnReceived?.Invoke(this, new NoteOnEventArgs(data1, data2, channel, sourcePort));
         }
     }

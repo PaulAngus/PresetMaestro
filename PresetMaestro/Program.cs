@@ -9,6 +9,7 @@ internal static class Program
         .StartWithClassicDesktopLifetime(args);
 
     public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-        .UsePlatformDetect()
+        .UseWin32()
+        .UseSkia()
         .LogToTrace();
 }

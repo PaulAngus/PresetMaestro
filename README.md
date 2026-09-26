@@ -14,6 +14,8 @@ FM9 preset and scene name reads are supported by the current protocol code. FM3 
 
 You do **not** need to scan all presets before using scenes. For everyday use, just connect and select a preset.
 
+**Controller block toggles:** under **Config → MIDI Connection → Thru In(s)**, select one input route per controller. If the same controller is connected through both USB and a MIDI interface, checking both forwards each press twice. With Fractal's Effect Bypass mode set to Toggle, the second CC reverses the first. Leave only USB or only the interface checked for that controller. Different controllers can still use separate checked inputs. Thru messages retain their original channel and values; the device's receive channel and MIDI/Remote CC assignments must match. Diagnostics show the source and output ports for each forwarded message.
+
 ## Profiles
 
 Use **Config → Profiles** to select a profile, or enter a name and click **Create**, **Copy** or **Rename**. **Copy** duplicates the active profile's saved favorites, current preset mapping and cached names, then selects the independent copy. **Delete** removes the active profile after confirmation and selects another; at least one profile must remain. New profiles created with **Create** start with default preset mapping and empty favorites and caches. Switching saves the current profile, clears the current selection, and loads the selected profile. Finish or cancel a name sync before changing profiles.
@@ -124,6 +126,8 @@ dotnet format .\PresetMaestro.slnx --verify-no-changes --no-restore
 ```
 
 `Publish-App.ps1` is a local, untracked helper that prompts for the version before publishing (showing the current one from `PresetMaestro\Version.txt`), then runs `dotnet publish` and optionally hands off to `Copy-PublishedExe.ps1`. Publishing creates the single-file executable `.\publish\PresetMaestro.exe`.
+
+The Windows x64 executable includes its .NET runtime and needs no separate .NET installation. The project references only Avalonia's Windows and Skia backends and NAudio's MIDI/WinMM packages, avoiding unused desktop platforms, audio playback packages, and the WinForms runtime. Single-file compression reduces distribution size; ReadyToRun remains enabled and code trimming is not used. Compressed assemblies are unpacked on startup, so the executable's size is smaller than its extracted runtime payload.
 
 The solution-level test command runs both the controller and probe suites. The controller suite includes preset-catalog and headless Avalonia dialog tests for ordering, filtering, resizing, selection, and keyboard interaction. Scene tests use simulated MIDI and synthetic compressed presets; **physical device scene-name verification is still outstanding**. Builds enforce the repository's `.editorconfig`, Microsoft recommended .NET analyzers, nullable reference types, and warnings-as-errors.
 

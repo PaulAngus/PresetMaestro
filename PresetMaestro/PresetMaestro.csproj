@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -23,16 +23,19 @@
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <PublishReadyToRun>true</PublishReadyToRun>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="preset_maestro.ico" />
     <ProjectReference Include="..\PresetNameSync.Core\PresetNameSync.Core.csproj" />
+    <!-- Use only the Windows UI and MIDI backends; the umbrella packages pull in unused platforms and WinForms. -->
     <PackageReference Include="Avalonia" Version="11.2.3" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Win32" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Skia" Version="11.2.3" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
-    <PackageReference Include="NAudio" Version="3.0.1" />
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
+    <PackageReference Include="NAudio.Midi" Version="3.0.1" />
+    <PackageReference Include="NAudio.WinMM" Version="3.0.1" />
   </ItemGroup>
 
 </Project>

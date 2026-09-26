@@ -17,6 +17,7 @@ public partial class MainWindow
     private FractalDeviceInformation? _detectedDevice;
     private FractalDeviceInformationClient? _deviceInformationClient;
     private DispatcherTimer? _connectionMonitor;
+    private bool _deviceCheckFailed;
     private Border? _connectionDot;
     internal Func<string, Task>? ConnectionErrorOverride { get; set; }
     internal TimeSpan DeviceInformationTimeout { get; set; } = TimeSpan.FromMilliseconds(700);
@@ -79,19 +80,10 @@ public partial class MainWindow
             AppendLog($"CONNECT: validated {device.ModelLabel} on selected MIDI IN '{input}'.");
             // A fresh timer avoids retaining a previous connection's selected port names.
             _connectionMonitor?.Stop();
+            _deviceCheckFailed = false;
             _connectionMonitor = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _connectionMonitor.Tick += (_, _) =>
-            {
-                try
-                {
-                    if (!_midi.InputOpen || !_midi.OutputOpen || !_midi.GetInputPortNames().Contains(input) || !_midi.GetOutputPortNames().Contains(output))
-                    {
-                        AppendLog("CONNECT: selected MIDI device removed; disconnected.");
-                        Disconnect();
-                    }
-                }
-                catch (Exception ex) { AppendLog($"CONNECT: MIDI transport failed: {ex.Message}"); Disconnect(); }
-            };
+                CheckConnectedDevices(input, output);
             _connectionMonitor.Start();
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
@@ -132,6 +124,35 @@ public partial class MainWindow
             if (generation == _connectionGeneration && _detectedDevice is not null && _midi.InputOpen && _midi.OutputOpen)
             {
                 OpenCheckedThruInputs(reopen: true);
+            }
+        }
+    }
+
+    internal void CheckConnectedDevices(string input, string output)
+    {
+        try
+        {
+            if (!_midi.InputOpen || !_midi.OutputOpen || !_midi.GetInputPortNames().Contains(input) || !_midi.GetOutputPortNames().Contains(output))
+            {
+                AppendLog("CONNECT: selected MIDI device removed; disconnected.");
+                Disconnect();
+                return;
+            }
+
+            if (_deviceCheckFailed)
+            {
+                AppendLog("CONNECT: MIDI device check recovered.");
+                _deviceCheckFailed = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Enumeration failure is not evidence that the open transport failed.
+            // Retry on the next tick; actual send failures still disconnect immediately.
+            if (!_deviceCheckFailed)
+            {
+                AppendLog($"CONNECT: MIDI device check unavailable; keeping connection and retrying: {ex.Message}");
+                _deviceCheckFailed = true;
             }
         }
     }

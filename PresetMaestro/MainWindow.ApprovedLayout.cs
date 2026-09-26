@@ -693,7 +693,21 @@ public partial class MainWindow
         _outputPortCombo = new ComboBox { Name = "MidiOutput", HorizontalAlignment = HorizontalAlignment.Stretch };
         _outputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions();
         _thruInputPanel = new StackPanel { Name = "ThruInputs", Spacing = 4 };
-        var routing = new StackPanel { Spacing = 14, Children = { ApprovedField("MIDI In", inputRow), ApprovedField("MIDI Out", _outputPortCombo), ApprovedField("Thru In(s)", _thruInputPanel) } };
+        var thruInputs = new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                _thruInputPanel,
+                new TextBlock
+                {
+                    Text = "Select one input per controller. USB and MIDI connections from the same controller can send each press twice, cancelling Fractal block toggles.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = SecondaryBrush
+                }
+            }
+        };
+        var routing = new StackPanel { Spacing = 14, Children = { ApprovedField("MIDI In", inputRow), ApprovedField("MIDI Out", _outputPortCombo), ApprovedField("Thru In(s)", thruInputs) } };
 
         var settingsActions = new StackPanel { Name = "ConnectionActions", Spacing = 8 };
         _connectButton = new Button { Name = "Connect", Content = "Connect", Background = AccentBrush, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Stretch };

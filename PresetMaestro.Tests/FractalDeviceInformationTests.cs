@@ -182,6 +182,8 @@ internal sealed class DeviceMidi : IMidiManager
     public bool FailInput { get; set; }
     public bool ThrowThru { get; set; }
     public bool Removed { get; set; }
+    public Exception? OutputEnumerationError { get; set; }
+    public bool OutputRemoved { get; set; }
     public List<string> InputPorts { get; } = ["FM9"];
     public List<string> OpenedThruPorts { get; } = [];
     public List<string> ClosedThruPorts { get; } = [];
@@ -192,7 +194,8 @@ internal sealed class DeviceMidi : IMidiManager
     public EventHandler<byte[]>? SnapshotListener() => SysexMessageReceived;
     public IReadOnlyCollection<string> ThruInputPorts => [];
     public IReadOnlyList<string> GetInputPortNames() => Removed ? [] : InputPorts;
-    public IReadOnlyList<string> GetOutputPortNames() => Removed ? [] : ["FM9"];
+    public IReadOnlyList<string> GetOutputPortNames() => OutputEnumerationError is { } error
+        ? throw error : Removed || OutputRemoved ? [] : ["FM9"];
     public bool OpenInput(string name, out string? error) { error = FailInput ? "Unavailable" : null; InputOpen = !FailInput; return InputOpen; }
     public bool OpenOutput(string name, out string? error) { error = null; OutputOpen = true; return true; }
     public bool OpenThruInput(string name, out string? error)
