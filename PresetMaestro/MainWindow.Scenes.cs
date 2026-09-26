@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -12,13 +11,8 @@ namespace PresetMaestro;
 
 public partial class MainWindow
 {
-    private readonly Button[] _sceneButtons = new Button[8];
-    private Button _refreshSceneNamesButton = null!;
-    private Button _syncSceneNamesButton = null!;
-    private TextBlock _sceneStatus = new();
     private DispatcherTimer _scenePoll = null!;
     private CancellationTokenSource? _sceneCts;
-    private CancellationTokenSource? _sceneSyncCts;
     private CancellationTokenSource? _scenePollCts;
     private int _sceneGeneration;
     private int? _sceneSlot, _activeScene;
@@ -52,92 +46,13 @@ public partial class MainWindow
         _scenePoll.Tick += async (_, _) => await PollSceneStateAsync();
     }
 
-    private Control BuildSceneCard()
+    private void UpdateFavoriteSceneReadButton()
     {
-        var card = ApprovedCard("Scenes", "Names refresh when a preset is loaded");
-        var stack = new StackPanel { Spacing = 12 };
-        _sceneStatus = new TextBlock
+        if (_favoriteUseCurrentButton is not null)
         {
-            Text = CanReadDeviceNames
-                ? "Connect MIDI input and output to read scene names."
-                : UnsupportedNameReads,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = SecondaryBrush,
-        };
-        stack.Children.Add(_sceneStatus);
-        var grid = new UniformGrid { Columns = 2, Rows = 4 };
-        for (int i = 0; i < 8; i++)
-        {
-            int scene = i + 1;
-            var button = new Button { Content = $"Scene {scene}", Margin = new Thickness(4), MinHeight = 50, HorizontalAlignment = HorizontalAlignment.Stretch };
-            button.Click += (_, _) =>
-            {
-                if (_connectionCts is null && _sceneSlot.HasValue && _midi.SendScene(scene, _settings.SceneCc, _settings.MidiChannel == 0 ? 1 : _settings.MidiChannel))
-                { _activeScene = scene; _currentFavoriteScene = scene; UpdateDisplay(); RenderScenes(); }
-            };
-            _sceneButtons[i] = button; grid.Children.Add(button);
+            _favoriteUseCurrentButton.IsEnabled = CanReadDeviceNames && _midi.InputOpen && _midi.OutputOpen;
+            ToolTip.SetTip(_favoriteUseCurrentButton, CanReadDeviceNames ? null : UnsupportedNameReads);
         }
-        stack.Children.Add(grid);
-        var refresh = _refreshSceneNamesButton = new Button { Content = "Refresh current scene names" };
-        refresh.Click += async (_, _) =>
-        {
-            if (_sceneSlot is int slot)
-            {
-                await RefreshScenesAsync(slot);
-            }
-            else
-            {
-                await PollSceneStateAsync();
-            }
-        };
-        stack.Children.Add(refresh);
-        var sync = _syncSceneNamesButton = new Button { Content = "Sync all stored scene names" };
-        sync.Click += async (_, _) => await SyncSceneNamesAsync();
-        stack.Children.Add(sync);
-        var cancel = new Button { Content = "Cancel scene sync" };
-        cancel.Click += (_, _) => _sceneSyncCts?.Cancel(); stack.Children.Add(cancel);
-        var clear = new Button { Content = "Clear scene-name cache" };
-        clear.Click += (_, _) =>
-        {
-            _sceneSyncCts?.Cancel(); _sceneCts?.Cancel(); _favoriteSceneCts?.Cancel(); _sceneGeneration++;
-            SceneCache.Clear(); _saveSettings(_settings); UpdateDisplay(); RenderScenes();
-            _sceneStatus.Text = "Scene-name cache cleared for these MIDI ports.";
-        };
-        stack.Children.Add(clear);
-        stack.Children.Add(new TextBlock { Text = "Bulk sync reads saved presets without selecting them. For DIN MIDI, connect both directions and enable Send MIDI PC on the device. USB changes are also checked periodically.", Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap });
-        RenderScenes();
-        UpdateSceneReadButtons();
-        SetApprovedCardContent(card, stack);
-        return card;
-    }
-
-    private void RenderScenes()
-    {
-        string[]? names = _sceneSlot is int slot && SceneCache.TryGetValue(slot, out var entry) ? entry.Names : null;
-        for (int i = 0; i < 8; i++)
-        {
-            if (_sceneButtons[i] == null)
-            {
-                continue;
-            }
-
-            string name = names != null && i < names.Length ? names[i]?.Trim() ?? "" : "";
-            _sceneButtons[i].Content = string.IsNullOrEmpty(name) ? $"Scene {i + 1}" : $"{i + 1} · {name}";
-            _sceneButtons[i].IsEnabled = CanReadDeviceNames && _sceneSlot.HasValue && _midi.OutputOpen;
-            _sceneButtons[i].Background = _activeScene == i + 1 ? AccentBrush : SurfaceBrush;
-            _sceneButtons[i].Foreground = _activeScene == i + 1 ? Brushes.White : TextBrush;
-        }
-    }
-
-    private void UpdateSceneReadButtons()
-    {
-        bool available = CanReadDeviceNames && _midi.InputOpen && _midi.OutputOpen;
-        if (_refreshSceneNamesButton is not null) { _refreshSceneNamesButton.IsEnabled = available; }
-        if (_syncSceneNamesButton is not null) { _syncSceneNamesButton.IsEnabled = available; }
-        if (_favoriteUseCurrentButton is not null) { _favoriteUseCurrentButton.IsEnabled = available; }
-        if (_refreshSceneNamesButton is not null) { ToolTip.SetTip(_refreshSceneNamesButton, CanReadDeviceNames ? null : UnsupportedNameReads); }
-        if (_syncSceneNamesButton is not null) { ToolTip.SetTip(_syncSceneNamesButton, CanReadDeviceNames ? null : UnsupportedNameReads); }
-        if (_favoriteUseCurrentButton is not null) { ToolTip.SetTip(_favoriteUseCurrentButton, CanReadDeviceNames ? null : UnsupportedNameReads); }
     }
 
     private void CacheScenes(PresetScenes result, string source, string key)
@@ -159,9 +74,8 @@ public partial class MainWindow
 
     private void PresetSent(int slot, int? scene)
     {
-        _presetNamesCts?.Cancel(); _sceneSyncCts?.Cancel(); _scenePollCts?.Cancel();
+        _presetNamesCts?.Cancel(); _scenePollCts?.Cancel();
         _sceneSlot = slot; _activeScene = scene;
-        RenderScenes();
         _ = RefreshScenesAsync(slot);
     }
 
@@ -195,8 +109,8 @@ public partial class MainWindow
         _favScenePickerButton = new Button
         {
             Name = "FavoriteScenePicker",
-            MinHeight = 40,
-            Padding = new Thickness(12, 0),
+            MinHeight = 32,
+            Padding = new Thickness(8, 0),
             Background = InsetBrush,
             BorderBrush = UiBorderBrush,
             BorderThickness = new Thickness(1),
@@ -213,7 +127,7 @@ public partial class MainWindow
         {
             Name = "FavoriteUseCurrent",
             Content = "Use Current",
-            MinHeight = 38,
+            MinHeight = 32,
             FontWeight = FontWeight.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Left,
             HorizontalContentAlignment = HorizontalAlignment.Center,
@@ -228,7 +142,7 @@ public partial class MainWindow
 
     private async Task UseCurrentFavoriteStateAsync()
     {
-        if (!CanReadDeviceNames) { _sceneStatus.Text = UnsupportedNameReads; return; }
+        if (!CanReadDeviceNames) { AppendLog($"SCENES: {UnsupportedNameReads}"); return; }
         if (_connectionCts is not null || _favEditingId == null || !_midi.InputOpen || !_midi.OutputOpen)
         {
             AppendLog("SCENES: connect both MIDI ports to use the current preset and scene.");
@@ -255,7 +169,6 @@ public partial class MainWindow
             _settings.PresetNameCache[state.Preset.Slot] = state.Preset.PresetName;
             UpdateFavoritePresetDisplay();
             PopulateFavoriteScenes();
-            RenderScenes();
             UpdateDisplay();
         }
         catch (OperationCanceledException) { }
@@ -320,7 +233,7 @@ public partial class MainWindow
 
     private async Task ReadFavoriteScenesAsync()
     {
-        if (!CanReadDeviceNames) { _sceneStatus.Text = UnsupportedNameReads; return; }
+        if (!CanReadDeviceNames) { AppendLog($"SCENES: {UnsupportedNameReads}"); return; }
         if (_connectionCts is not null || !_midi.InputOpen || !_midi.OutputOpen) { AppendLog("SCENES: connect both MIDI ports first."); return; }
         int slot = (int)(_favPresetSpinner.Value ?? _settings.DisplayOffset) - _settings.DisplayOffset;
         if (slot is < 0 or > 511)
@@ -339,7 +252,7 @@ public partial class MainWindow
                 : await _presetNameClient.StoredScenesAsync(slot, cts.Token);
             cts.Token.ThrowIfCancellationRequested();
             CacheScenes(result, slot == _sceneSlot ? "live" : "stored", key);
-            _saveSettings(_settings); PopulateFavoriteScenes(); RenderScenes();
+            _saveSettings(_settings); PopulateFavoriteScenes();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { AppendLog($"SCENES: {ex.Message}"); }
@@ -354,13 +267,13 @@ public partial class MainWindow
 
     private async Task RefreshScenesAsync(int slot)
     {
-        if (!CanReadDeviceNames) { _sceneStatus.Text = UnsupportedNameReads; return; }
+        if (!CanReadDeviceNames) { AppendLog($"SCENES: {UnsupportedNameReads}"); return; }
         _sceneCts?.Cancel();
         int generation = ++_sceneGeneration;
-        if (_connectionCts is not null || !_midi.InputOpen || !_midi.OutputOpen) { _sceneStatus.Text = "Cached names; connect both MIDI directions to refresh."; return; }
+        if (_connectionCts is not null || !_midi.InputOpen || !_midi.OutputOpen) { AppendLog("SCENES: cached names; connect both MIDI directions to refresh."); return; }
         using var cts = new CancellationTokenSource(); _sceneCts = cts;
         string key = _sceneCacheKey;
-        RenderScenes(); _sceneStatus.Text = $"Preset {slot + _settings.DisplayOffset:000}: refreshing scene names…";
+        AppendLog($"SCENES: preset {slot + _settings.DisplayOffset:000}: refreshing scene names…");
         try
         {
             await Task.Delay(180, cts.Token); // coalesce rapid selection and allow device preset load
@@ -370,15 +283,15 @@ public partial class MainWindow
                 return;
             }
 
-            CacheScenes(result, "live", key); _saveSettings(_settings); RenderScenes();
-            _sceneStatus.Text = $"{result.PresetName} · eight scenes · refreshed";
+            CacheScenes(result, "live", key); _saveSettings(_settings);
+            AppendLog($"SCENES: {result.PresetName} · eight scenes · refreshed");
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             if (generation == _sceneGeneration && !_sceneClosing)
             {
-                _sceneStatus.Text = $"Showing cached/default names: {ex.Message}";
+                AppendLog($"SCENES: showing cached/default names: {ex.Message}");
             }
         }
         finally
@@ -393,7 +306,7 @@ public partial class MainWindow
     private async Task PollSceneStateAsync()
     {
         if (!CanReadDeviceNames) { return; }
-        if (_connectionCts is not null || _pollBusy || _sceneCts != null || _sceneSyncCts != null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen || _sceneClosing)
+        if (_connectionCts is not null || _pollBusy || _sceneCts != null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen || _sceneClosing)
         {
             return;
         }
@@ -415,7 +328,7 @@ public partial class MainWindow
                 _detectedPresetSlot = _detectedScene = null;
                 _currentPreset = preset.Slot + _settings.DisplayOffset;
                 _currentFavoriteName = null; _currentFavoriteScene = null;
-                UpdateDisplay(); RenderScenes(); UpdateFavoriteRowStates();
+                UpdateDisplay(); UpdateFavoriteRowStates();
                 await RefreshScenesAsync(preset.Slot);
             }
             int sceneGeneration = _sceneGeneration;
@@ -425,7 +338,7 @@ public partial class MainWindow
                 _activeScene = scene.Index + 1;
                 _detectedPresetSlot = preset.Slot;
                 _detectedScene = _activeScene;
-                UpdateDisplay(); RenderScenes(); UpdateFavoriteRowStates();
+                UpdateDisplay(); UpdateFavoriteRowStates();
             }
         }
         catch (OperationCanceledException) { }
@@ -452,10 +365,10 @@ public partial class MainWindow
             return;
         }
 
-        _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _sceneSyncCts?.Cancel(); _presetNamesCts?.Cancel();
+        _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _presetNamesCts?.Cancel();
         _sceneGeneration++; _sceneSlot = null; _activeScene = null;
         _detectedPresetSlot = _detectedScene = null;
-        RenderScenes(); UpdateFavoriteRowStates();
+        UpdateFavoriteRowStates();
         // Query the full current slot rather than guessing the bank from a PC notification.
         _ = PollAfterChangeAsync();
     });
@@ -471,58 +384,13 @@ public partial class MainWindow
     {
         _sceneCacheKey = System.Text.Json.JsonSerializer.Serialize(new[] { _inputPortCombo.SelectedItem as string ?? "", _outputPortCombo.SelectedItem as string ?? "" });
         PopulateFavoriteScenes();
-        RenderScenes();
         if (CanReadDeviceNames && _midi.InputOpen && _midi.OutputOpen) { _scenePoll.Start(); _ = PollSceneStateAsync(); }
     }
     private void StopSceneTracking()
     {
-        _scenePoll.Stop(); _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _sceneSyncCts?.Cancel(); _favoriteSceneCts?.Cancel();
+        _scenePoll.Stop(); _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _favoriteSceneCts?.Cancel();
         _sceneGeneration++; _sceneSlot = null; _activeScene = null;
         _detectedPresetSlot = _detectedScene = null;
-        RenderScenes(); UpdateFavoriteRowStates();
-    }
-
-    private async Task SyncSceneNamesAsync()
-    {
-        if (!CanReadDeviceNames) { _sceneStatus.Text = UnsupportedNameReads; return; }
-        if (_connectionCts is not null || _sceneSyncCts != null || !_midi.InputOpen || !_midi.OutputOpen) { _sceneStatus.Text = "Connect MIDI input and output before syncing."; return; }
-        _presetNamesCts?.Cancel(); _sceneCts?.Cancel(); _scenePollCts?.Cancel();
-        using var cts = new CancellationTokenSource(); _sceneSyncCts = cts;
-        string key = _sceneCacheKey; int count = 0;
-        try
-        {
-            for (int slot = 0; slot < 512; slot++)
-            {
-                _sceneStatus.Text = $"Reading stored scenes: preset {slot + _settings.DisplayOffset:000} ({count}/512 complete)…";
-                var result = await _presetNameClient.StoredScenesAsync(slot, cts.Token);
-                cts.Token.ThrowIfCancellationRequested();
-                CacheScenes(result, "stored", key); count++;
-                if (count % 16 == 0)
-                {
-                    _saveSettings(_settings);
-                }
-
-                RenderScenes();
-            }
-            _sceneStatus.Text = "Stored scene names synchronized for all 512 presets.";
-        }
-        catch (OperationCanceledException)
-        {
-            if (!_sceneClosing && _sceneCts == null)
-            {
-                _sceneStatus.Text = $"Scene sync stopped; {count} presets cached.";
-            }
-        }
-        catch (Exception ex) { _sceneStatus.Text = $"Stopped after {count} presets: {ex.Message}. Cached names retained."; }
-        finally
-        {
-            _saveSettings(_settings);
-            if (ReferenceEquals(_sceneSyncCts, cts))
-            {
-                _sceneSyncCts = null;
-            }
-
-            UpdateFavoritePresetDisplay();
-        }
+        UpdateFavoriteRowStates();
     }
 }

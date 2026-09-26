@@ -17,8 +17,8 @@ public partial class MainWindow
 
     private Control BuildPresetNameSyncCard()
     {
-        var card = ApprovedCard("Preset Name Sync", "Read-only device query; active preset is never changed");
-        var stack = new StackPanel { Spacing = 10 };
+        var card = ApprovedCard("Preset Name Sync", "Read-only device query; active preset is never changed", compact: true);
+        var stack = new StackPanel { Spacing = 8 };
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _syncPresetNamesButton = new Button { Name = "ConfigPresetSync", Content = "Sync Preset Names", Background = AccentBrush, Foreground = Brushes.White };
@@ -29,7 +29,7 @@ public partial class MainWindow
         buttons.Children.Add(_cancelPresetNamesButton);
         stack.Children.Add(buttons);
 
-        _presetNamesProgress = new ProgressBar { Minimum = 0, Maximum = 512, Height = 8 };
+        _presetNamesProgress = new ProgressBar { Minimum = 0, Maximum = 512, Height = 4 };
         stack.Children.Add(_presetNamesProgress);
         _presetNamesStatus = new TextBlock
         {
@@ -64,7 +64,7 @@ public partial class MainWindow
         }
 
         _presetNamesCts = new CancellationTokenSource();
-        _sceneSyncCts?.Cancel(); _sceneCts?.Cancel(); _scenePollCts?.Cancel();
+        _sceneCts?.Cancel(); _scenePollCts?.Cancel();
         _cancelPresetNamesButton.IsEnabled = true;
         _presetNamesProgress.Value = 0;
         _presetNamesStatus.Text = "Synchronizing slots 0-511...";

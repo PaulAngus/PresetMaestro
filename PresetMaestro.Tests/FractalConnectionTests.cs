@@ -73,8 +73,9 @@ public class FractalConnectionTests
             Dispatcher.UIThread.RunJobs();
             var sync = window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ConfigPresetSync");
             Assert.False(sync.IsEnabled);
-            Assert.False(window.GetVisualDescendants().OfType<Button>()
-                .Single(button => Equals(button.Content, "Sync all stored scene names")).IsEnabled);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(),
+                button => Equals(button.Content, "Sync all stored scene names"));
+            await (Task)typeof(MainWindow).GetMethod("ReadFavoriteScenesAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!;
             await window.SyncPresetNamesAsync();
             Assert.Contains("FM9 only", window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "PresetSyncStatus").Text);
             window.GetVisualDescendants().OfType<RadioButton>().Single(radio => Equals(radio.Content, "Dark")).IsChecked = true;

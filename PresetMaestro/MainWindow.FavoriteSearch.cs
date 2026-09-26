@@ -16,6 +16,7 @@ namespace PresetMaestro;
 
 public partial class MainWindow
 {
+    private const double TagMatchSegmentWidth = 66;
     private sealed record SearchChip(string Value, bool IsTag);
     private readonly List<SearchChip> _favSearchChips = [];
     private readonly List<string> _favAvailableTags = [];
@@ -40,7 +41,7 @@ public partial class MainWindow
             Name = "FavoriteSearchInput",
             Watermark = "Add tag or search term…",
             MinWidth = 218,
-            MinHeight = 28,
+            MinHeight = 26,
             Padding = new Thickness(4, 2),
             BorderThickness = new Thickness(0),
             Background = Brushes.Transparent
@@ -65,8 +66,8 @@ public partial class MainWindow
             BorderBrush = UiBorderBrush,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(5),
-            Padding = new Thickness(7, 5),
-            MinHeight = 42,
+            Padding = new Thickness(7, 2),
+            MinHeight = 32,
             Child = _favSearchPanel
         };
         inset.PointerPressed += (_, e) => { if (e.Source == inset) { _favSearchBox.Focus(); } };
@@ -104,14 +105,14 @@ public partial class MainWindow
         AutomationProperties.SetName(_favTagMatchAnyButton, "Match any tag chip");
         _favTagMatchAllButton.Click += (_, _) => SetFavoriteTagMatchMode(true);
         _favTagMatchAnyButton.Click += (_, _) => SetFavoriteTagMatchMode(false);
-        _favTagMatchThumbTransform = new TranslateTransform(_favTagMatchAll ? 78 : 0, 0)
+        _favTagMatchThumbTransform = new TranslateTransform(_favTagMatchAll ? TagMatchSegmentWidth : 0, 0)
         {
             Transitions = new Transitions { new DoubleTransition { Property = TranslateTransform.XProperty, Duration = TimeSpan.FromMilliseconds(180) } }
         };
-        var modeGrid = new Grid { Width = 156, Height = 30, ColumnDefinitions = new ColumnDefinitions("78,78") };
+        var modeGrid = new Grid { Width = TagMatchSegmentWidth * 2, Height = 26, ColumnDefinitions = new ColumnDefinitions("*,*") };
         var thumb = new Border
         {
-            Width = 78,
+            Width = TagMatchSegmentWidth,
             HorizontalAlignment = HorizontalAlignment.Left,
             Background = SurfaceBrush,
             BorderBrush = UiBorderBrush,
@@ -132,10 +133,10 @@ public partial class MainWindow
             BorderBrush = UiBorderBrush,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(3),
+            Padding = new Thickness(2),
             Child = modeGrid
         });
-        var clear = new Button { Name = "FavoriteClearSearch", Content = "Clear search", MinHeight = 32, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(8, 0) };
+        var clear = new Button { Name = "FavoriteClearSearch", Content = "Clear search", MinHeight = 28, FontSize = 13, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(4, 0) };
         clear.Click += (_, _) => { ResetFavoriteSearch(); RefreshFavoritesList(); _favSearchBox.Focus(); };
         actions.Children.Add(clear);
         Grid.SetColumn(actions, 2); _favSearchHost.Children.Add(actions);
@@ -317,7 +318,7 @@ public partial class MainWindow
         _favTagMatchAnyButton.IsChecked = !_favTagMatchAll;
         _favTagMatchAllButton.Foreground = _favTagMatchAll ? AccentBrush : SecondaryBrush;
         _favTagMatchAnyButton.Foreground = !_favTagMatchAll ? AccentBrush : SecondaryBrush;
-        _favTagMatchThumbTransform.X = _favTagMatchAll ? 78 : 0;
+        _favTagMatchThumbTransform.X = _favTagMatchAll ? TagMatchSegmentWidth : 0;
     }
 
     private bool FavoriteSearchHasFocus => _favSearchHost?.IsKeyboardFocusWithin == true || _favSearchPopup?.IsKeyboardFocusWithin == true;

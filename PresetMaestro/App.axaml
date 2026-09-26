@@ -56,5 +56,19 @@
       <Setter Property="BorderBrush" Value="{DynamicResource UiBorderBrush}" />
       <Setter Property="MinHeight" Value="38" />
     </Style>
+    <!-- Scope desktop density to Config and the favorite editor; favorite rows and performance controls
+         keep their existing templates and hit targets. -->
+    <Style Selector="Grid.compactConfig Button, Border.compactFavoriteEditor Button">
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="Padding" Value="10,0" />
+    </Style>
+    <Style Selector="Grid.compactConfig TextBox, Grid.compactConfig ComboBox, Grid.compactConfig NumericUpDown, Border.compactFavoriteEditor TextBox">
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="Padding" Value="8,4" />
+    </Style>
+    <Style Selector="Grid.compactConfig CheckBox, Grid.compactConfig RadioButton">
+      <Setter Property="MinHeight" Value="28" />
+    </Style>
   </Application.Styles>
 </Application>
