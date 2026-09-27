@@ -709,6 +709,7 @@ public partial class MainWindow
         _midi.CloseInput();
         _midi.CloseOutput();
         _detectedDevice = null;
+        _profileValidationCts?.Cancel();
         _presetNameClient.SetDeviceModel(Core.DeviceModel.FM9);
         UpdatePresetCapacityUI();
         SetStatus("Not connected", StatusKind.NotConnected);
@@ -744,7 +745,11 @@ public partial class MainWindow
 
     private void UpdateConnectButtons()
     {
-        _connectButton.IsEnabled = _connectionCts is null;
+        bool connected = _detectedDevice is not null && _midi.InputOpen && _midi.OutputOpen;
+        _connectButton.IsEnabled = _connectionCts is null && !connected;
+        _connectButton.Content = connected ? "Connected" : "Connect";
+        _connectButton.Background = connected ? InsetBrush : AccentBrush;
+        _connectButton.Foreground = connected ? SecondaryBrush : Brushes.White;
         _disconnectButton.IsEnabled = _midi.InputOpen || _midi.OutputOpen;
     }
 
@@ -757,7 +762,11 @@ public partial class MainWindow
 
     private void ApplyProfileSettingsToUI()
     {
-        if (_detectedDevice is not null) { _settings.DeviceModel = _detectedDevice.Model; }
+        if (_detectedDevice is not null)
+        {
+            _settings.DeviceModel = _detectedDevice.Model;
+            _settings.DeviceName = _detectedDevice.DeviceName;
+        }
         _channelCombo.SelectedIndex = Math.Clamp(_settings.MidiChannel, 0, 16);
         _offsetCombo.SelectedIndex = Math.Clamp(_settings.DisplayOffset, 0, 1);
         UpdatePresetCapacityUI();

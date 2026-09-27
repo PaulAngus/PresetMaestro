@@ -13,7 +13,7 @@ public partial class MainWindow
     private TextBlock _presetNamesStatus = null!;
     private CancellationTokenSource? _presetNamesCts;
 
-    private bool CanSyncPresetNames => CanReadDeviceNames && _connectionCts is null && _presetNamesCts is null && _midi.InputOpen && _midi.OutputOpen;
+    private bool CanSyncPresetNames => !_changingProfile && CanReadDeviceNames && _connectionCts is null && _presetNamesCts is null && _midi.InputOpen && _midi.OutputOpen;
 
     private Control BuildPresetNameSyncCard()
     {
@@ -53,7 +53,7 @@ public partial class MainWindow
             _presetNamesStatus.Text = UnsupportedNameReads;
             return;
         }
-        if (_connectionCts is not null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen)
+        if (_changingProfile || _connectionCts is not null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen)
         {
             if (!_midi.InputOpen || !_midi.OutputOpen)
             {

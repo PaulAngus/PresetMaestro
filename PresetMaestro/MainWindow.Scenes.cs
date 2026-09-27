@@ -306,7 +306,7 @@ public partial class MainWindow
     private async Task PollSceneStateAsync()
     {
         if (!CanReadDeviceNames) { return; }
-        if (_connectionCts is not null || _pollBusy || _sceneCts != null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen || _sceneClosing)
+        if (_changingProfile || _connectionCts is not null || _pollBusy || _sceneCts != null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen || _sceneClosing)
         {
             return;
         }

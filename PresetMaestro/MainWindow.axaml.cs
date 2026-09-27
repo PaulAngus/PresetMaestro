@@ -14,7 +14,7 @@ namespace PresetMaestro;
 public partial class MainWindow : Window
 {
     private enum EntryMode { Preset, Favorite }
-    private enum AppPage { PresetSender, Favorites, Config, Diagnostics }
+    private enum AppPage { PresetSender, Favorites, Config, Diagnostics, ManageProfiles }
     private enum StatusKind { NotConnected, ConnectedBoth, InputOnly, OutputOnly, Disconnected, DeviceError }
 
     // ── Persistent state ────────────────────────────────────────────
@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     private readonly IMidiManager _midi;
     private readonly PresetNameClient _presetNameClient;
     private readonly Func<int, TimeSpan, CancellationToken, Task<PresetNameResult>> _queryPresetNameAsync;
+    private readonly Func<int, CancellationToken, Task<PresetScenes>> _queryStoredScenesAsync;
     private readonly Action<AppSettings> _saveSettings;
     private readonly Action<List<Favorite>> _saveFavorites;
     private readonly Func<string, string, string, string, Task<bool>>? _confirmOverride;
@@ -59,12 +60,15 @@ public partial class MainWindow : Window
         Func<PresetSelectionWindow, Task<int?>>? presetPicker = null,
         Func<SceneSelectionWindow, Task<int?>>? scenePicker = null,
         ProfileStore? profileStore = null,
-        Func<bool, Task<string?>>? profileFilePicker = null)
+        Func<bool, Task<string?>>? profileFilePicker = null,
+        Func<string, string, Task<string?>>? profileNamePrompt = null,
+        Func<int, CancellationToken, Task<PresetScenes>>? queryStoredScenesAsync = null)
     {
         _settings = settings;
         _favorites = favorites;
         _profileStore = profileStore;
         _profileFilePickerOverride = profileFilePicker;
+        _profileNamePromptOverride = profileNamePrompt;
         if (profileStore is not null)
         {
             _favorites.AddRange(profileStore.LoadFavorites(settings.ActiveProfile));
@@ -81,6 +85,7 @@ public partial class MainWindow : Window
         _midi.NoteOnReceived += OnNoteOnReceived;
         _presetNameClient = new PresetNameClient(_midi);
         _queryPresetNameAsync = queryPresetNameAsync ?? _presetNameClient.QueryAsync;
+        _queryStoredScenesAsync = queryStoredScenesAsync ?? _presetNameClient.StoredScenesAsync;
         InitializeSceneTracking();
 
         _autoSendTimer = new DispatcherTimer();
@@ -99,6 +104,7 @@ public partial class MainWindow : Window
 
         ApplySettingsToUI();
         RefreshPortLists();
+        RefreshProfileList();
         RefreshFavoritesList();
         UpdateDisplay();
 
@@ -113,7 +119,7 @@ public partial class MainWindow : Window
         // Buttons and list controls consume Enter before the window's bubbling handler sees it.
         // Once a command has been entered, Enter should send it regardless of which non-editor
         // control currently owns keyboard focus.
-        if (_settings.KeyboardEntryEnabled &&
+        if (_currentPage != AppPage.ManageProfiles && _settings.KeyboardEntryEnabled &&
             e.Key == Key.Enter &&
             _enteredDigits.Length > 0 &&
             FocusManager?.GetFocusedElement() is not TextBox && !FavoriteSearchHasFocus)
@@ -127,7 +133,7 @@ public partial class MainWindow : Window
     {
         base.OnKeyDown(e);
 
-        if (!_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
+        if (_currentPage == AppPage.ManageProfiles || !_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
         {
             return;
         }
@@ -196,7 +202,6 @@ public partial class MainWindow : Window
                 _settings.MidiOutputPort = _outputPortCombo.SelectedItem as string ?? string.Empty;
                 _settings.ThruInputPorts = GetCheckedThruPorts();
             }
-            string? profileName = _profileName.Text;
             string? searchText = _favSearchBox.Text;
             int? editingId = _favEditingId;
             string? favoriteName = editingId.HasValue ? _favNameBox.Text : null;
@@ -213,7 +218,7 @@ public partial class MainWindow : Window
             BuildLayout();
             ApplySettingsToUI();
             RefreshPortLists();
-            _profileName.Text = profileName;
+            RefreshProfileList();
             _favSearchBox.Text = searchText;
             RefreshFavoritesList();
             if (editingId is int id)

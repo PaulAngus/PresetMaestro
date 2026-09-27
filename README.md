@@ -18,12 +18,16 @@ You do **not** need to scan all presets before using scenes. For everyday use, j
 
 ## Profiles
 
-Use **Config → Profiles** to select a profile, or enter a name and click **Create**, **Copy** or **Rename**. **Copy** duplicates the active profile's saved favorites, current preset mapping and cached names, then selects the independent copy. **Delete** removes the active profile after confirmation and selects another; at least one profile must remain. New profiles created with **Create** start with default preset mapping and empty favorites and caches. Switching saves the current profile, clears the current selection, and loads the selected profile. Finish or cancel a name sync before changing profiles.
+Use **Config → Profiles** to select the active profile or rescan for profiles. **Manage Profiles** opens a compact profile list and details screen, with **Back to Config** to return. Selecting a row only inspects it; **Use profile** explicitly activates it. The separate **Active** indicator identifies the profile currently in use. **Copy…**, **Rename…**, **Delete…** and **Export…** apply to the selected profile, including inactive profiles. Copy duplicates its favorites, mapping and cached names and activates the independent copy. Copying or exporting the active profile includes its current data. Deleting an inactive profile leaves the active profile unchanged; deleting the active profile safely selects another readable profile first. At least one profile must remain. **Create…** asks for a name and activates a new profile with default mapping and empty favorites and caches. Switching saves the current profile and clears the current Favorites selection. Finish or cancel a name sync before changing profiles.
+
+The selected profile details show both the device model and its device name. Connecting records the device name in the active profile, so it remains visible when disconnected and travels with copies and exports. Older profiles show **Not recorded** until connected; devices with a blank name show **Unnamed device**.
+
+Before activating a different profile, the app checks its device type, device name, and saved preset and scene names against the connected device. Name checks use read-only queries and do not select a preset. An **OK/Cancel** warning lists any mismatches or checks that could not be completed, including missing cached names and name reads unsupported by the device. If disconnected, a warning explains that the profile cannot be checked. **OK** continues switching; **Cancel** keeps the current profile and unsaved favorite edits. This also applies when creating or copying a profile, or choosing a replacement for a deleted active profile.
 
 Each profile has two files in `%APPDATA%\PresetMaestro`:
 
 - `<profile>-favorites.json`: favorite slots, names, preset/scene mappings, and tags.
-- `<profile>-settings.json`: MIDI channel, display offset, maximum preset, Scene CC, and cached preset/scene names.
+- `<profile>-settings.json`: device model and name, MIDI channel, display offset, maximum preset, Scene CC, and cached preset/scene names.
 
 `settings.json` keeps computer settings: MIDI input/output and thru ports, debug mode, entry options and note mappings, appearance, the available profile names (`Profiles`), and the last selected profile (`ActiveProfile`). Startup restores that profile. If its files are missing or unreadable, the app reports this and loads another readable profile, creating a new default profile if needed while preserving the original files.
 
@@ -31,7 +35,7 @@ If `settings.json` itself contains invalid JSON, startup preserves it as `settin
 
 **Rescan** checks `%APPDATA%\PresetMaestro` for new matching `<name>-settings.json` / `<name>-favorites.json` pairs and refreshes the saved profile list. Incomplete or unreadable pairs are skipped and counted in the status message. Adding files manually requires a rescan; creating, copying, renaming, deleting and importing through the app update the list immediately.
 
-**Export…** saves the active profile as a ZIP containing its two JSON files, including cached names and saved favorites. **Import…** accepts that ZIP, or either file of a matching JSON pair in the same folder. Enter an optional new name before importing; otherwise the source name is used. A number is appended when the name already exists, so existing profiles are preserved. Import adds the profile to the list; select it when ready. Computer settings are never included in exports or replaced by imports.
+**Export…** saves the selected profile as a ZIP containing its two JSON files, including cached names and favorites. **Import…** accepts that ZIP, or either file of a matching JSON pair in the same folder. Enter an optional new name in the import dialog; otherwise the source name is used. A number is appended when the name already exists, so existing profiles are preserved. Import selects the added profile for inspection without activating it; click **Use profile** when ready. Computer settings are never included in exports or replaced by imports.
 
 Existing data migrates automatically to **Default** on first launch. The original settings are retained as `settings.json.pre-profiles.bak`; the original `favorites.json` is also retained. Deleted profile file pairs are recoverable from the `DeletedProfiles` subfolder.
 

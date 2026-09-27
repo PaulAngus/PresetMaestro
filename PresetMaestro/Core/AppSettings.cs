@@ -11,6 +11,7 @@ public class AppSettings
     // Independent of MidiChannel, which is only the transmit channel for outgoing Bank/PC/CC.
     public Dictionary<string, int> NoteInputChannels { get; set; } = [];
     public DeviceModel DeviceModel { get; set; } = DeviceModel.FM9;
+    public string? DeviceName { get; set; }
     public int MidiChannel { get; set; } = 1;
     public int DisplayOffset { get; set; }
     public int MaxDisplayedPreset { get; set; } = 511;

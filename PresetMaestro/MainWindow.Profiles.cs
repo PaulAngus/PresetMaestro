@@ -11,13 +11,12 @@ public partial class MainWindow
     private readonly ProfileStore? _profileStore;
     private readonly Func<bool, Task<string?>>? _profileFilePickerOverride;
     private ComboBox _profileCombo = null!;
-    private TextBox _profileName = null!;
     private TextBlock _profileStatus = null!;
     private bool _refreshingProfiles;
     private bool _changingProfile;
     private int _profileGeneration;
 
-    private Control BuildProfileCard()
+    private Control BuildProfileCard(Action showProfiles)
     {
         var card = ApprovedCard("Profiles", "Favorites, preset mapping and cached names", compact: true);
         var stack = new StackPanel { Spacing = 8, IsEnabled = _profileStore is not null };
@@ -37,35 +36,10 @@ public partial class MainWindow
         Grid.SetColumn(rescan, 1);
         selection.Children.Add(rescan);
         stack.Children.Add(CompactField("Active profile", selection));
-        _profileName = new TextBox { Name = "ProfileName", Watermark = "New, copied or renamed profile name" };
-        stack.Children.Add(_profileName);
-        var actions = new Grid { Name = "ProfileActions", ColumnDefinitions = new ColumnDefinitions("*,8,*,8,*"), RowDefinitions = new RowDefinitions("Auto,8,Auto") };
-        foreach (var (label, action) in new[] { ("Create", "create"), ("Copy", "copy"), ("Rename", "rename"), ("Delete", "delete") })
-        {
-            var button = new Button { Name = "Profile" + label, Content = label, HorizontalAlignment = HorizontalAlignment.Stretch };
-            if (action == "delete")
-            {
-                button.Foreground = DangerBrush;
-            }
-
-            button.Click += async (_, _) => await RunProfileActionAsync(action, _profileName.Text ?? "");
-            actions.Children.Add(button);
-        }
-        var import = new Button { Name = "ProfileImport", Content = "Import…", HorizontalAlignment = HorizontalAlignment.Stretch };
-        var export = new Button { Name = "ProfileExport", Content = "Export…", HorizontalAlignment = HorizontalAlignment.Stretch };
-        import.Click += async (_, _) => await TransferProfileAsync(export: false);
-        export.Click += async (_, _) => await TransferProfileAsync(export: true);
-        ToolTip.SetTip(import, "Import a profile ZIP or a matching JSON file pair. Optional new name above.");
-        ToolTip.SetTip(export, "Export the active profile and its cached names as a ZIP file.");
-        actions.Children.Add(import);
-        actions.Children.Add(export);
-        for (int index = 0; index < actions.Children.Count; index++)
-        {
-            Grid.SetColumn(actions.Children[index], index % 3 * 2);
-            Grid.SetRow(actions.Children[index], index / 3 * 2);
-        }
-        stack.Children.Add(actions);
-        _profileStatus = new TextBlock { Name = "ProfileStatus", Text = _profileStore?.StartupMessage, TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush };
+        var manage = new Button { Name = "ManageProfiles", Content = "Manage Profiles", HorizontalAlignment = HorizontalAlignment.Left };
+        manage.Click += (_, _) => showProfiles();
+        stack.Children.Add(manage);
+        _profileStatus = new TextBlock { Name = "ProfileStatus", Text = _profileStore?.StartupMessage ?? "Ready.", TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush };
         stack.Children.Add(_profileStatus);
         SetApprovedCardContent(card, stack);
         RefreshProfileList();
@@ -80,14 +54,15 @@ public partial class MainWindow
             _settings.Profiles = _profileStore?.ListProfiles() ?? [_settings.ActiveProfile];
             _profileCombo.ItemsSource = _settings.Profiles;
             _profileCombo.SelectedItem = _settings.ActiveProfile;
+            RefreshManagedProfiles();
         }
         finally { _refreshingProfiles = false; }
     }
 
     private Task<bool> ConfirmProfileAsync(string title, string message, string action) =>
-        _confirmOverride is not null ? _confirmOverride(title, message, action, "Cancel") : ShowConfirmAsync(title, message, action, "Cancel");
+        _confirmOverride is not null ? _confirmOverride(title, message, action, "Cancel") : ShowProfileConfirmationAsync(title, message, action);
 
-    private async Task RunProfileActionAsync(string action, string name)
+    private async Task RunProfileActionAsync(string action, string name, string? targetProfile = null)
     {
         if (_profileStore is null || _changingProfile)
         {
@@ -111,6 +86,9 @@ public partial class MainWindow
             }
 
             string previous = _settings.ActiveProfile;
+            string target = targetProfile ?? _selectedProfileName ?? previous;
+            bool targetsActive = target == previous;
+            if (action == "select" && name == previous) { return; }
             if (action is "create" or "copy" or "rename")
             {
                 ProfileStore.ValidateName(name);
@@ -123,15 +101,36 @@ public partial class MainWindow
                     throw new InvalidOperationException("Keep at least one profile.");
                 }
 
-                if (!await ConfirmProfileAsync("Delete Profile?", $"Delete profile '{previous}' and its favorites, mapping and cached names?", "Delete Profile"))
+                if (!await ConfirmProfileAsync("Delete Profile?", $"Delete profile '{target}' and its favorites, mapping and cached names?", "Delete profile"))
                 {
                     return;
                 }
             }
-            else if (action != "rename" && _favEditingId is not null &&
+            if ((action is "select" or "create" or "copy" || action == "delete" && targetsActive) && _favEditingId is not null &&
                 !await ConfirmProfileAsync("Change Profile?", "Discard unsaved favorite edits and change profile?", "Change Profile"))
             {
                 return;
+            }
+
+            if (action == "delete" && targetsActive)
+            {
+                name = _profileStore.ListProfiles().FirstOrDefault(profile => profile != previous && IsManagedProfileReadable(profile))
+                    ?? throw new InvalidOperationException("No other readable profile is available. The active profile was preserved.");
+            }
+            if (action is "select" or "create" or "copy" || action == "delete" && targetsActive)
+            {
+                var candidate = action switch
+                {
+                    "create" => new ProfileSettings(),
+                    "copy" => targetsActive ? ProfileSettings.From(_settings) : _profileStore.LoadProfile(target),
+                    _ => _profileStore.LoadProfile(name),
+                };
+                if (action is "select" or "delete") { _profileStore.LoadFavorites(name); }
+                if (!await ConfirmProfileDeviceMatchAsync(name, candidate))
+                {
+                    _profileStatus.Text = "Profile switch cancelled. Active profile: " + previous + ".";
+                    return;
+                }
             }
 
             // A confirmation can yield to other UI events; recheck before touching storage.
@@ -140,16 +139,29 @@ public partial class MainWindow
                 throw new InvalidOperationException("Wait for name synchronization to finish before changing profiles.");
             }
 
-            SaveSettingsFromUI();
-            _saveFavorites(_favorites);
+            if (action is "select" or "create" or "copy" || targetsActive)
+            {
+                SaveSettingsFromUI();
+                _saveFavorites(_favorites);
+            }
             if (action == "rename")
             {
-                _profileStore.Rename(previous, name);
-                _settings.ActiveProfile = name;
-                try { _saveSettings(_settings); }
-                catch { _settings.ActiveProfile = previous; _profileStore.Rename(name, previous); throw; }
-                _profileName.Text = "";
-                _profileStatus.Text = $"Renamed profile to {name}.";
+                _profileStore.Rename(target, name);
+                if (targetsActive)
+                {
+                    _settings.ActiveProfile = name;
+                    try { _saveSettings(_settings); }
+                    catch { _settings.ActiveProfile = previous; _profileStore.Rename(name, target); throw; }
+                }
+                _selectedProfileName = name;
+                _profileStatus.Text = $"Renamed {target} to {name}.";
+                return;
+            }
+            if (action == "delete" && !targetsActive)
+            {
+                _profileStore.Delete(target);
+                _selectedProfileName = previous;
+                _profileStatus.Text = $"Deleted {target}.";
                 return;
             }
             if (action == "create")
@@ -158,12 +170,8 @@ public partial class MainWindow
             }
             else if (action == "copy")
             {
-                _profileStore.Create(name, ProfileSettings.From(_settings), _favorites);
-            }
-
-            if (action == "delete")
-            {
-                name = _profileStore.ListProfiles().First(profile => profile != previous);
+                _profileStore.Create(name, targetsActive ? ProfileSettings.From(_settings) : _profileStore.LoadProfile(target),
+                    targetsActive ? _favorites : _profileStore.LoadFavorites(target));
             }
 
             var profile = _profileStore.LoadProfile(name);
@@ -204,11 +212,11 @@ public partial class MainWindow
                 _profileStore.Delete(previous);
             }
 
-            _profileName.Text = "";
+            _selectedProfileName = name;
             _profileStatus.Text = action switch
             {
                 "delete" => $"Deleted {previous}. Active profile: {name}.",
-                "copy" => $"Copied {previous} to {name}. Active profile: {name}.",
+                "copy" => $"Copied {target} to {name}. Active profile: {name}.",
                 _ => $"Active profile: {name}.",
             };
         }
@@ -218,6 +226,7 @@ public partial class MainWindow
             RefreshProfileList();
             UpdateActiveProfileIndicator();
             _changingProfile = false;
+            UpdatePresetSyncButtons();
         }
     }
 
@@ -231,6 +240,13 @@ public partial class MainWindow
         _changingProfile = true;
         try
         {
+            string target = _selectedProfileName ?? _settings.ActiveProfile;
+            string? importedName = null;
+            if (!export)
+            {
+                importedName = await PromptProfileNameAsync("import", "");
+                if (importedName is null) { return; }
+            }
             string? path = await PickProfileFileAsync(export);
             if (path is null)
             {
@@ -239,16 +255,20 @@ public partial class MainWindow
 
             if (export)
             {
-                SaveSettingsFromUI();
-                _saveFavorites(_favorites);
-                _profileStore.Export(_settings.ActiveProfile, path);
-                _profileStatus.Text = $"Exported {_settings.ActiveProfile} to {Path.GetFileName(path)}.";
+                if (target == _settings.ActiveProfile)
+                {
+                    if (_presetNamesCts is not null) { throw new InvalidOperationException("Wait for name synchronization to finish, or cancel it, before exporting the active profile."); }
+                    SaveSettingsFromUI();
+                    _saveFavorites(_favorites);
+                }
+                _profileStore.Export(target, path);
+                _profileStatus.Text = $"Exported {target} to {Path.GetFileName(path)}.";
             }
             else
             {
-                string name = _profileStore.Import(path, _profileName.Text);
-                _profileName.Text = "";
-                _profileStatus.Text = $"Imported {name}. Select it above to use it.";
+                string name = _profileStore.Import(path, importedName);
+                _selectedProfileName = name;
+                _profileStatus.Text = $"Imported {name}.";
             }
         }
         catch (Exception ex) { _profileStatus.Text = ex.Message; }
@@ -271,7 +291,7 @@ public partial class MainWindow
             var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Export profile",
-                SuggestedFileName = _settings.ActiveProfile + ".zip",
+                SuggestedFileName = (_selectedProfileName ?? _settings.ActiveProfile) + ".zip",
                 DefaultExtension = "zip",
                 ShowOverwritePrompt = true,
                 FileTypeChoices = [new FilePickerFileType("Profile ZIP") { Patterns = ["*.zip"] }],

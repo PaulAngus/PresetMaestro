@@ -162,7 +162,7 @@ public partial class FavoriteEditorTests
     }
 
     [AvaloniaFact]
-    public void ChangingThemePreservesUnsavedFavoriteAndProfileDrafts()
+    public void ChangingThemePreservesUnsavedFavoriteAndManagementSelection()
     {
         var favorites = new List<Favorite> { Clone(Sample) };
         var window = CreateWindow(favorites: favorites);
@@ -174,12 +174,15 @@ public partial class FavoriteEditorTests
             Find<TextBox>(window, "FavoriteTagInput").Text = "pending tag";
             Click(Find<Button>(window, "NavConfig"));
             Dispatcher.UIThread.RunJobs();
-            Find<TextBox>(window, "ProfileName").Text = "Draft profile";
+            Click(Find<Button>(window, "ManageProfiles"));
+            Dispatcher.UIThread.RunJobs();
+            string? selectedProfile = Find<TextBlock>(window, "ManagedProfile").Text;
 
             Field<RadioButton>(window, "_darkThemeRadio").IsChecked = true;
             Dispatcher.UIThread.RunJobs();
 
-            Assert.Equal("Draft profile", Find<TextBox>(window, "ProfileName").Text);
+            Assert.Equal(selectedProfile, Find<TextBlock>(window, "ManagedProfile").Text);
+            Assert.Equal("ManageProfiles", Field<object>(window, "_currentPage").ToString());
             Click(Find<Button>(window, "NavFavorites"));
             Dispatcher.UIThread.RunJobs();
             Assert.True(Find<Border>(window, "FavoriteEditorCard").IsVisible);

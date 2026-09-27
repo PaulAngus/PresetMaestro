@@ -53,21 +53,51 @@ public partial class FavoriteEditorTests
             Assert.True(Origin(lastTab).X + lastTab.Bounds.Width < Origin(status).X);
             Assert.True(Origin(Find<TextBlock>(window, "HeaderActiveProfile")).X < width);
 
+            var config = Find<Grid>(window, "ConfigLayout");
+            Assert.DoesNotContain(config.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "Scenes");
+            foreach (string name in new[]
+            {
+                "MidiInput", "MidiOutput", "Connect", "Disconnect", "RefreshDevices", "OpenDiagnostics",
+                "ConfigPresetSync", "AutoSendDelay", "ProfileSelector", "ProfileRescan", "ManageProfiles",
+                "MidiChannel", "DisplayOffset", "OpenMidiMapping",
+            })
+            {
+                var control = Find<Control>(window, name);
+                Assert.True(control.Bounds.Height is >= 32 and <= 34,
+                    $"{name} should match the compact favorite editor height, but is {control.Bounds.Height}.");
+            }
+
             var connection = Find<Border>(window, "MidiConnectionCard");
             foreach (var control in connection.GetVisualDescendants().OfType<Control>().Where(c => c is Button or ComboBox or CheckBox))
             {
                 AssertContainedHorizontally(control, connection);
             }
-            foreach (string name in new[] { "ProfileSelector", "ProfileName", "ProfileCreate", "ProfileExport", "DisplayOffset", "OpenMidiMapping" })
+            foreach (string name in new[] { "ProfileSelector", "ProfileRescan", "ManageProfiles", "DisplayOffset", "OpenMidiMapping" })
             {
                 AssertContainedHorizontally(Find<Control>(window, name), window);
+            }
+            Assert.DoesNotContain(config.GetVisualDescendants().OfType<Control>(), control => control.Name is "ProfileName" or "ProfileActions");
+            Capture(window, $"desktop-config-{width}-{theme}");
+
+            Click(Find<Button>(window, "ManageProfiles"));
+            Dispatcher.UIThread.RunJobs();
+            var management = Find<Border>(window, "ProfileManagementCard");
+            foreach (string name in new[] { "ProfileCreate", "ProfileCopy", "ProfileRename", "ProfileDelete", "ProfileImport", "ProfileExport", "ProfileUse", "ProfileManagementRescan" })
+            {
+                var control = Find<Control>(window, name);
+                AssertContainedHorizontally(control, management);
+                Assert.Equal(28, control.Bounds.Height);
             }
             var create = Find<Button>(window, "ProfileCreate");
             var rename = Find<Button>(window, "ProfileRename");
             var delete = Find<Button>(window, "ProfileDelete");
-            Assert.Equal(Origin(create).Y, Origin(rename).Y);
-            Assert.True(Origin(delete).Y >= Origin(create).Y + create.Bounds.Height + 7);
-            Capture(window, $"desktop-config-{width}-{theme}");
+            Assert.True(Origin(create).Y < Origin(rename).Y);
+            Assert.Equal(Origin(rename).Y, Origin(delete).Y);
+            Assert.Equal(28, Find<Button>(window, "ProfilesBackToConfig").Bounds.Height);
+            Assert.All(Find<ListBox>(window, "ManagedProfiles").Items.OfType<ListBoxItem>(), row => Assert.Equal(26, row.Bounds.Height));
+            Capture(window, $"desktop-manage-profiles-{width}-{theme}");
+            Click(Find<Button>(window, "ProfilesBackToConfig"));
+            Dispatcher.UIThread.RunJobs();
 
             Click(Find<Button>(window, "NavFavorites"));
             Dispatcher.UIThread.RunJobs();

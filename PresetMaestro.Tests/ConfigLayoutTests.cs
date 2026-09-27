@@ -183,7 +183,7 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
             var right = Find<StackPanel>(window, "ConfigRightColumn");
             Assert.Equal(2, Grid.GetColumn(right));
-            Assert.Equal(0, Grid.GetRow(right));
+            Assert.Equal(2, Grid.GetRow(right));
 
             // Exercise the single-column fallback independently of the minimum
             // width retained for the Favorites tables.
@@ -191,7 +191,7 @@ public partial class FavoriteEditorTests
             window.Width = 800;
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(0, Grid.GetColumn(right));
-            Assert.Equal(2, Grid.GetRow(right));
+            Assert.Equal(4, Grid.GetRow(right));
             var scroller = window.GetVisualDescendants().OfType<ScrollViewer>().Single(viewer => viewer.Content is Grid { Name: "ConfigLayout" });
             Assert.Equal(Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, scroller.HorizontalScrollBarVisibility);
         }

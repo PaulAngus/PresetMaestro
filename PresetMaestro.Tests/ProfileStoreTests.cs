@@ -77,11 +77,14 @@ public sealed class ProfileStoreTests : IDisposable
         settings.MidiOutputPort = "Shared output";
         settings.AutoSendDelayMs = 90;
         settings.PresetNameCache[8] = "Default name";
+        settings.DeviceName = "Studio rig";
         store.SaveSettings(settings);
         store.Create("Gig");
         store.LoadProfile("Gig").ApplyTo(settings);
         settings.ActiveProfile = "Gig";
         Assert.Empty(settings.PresetNameCache);
+        Assert.Null(settings.DeviceName);
+        settings.DeviceName = "Gig rig";
         settings.MidiChannel = 9;
         settings.SceneNameCaches["gig"] = new() { [8] = new() { Names = ["Solo"] } };
         store.SaveSettings(settings);
@@ -89,6 +92,8 @@ public sealed class ProfileStoreTests : IDisposable
 
         var reopened = new ProfileStore(_directory).LoadSettings();
         Assert.Equal("Gig", reopened.ActiveProfile);
+        Assert.Equal("Gig rig", reopened.DeviceName);
+        Assert.Equal("Studio rig", store.LoadProfile("Default").DeviceName);
         Assert.Equal(9, reopened.MidiChannel);
         Assert.Equal("Shared output", reopened.MidiOutputPort);
         Assert.Equal(90, reopened.AutoSendDelayMs);
@@ -223,6 +228,7 @@ public sealed class ProfileStoreTests : IDisposable
         settings.MidiInputPort = "Private computer port";
         settings.AutoSend = true;
         settings.DeviceModel = DeviceModel.AxeFxIII;
+        settings.DeviceName = "Tour rig";
         settings.MidiChannel = 8;
         settings.DisplayOffset = 1;
         settings.MaxDisplayedPreset = 1024;
@@ -247,6 +253,7 @@ public sealed class ProfileStoreTests : IDisposable
         Assert.Equal("Default (2)", imported);
         Assert.Equal(8, store.LoadProfile(imported).MidiChannel);
         Assert.Equal(DeviceModel.AxeFxIII, store.LoadProfile(imported).DeviceModel);
+        Assert.Equal("Tour rig", store.LoadProfile(imported).DeviceName);
         Assert.Equal(1024, store.LoadProfile(imported).MaxDisplayedPreset);
         Assert.Equal(55, store.LoadProfile(imported).SceneCc);
         Assert.Equal("Scene", store.LoadProfile(imported).SceneNameCaches["ports"][3].Names[0]);
@@ -256,6 +263,7 @@ public sealed class ProfileStoreTests : IDisposable
         Assert.Contains(imported, store.LoadSettings().Profiles);
         string fromPair = store.Import(Path.Combine(_directory, "Default-favorites.json"), "From pair");
         Assert.Equal("From pair", fromPair);
+        Assert.Equal("Tour rig", store.LoadProfile(fromPair).DeviceName);
         Assert.Equal("Preset", store.LoadProfile(fromPair).PresetNameCache[3]);
     }
 

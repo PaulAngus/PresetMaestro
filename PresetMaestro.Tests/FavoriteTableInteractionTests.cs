@@ -90,7 +90,7 @@ public partial class FavoriteEditorTests
         var store = new ProfileStore(directory); var settings = store.LoadSettings(); settings.Theme = "Light";
         store.SaveFavorites("Default", [new() { Id = 1, Slot = 1, Name = "First", Tags = ["Old Tag"] }]);
         store.Create("Other", favorites: [new() { Id = 2, Slot = 1, Name = "Second", Tags = ["New Tag"] }]);
-        var window = new MainWindow(settings, [], new FakeMidi(), profileStore: store);
+        var window = new MainWindow(settings, [], new FakeMidi(), profileStore: store, confirm: (_, _, _, _) => Task.FromResult(true));
         try
         {
             window.Show(); Click(Find<Button>(window, "NavFavorites")); Dispatcher.UIThread.RunJobs();

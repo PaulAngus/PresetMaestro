@@ -68,9 +68,12 @@ public partial class MainWindow
             _detectedDevice = device;
             _presetNameClient.SetDeviceModel(device.Model);
             _settings.DeviceModel = device.Model;
+            _settings.DeviceName = device.DeviceName;
             UpdatePresetCapacityUI();
             UpdateFavoritePresetDisplay();
             SetStatus(device.Label, StatusKind.ConnectedBoth);
+            SaveSettingsFromUI();
+            RefreshProfileList();
             if (!CanReadDeviceNames)
             {
                 _presetNamesStatus.Text = UnsupportedNameReads;

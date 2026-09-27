@@ -23,6 +23,81 @@ public class FractalConnectionTests
     private static TextBlock Header(MainWindow window) => window.GetVisualDescendants().OfType<TextBlock>().Single(c => c.Name == "HeaderConnectionStatus");
     private static void Invoke(MainWindow window, string name) => typeof(MainWindow).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
 
+    [AvaloniaFact]
+    public async Task ConnectButtonReflectsConnectionAcrossThemeChangesAndDisconnect()
+    {
+        var midi = new DeviceMidi();
+        midi.Send = request => { if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9")); } };
+        var window = Create(midi, []);
+        window.ThruInputRetryDelay = TimeSpan.Zero;
+        try
+        {
+            window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "NavConfig")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            Button ConnectButton() => window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "Connect");
+            Assert.True(ConnectButton().IsEnabled);
+            Assert.Equal("Connect", ConnectButton().Content);
+            var disconnectedBackground = ConnectButton().Background;
+
+            await window.ConnectAsync();
+            Assert.False(ConnectButton().IsEnabled);
+            Assert.Equal("Connected", ConnectButton().Content);
+            Assert.NotEqual(disconnectedBackground, ConnectButton().Background);
+            window.GetVisualDescendants().OfType<RadioButton>().Single(radio => Equals(radio.Content, "Dark")).IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(ConnectButton().IsEnabled);
+            Assert.Equal("Connected", ConnectButton().Content);
+            Assert.True(midi.InputOpen && midi.OutputOpen);
+
+            Invoke(window, "Disconnect");
+            Assert.True(ConnectButton().IsEnabled);
+            Assert.Equal("Connect", ConnectButton().Content);
+            var darkBackground = ConnectButton().Background;
+            window.GetVisualDescendants().OfType<RadioButton>().Single(radio => Equals(radio.Content, "Light")).IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(ConnectButton().IsEnabled);
+            Assert.Equal("Connect", ConnectButton().Content);
+            Assert.NotEqual(darkBackground, ConnectButton().Background);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData("PM-TEST")]
+    [InlineData("")]
+    [InlineData(null)]
+    public async Task ConnectionSavesDeviceNameAndDisconnectRetainsAssociation(string? deviceName)
+    {
+        var midi = new DeviceMidi();
+        midi.Send = request =>
+        {
+            if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9")); }
+            else if (request[5] == 1 && deviceName is not null) { midi.Reply(FractalDeviceInformationTests.SyntheticName(deviceName)); }
+        };
+        var settings = new AppSettings { Theme = "Light", MidiInputPort = "FM9", MidiOutputPort = "FM9", DeviceName = "Previous device" };
+        ProfileSettings? saved = null;
+        var window = new MainWindow(settings, [], midi, saveSettings: value => saved = ProfileSettings.From(value), saveFavorites: _ => { })
+        {
+            DeviceInformationTimeout = TimeSpan.FromMilliseconds(20),
+            ThruInputRetryDelay = TimeSpan.Zero,
+        };
+        try
+        {
+            window.Show();
+            await window.ConnectAsync();
+            Assert.NotNull(saved);
+            Assert.Equal(deviceName, saved.DeviceName);
+            Assert.Equal(deviceName, settings.DeviceName);
+            settings.DeviceName = "Different profile device";
+            Invoke(window, "ApplyProfileSettingsToUI");
+            Assert.Equal(deviceName, settings.DeviceName);
+            Invoke(window, "Disconnect");
+            Assert.Equal(deviceName, settings.DeviceName);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaTheory]
     [InlineData(0x10, DeviceModel.AxeFxIII, 1023)]
     [InlineData(0x11, DeviceModel.FM3, 511)]

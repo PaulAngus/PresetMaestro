@@ -12,13 +12,16 @@ public partial class FavoriteEditorTests
     public void ProfileRescanImportExportButtonsUpdateRegistryAndKeepSelectionUntilChanged()
     {
         string directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-profile-transfer-" + Guid.NewGuid().ToString("N"));
+        string profileName = "";
         var store = new ProfileStore(directory);
         var settings = store.LoadSettings();
         store.SaveFavorites("Default", [Clone(Sample)]);
         string archive = Path.Combine(directory, "transfer.zip");
         bool cancelPicker = false;
         var window = new MainWindow(settings, [], new FakeMidi(), profileStore: store,
-            profileFilePicker: _ => Task.FromResult<string?>(cancelPicker ? null : archive));
+            confirm: (_, _, _, _) => Task.FromResult(true),
+            profileFilePicker: _ => Task.FromResult<string?>(cancelPicker ? null : archive),
+            profileNamePrompt: (_, _) => Task.FromResult<string?>(profileName));
         try
         {
             window.Show();
@@ -27,10 +30,12 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
             Field<ComboBox>(window, "_channelCombo").SelectedIndex = 7;
             settings.PresetNameCache[4] = "Transfer preset";
+            Click(Find<Button>(window, "ManageProfiles"));
+            Dispatcher.UIThread.RunJobs();
             Click(Find<Button>(window, "ProfileExport"));
             Assert.True(File.Exists(archive));
-            Assert.Contains("Exported", Find<TextBlock>(window, "ProfileStatus").Text);
-            Find<TextBox>(window, "ProfileName").Text = "Imported";
+            Assert.Contains("Exported", Find<TextBlock>(window, "ProfileManagementStatus").Text);
+            profileName = "Imported";
             Click(Find<Button>(window, "ProfileImport"));
             Assert.Contains("Imported", settings.Profiles);
             Assert.Equal("Default", settings.ActiveProfile);
@@ -43,6 +48,8 @@ public partial class FavoriteEditorTests
             File.Copy(Path.Combine(directory, "Imported-settings.json"), Path.Combine(directory, "External-settings.json"));
             File.Copy(Path.Combine(directory, "Imported-favorites.json"), Path.Combine(directory, "External-favorites.json"));
             Assert.DoesNotContain("External", settings.Profiles);
+            Click(Find<Button>(window, "ProfilesBackToConfig"));
+            Dispatcher.UIThread.RunJobs();
             Click(Find<Button>(window, "ProfileRescan"));
             Assert.Contains("External", settings.Profiles);
             Assert.Equal("Default", settings.ActiveProfile);
@@ -58,12 +65,13 @@ public partial class FavoriteEditorTests
     public void CopyProfileDuplicatesCurrentDataAndEditsStayIndependent()
     {
         string directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-profile-copy-" + Guid.NewGuid().ToString("N"));
+        string profileName = "";
         var store = new ProfileStore(directory);
         var settings = store.LoadSettings();
         settings.AutoSendDelayMs = 140;
         store.SaveFavorites("Default", [Clone(Sample)]);
         var midi = new FakeMidi();
-        var window = new MainWindow(settings, [], midi, profileStore: store);
+        var window = new MainWindow(settings, [], midi, profileStore: store, confirm: (_, _, _, _) => Task.FromResult(true), profileNamePrompt: (_, _) => Task.FromResult<string?>(profileName));
         try
         {
             window.Show();
@@ -78,10 +86,12 @@ public partial class FavoriteEditorTests
             settings.SceneNameCaches["ports"] = new() { [100] = new() { Names = ["Original scene"] } };
             var originalFavorite = Field<List<Favorite>>(window, "_favorites").Single();
 
-            Find<TextBox>(window, "ProfileName").Text = "Copy";
+            Click(Find<Button>(window, "ManageProfiles"));
+            Dispatcher.UIThread.RunJobs();
+            profileName = "Copy";
             Click(Find<Button>(window, "ProfileCopy"));
             Assert.Equal("Copy", settings.ActiveProfile);
-            Assert.Equal("Copy", Find<ComboBox>(window, "ProfileSelector").SelectedItem);
+            Assert.Equal("Copy", Find<TextBlock>(window, "ManagedProfile").Text);
             Assert.Equal("Copy", store.LoadSettings().ActiveProfile);
             Assert.Equal(9, settings.MidiChannel);
             Assert.Equal(1, settings.DisplayOffset);
@@ -102,6 +112,8 @@ public partial class FavoriteEditorTests
             copiedFavorite.Tags.Add("copy only");
             settings.PresetNameCache[100] = "Changed preset";
             settings.SceneNameCaches["ports"][100].Names[0] = "Changed scene";
+            Click(Find<Button>(window, "ProfilesBackToConfig"));
+            Dispatcher.UIThread.RunJobs();
             Find<ComboBox>(window, "ProfileSelector").SelectedItem = "Default";
             Assert.Equal("Clean", Field<List<Favorite>>(window, "_favorites").Single().Name);
             Assert.DoesNotContain("copy only", originalFavorite.Tags);
@@ -112,12 +124,14 @@ public partial class FavoriteEditorTests
             Assert.Equal("Changed scene", store.LoadProfile("Copy").SceneNameCaches["ports"][100].Names[0]);
 
             // Copy must never replace an existing profile or accept an unsafe filename.
-            Find<TextBox>(window, "ProfileName").Text = "Copy";
+            Click(Find<Button>(window, "ManageProfiles"));
+            Dispatcher.UIThread.RunJobs();
+            profileName = "Copy";
             Click(Find<Button>(window, "ProfileCopy"));
-            Assert.Contains("already exists", Find<TextBlock>(window, "ProfileStatus").Text);
+            Assert.Contains("already exists", Find<TextBlock>(window, "ProfileManagementStatus").Text);
             Assert.Equal("Default", settings.ActiveProfile);
             Assert.Equal("Changed copy", store.LoadFavorites("Copy").Single().Name);
-            Find<TextBox>(window, "ProfileName").Text = "../invalid";
+            profileName = "../invalid";
             Click(Find<Button>(window, "ProfileCopy"));
             Assert.Equal(2, store.ListProfiles().Count);
             Assert.Equal("Default", settings.ActiveProfile);
@@ -129,6 +143,7 @@ public partial class FavoriteEditorTests
     public void ConfigProfileControlsSwitchMappingFavoritesAndCachesWhileKeepingMachineOptions()
     {
         string directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-profile-ui-" + Guid.NewGuid().ToString("N"));
+        string profileName = "";
         var store = new ProfileStore(directory);
         var settings = store.LoadSettings();
         settings.Theme = "Light";
@@ -140,7 +155,7 @@ public partial class FavoriteEditorTests
         store.SaveSettings(settings);
         store.SaveFavorites("Default", [Clone(Sample)]);
         var midi = new FakeMidi();
-        var window = new MainWindow(settings, [], midi, confirm: (_, _, _, _) => Task.FromResult(true), profileStore: store);
+        var window = new MainWindow(settings, [], midi, confirm: (_, _, _, _) => Task.FromResult(true), profileStore: store, profileNamePrompt: (_, _) => Task.FromResult<string?>(profileName));
         try
         {
             window.Show();
@@ -166,7 +181,9 @@ public partial class FavoriteEditorTests
                 using var bitmap = window.CaptureRenderedFrame();
                 bitmap?.Save(Path.Combine(screenshotDirectory, "profiles-config.png"));
             }
-            Find<TextBox>(window, "ProfileName").Text = "Live";
+            Click(Find<Button>(window, "ManageProfiles"));
+            Dispatcher.UIThread.RunJobs();
+            profileName = "Live";
             Click(Find<Button>(window, "ProfileCreate"));
             Dispatcher.UIThread.RunJobs();
             Assert.Equal("Live", settings.ActiveProfile);
@@ -212,10 +229,13 @@ public partial class FavoriteEditorTests
             Assert.Equal(58, settings.SceneCc);
             Assert.Equal("Solo", settings.SceneNameCaches["live"][2].Names[0]);
             Assert.Equal("Live favorite", Field<List<Favorite>>(window, "_favorites").Single().Name);
-            Find<TextBox>(window, "ProfileName").Text = "Tour";
+            Click(Find<Button>(window, "ManageProfiles"));
+            Dispatcher.UIThread.RunJobs();
+            profileName = "Tour";
             Click(Find<Button>(window, "ProfileRename"));
             Assert.Equal("Tour", store.LoadSettings().ActiveProfile);
             Assert.Equal("Profile: Tour", Find<TextBlock>(window, "HeaderActiveProfile").Text);
+            Assert.Equal("Tour", Find<TextBlock>(window, "ManagedProfile").Text);
             Assert.Equal(512, store.LoadProfile("Tour").MaxDisplayedPreset);
             Click(Find<Button>(window, "ProfileDelete"));
             Assert.Equal("Default", settings.ActiveProfile);
@@ -235,7 +255,7 @@ public partial class FavoriteEditorTests
         store.Create("Other");
         var result = new TaskCompletionSource<PresetNameSync.Core.PresetNameResult>();
         var window = new MainWindow(settings, [], new FakeMidi { InputOpen = true, OutputOpen = true },
-            (_, _, _) => result.Task, profileStore: store);
+            (_, _, _) => result.Task, profileStore: store, confirm: (_, _, _, _) => Task.FromResult(true));
         try
         {
             window.Show();

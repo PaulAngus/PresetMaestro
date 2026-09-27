@@ -76,17 +76,23 @@ public partial class MainWindow
         AttachFavoriteScenePicker();
         var host = new ContentControl();
         Control config = null!;
-        var diagnostics = BuildApprovedDiagnosticsPage(() =>
+        void ShowConfig()
         {
             _currentPage = AppPage.Config;
             host.Content = config;
-        });
-        config = BuildApprovedConfig(() => { _currentPage = AppPage.Diagnostics; host.Content = diagnostics; });
+        }
+        var diagnostics = BuildApprovedDiagnosticsPage(ShowConfig);
+        Control profiles = null!;
+        config = BuildApprovedConfig(
+            () => { _currentPage = AppPage.Diagnostics; host.Content = diagnostics; },
+            () => { RefreshProfileList(); _currentPage = AppPage.ManageProfiles; host.Content = profiles; });
+        profiles = BuildManageProfilesPage(ShowConfig);
         host.Content = _currentPage switch
         {
             AppPage.Favorites => favorites,
             AppPage.Config => config,
             AppPage.Diagnostics => diagnostics,
+            AppPage.ManageProfiles => profiles,
             _ => sender,
         };
         SetMode(_mode);
@@ -99,6 +105,7 @@ public partial class MainWindow
         root.Children.Add(deleteSlotDialog);
         Content = root;
         SetStatus(_statusText, _statusKind);
+        UpdateConnectButtons();
     }
 
     private Control ApprovedHeader(ContentControl host, Control sender, Control favorites, Control config)
@@ -112,7 +119,8 @@ public partial class MainWindow
         var nav = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, VerticalAlignment = VerticalAlignment.Center };
         Button Nav(string label, Control page, AppPage pageKind, EntryMode? entryMode = null)
         {
-            bool active = _currentPage == pageKind;
+            bool active = _currentPage == pageKind ||
+                (pageKind == AppPage.Config && _currentPage is AppPage.Diagnostics or AppPage.ManageProfiles);
             double width = label switch { "Preset Sender" => 120, "Favorites" => 88, "Config" => 68, _ => 0 };
             var button = new Button { Name = $"Nav{label.Replace(" ", string.Empty)}", Content = label, Width = width, Height = 32, MinHeight = 32, Padding = new Thickness(10, 0), FontSize = 14, FontWeight = FontWeight.Medium, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(0), Background = active ? AccentBrush : Brushes.Transparent, Foreground = active ? Brushes.White : TextBrush };
             button.Click += (_, _) =>
@@ -630,17 +638,28 @@ public partial class MainWindow
         return _favEditorCard;
     }
 
-    private Control BuildApprovedConfig(Action showDiagnostics)
+    private Control BuildApprovedConfig(Action showDiagnostics, Action showProfiles)
     {
         var page = new Grid { Name = "ConfigLayout", Classes = { "compactConfig" }, Margin = new Thickness(16) };
-        var connection = new StackPanel { Name = "ConfigLeftColumn", Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), BuildPresetNameSyncCard(), ApprovedEntryOptions() } };
-        var mapping = new StackPanel { Name = "ConfigRightColumn", Spacing = 16, Children = { BuildProfileCard(), BuildApprovedMapping(), BuildApprovedAppearance() } };
+        var version = new TextBlock
+        {
+            Name = "ConfigVersion",
+            Text = $"Version: {AppVersion.Current}",
+            Foreground = SecondaryBrush,
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        Grid.SetColumnSpan(version, 3);
+        page.Children.Add(version);
+        var connection = new StackPanel { Name = "ConfigLeftColumn", Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), ApprovedEntryOptions() } };
+        var mapping = new StackPanel { Name = "ConfigRightColumn", Spacing = 16, Children = { BuildProfileCard(showProfiles), BuildApprovedMapping(), BuildPresetNameSyncCard(), BuildApprovedAppearance() } };
         page.Children.Add(connection); page.Children.Add(mapping);
 
         void Arrange()
         {
             bool compact = page.Bounds.Width < 900;
             page.ColumnDefinitions.Clear(); page.RowDefinitions.Clear();
+            page.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            page.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
             if (compact)
             {
                 page.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
@@ -648,8 +667,8 @@ public partial class MainWindow
                 page.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
                 page.RowDefinitions.Add(new RowDefinition(new GridLength(16)));
                 page.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-                Grid.SetColumn(connection, 0); Grid.SetRow(connection, 0);
-                Grid.SetColumn(mapping, 0); Grid.SetRow(mapping, 2);
+                Grid.SetColumn(connection, 0); Grid.SetRow(connection, 2);
+                Grid.SetColumn(mapping, 0); Grid.SetRow(mapping, 4);
             }
             else
             {
@@ -657,8 +676,8 @@ public partial class MainWindow
                 page.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(16)));
                 page.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
                 page.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-                Grid.SetColumn(connection, 0); Grid.SetRow(connection, 0);
-                Grid.SetColumn(mapping, 2); Grid.SetRow(mapping, 0);
+                Grid.SetColumn(connection, 0); Grid.SetRow(connection, 2);
+                Grid.SetColumn(mapping, 2); Grid.SetRow(mapping, 2);
             }
         }
 
@@ -701,21 +720,7 @@ public partial class MainWindow
         _outputPortCombo = new ComboBox { Name = "MidiOutput", HorizontalAlignment = HorizontalAlignment.Stretch };
         _outputPortCombo.SelectionChanged += (_, _) => RefreshThruInputOptions();
         _thruInputPanel = new StackPanel { Name = "ThruInputs", Spacing = 4 };
-        var thruInputs = new StackPanel
-        {
-            Spacing = 6,
-            Children =
-            {
-                _thruInputPanel,
-                new TextBlock
-                {
-                    Text = "Select one input per controller. USB and MIDI connections from the same controller can send each press twice, cancelling Fractal block toggles.",
-                    TextWrapping = TextWrapping.Wrap,
-                    Foreground = SecondaryBrush
-                }
-            }
-        };
-        var routing = new StackPanel { Spacing = 8, Children = { CompactField("MIDI In", inputRow), CompactField("MIDI Out", _outputPortCombo), CompactField("Thru In(s)", thruInputs) } };
+        var routing = new StackPanel { Spacing = 8, Children = { CompactField("MIDI In", inputRow), CompactField("MIDI Out", _outputPortCombo), CompactField("Thru In(s)", _thruInputPanel) } };
 
         var settingsActions = new StackPanel { Name = "ConnectionActions", Spacing = 8 };
         _connectButton = new Button { Name = "Connect", Content = "Connect", Background = AccentBrush, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Stretch };
