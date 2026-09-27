@@ -95,6 +95,7 @@ public partial class MainWindow : Window
 
         InitializeComponent();
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(PointerPressedEvent, OnFavoriteSearchOutsidePointerPressed, RoutingStrategies.Tunnel);
         Application.Current!.RequestedThemeVariant = string.Equals(_settings.Theme, "Light", StringComparison.OrdinalIgnoreCase)
             ? ThemeVariant.Light
             : ThemeVariant.Dark;
@@ -116,6 +117,15 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_currentPage == AppPage.Favorites && _settings.KeyboardEntryEnabled &&
+            !e.Handled && FocusManager?.GetFocusedElement() is not TextBox && !FavoriteSearchHasFocus &&
+            e.Key is Key.Up or Key.Down or Key.Left or Key.Right)
+        {
+            NavigateFavoriteSelection(e.Key);
+            e.Handled = true;
+            return;
+        }
+
         // Buttons and list controls consume Enter before the window's bubbling handler sees it.
         // Once a command has been entered, Enter should send it regardless of which non-editor
         // control currently owns keyboard focus.

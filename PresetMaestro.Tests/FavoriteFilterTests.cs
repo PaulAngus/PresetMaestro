@@ -27,6 +27,100 @@ public partial class FavoriteEditorTests
         Dispatcher.UIThread.RunJobs();
     }
 
+    private static void ClickAt(MainWindow window, Control control)
+    {
+        using var frame = window.CaptureRenderedFrame();
+        var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
+        window.MouseDown(point, MouseButton.Left);
+        window.MouseUp(point, MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ClickingOutsideSearchCommitsLikeEnterAndReleasesKeyboardFocus(bool chooseSuggestion)
+    {
+        var midi = new FakeMidi { OutputOpen = true };
+        int saves = 0;
+        var window = CreateWindow(midi, [new() { Id = 1, Slot = 1, Name = "Low Gain lead", Tags = ["Low Gain"] }, new() { Id = 2, Slot = 2, Name = "Low Gain rhythm", Tags = ["Other"] }], saveFavorites: _ => saves++);
+        try
+        {
+            window.Show(); Click(Find<Button>(window, "NavFavorites")); Dispatcher.UIThread.RunJobs();
+            var input = Find<TextBox>(window, "FavoriteSearchInput");
+            input.Focus(); input.Text = "low"; Dispatcher.UIThread.RunJobs();
+            if (chooseSuggestion)
+            {
+                window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            }
+            ClickAt(window, Find<TextBlock>(window, "AppTitle"));
+            Assert.Empty(input.Text!);
+            Assert.False(input.IsKeyboardFocusWithin);
+            Assert.False(Field<Popup>(window, "_favSearchPopup").IsOpen);
+            Assert.Single(Field<WrapPanel>(window, "_favSearchPanel").Children.OfType<Border>());
+            var list = Field<ListBox>(window, "_favListBox");
+            Assert.Equal(chooseSuggestion ? new[] { 1 } : new[] { 1, 2 }, Slots(list));
+            window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(0, list.SelectedIndex);
+
+            input.Focus(); Dispatcher.UIThread.RunJobs();
+            ClickAt(window, Find<TextBlock>(window, "AppTitle"));
+            Assert.False(input.IsKeyboardFocusWithin);
+            window.KeyPressQwerty(PhysicalKey.ArrowRight, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(chooseSuggestion ? 0 : 1, list.SelectedIndex);
+            Assert.Equal(0, saves); Assert.Equal(0, midi.TotalSendCount);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void ClickingFavoriteCommitsSearchAndSelectsTheClickedRow()
+    {
+        var window = CreateWindow(favorites: Enumerable.Range(1, 4).Select(i => new Favorite { Id = i, Slot = i, Name = $"Favorite {i}" }).ToList());
+        try
+        {
+            window.Show(); Click(Find<Button>(window, "NavFavorites")); Dispatcher.UIThread.RunJobs();
+            var input = Find<TextBox>(window, "FavoriteSearchInput");
+            input.Focus(); input.Text = "Favorite"; Dispatcher.UIThread.RunJobs();
+            var list = Field<ListBox>(window, "_favListBox");
+            var row = (ListBoxItem)list.Items[3]!;
+            ClickAt(window, row);
+            Assert.Empty(input.Text!);
+            Assert.False(input.IsKeyboardFocusWithin);
+            Assert.Same(row, list.SelectedItem);
+            Assert.Same(row, list.Items[3]);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void EscapeCancelsSearchAndExitsEvenWithoutAnOpenSuggestionPopup()
+    {
+        var window = CreateWindow(favorites: Enumerable.Range(1, 4).Select(i => new Favorite { Id = i, Slot = i, Name = $"Favorite {i}" }).ToList());
+        try
+        {
+            window.Show(); Click(Find<Button>(window, "NavFavorites")); Dispatcher.UIThread.RunJobs();
+            CommitSearch(window, "Favorite 1");
+            var input = Find<TextBox>(window, "FavoriteSearchInput");
+            input.Text = "pending"; Dispatcher.UIThread.RunJobs();
+            SetField(window, "_enteredDigits", "12");
+            window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            var list = Field<ListBox>(window, "_favListBox");
+            Assert.Equal(new[] { 1, 2, 3, 4 }, Slots(list));
+            Assert.Empty(input.Text!);
+            Assert.Empty(Field<WrapPanel>(window, "_favSearchPanel").Children.OfType<Border>());
+            Assert.False(input.IsKeyboardFocusWithin);
+            Assert.False(Field<Popup>(window, "_favSearchPopup").IsOpen);
+            Assert.Equal("12", Field<string>(window, "_enteredDigits"));
+            window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(0, list.SelectedIndex);
+            input.Focus();
+            window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            Assert.False(input.IsKeyboardFocusWithin);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
     public void ChipsCombineExactTagsAllAnyAndTextAndWithoutSavingOrSending()
     {

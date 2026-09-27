@@ -24,6 +24,24 @@ public partial class MainWindow
 
     private bool _favViewportLayoutQueued;
 
+    private void NavigateFavoriteSelection(Key key)
+    {
+        var direction = key switch
+        {
+            Key.Up => NavigationDirection.Up,
+            Key.Down => NavigationDirection.Down,
+            Key.Left => NavigationDirection.Left,
+            Key.Right => NavigationDirection.Right,
+            _ => throw new ArgumentOutOfRangeException(nameof(key)),
+        };
+        if (_favTablesPanel?.GetControl(direction, _favListBox.SelectedItem as ListBoxItem, wrap: false) is ListBoxItem target)
+        {
+            _favListBox.SelectedItem = target;
+            target.Focus();
+            _favListBox.ScrollIntoView(_favListBox.SelectedIndex);
+        }
+    }
+
     private void QueueFavoriteViewportLayout()
     {
         if (_currentPage != AppPage.Favorites || _favViewportLayoutQueued)

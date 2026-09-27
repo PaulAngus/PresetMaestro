@@ -12,6 +12,80 @@ namespace PresetMaestro.Tests;
 
 public partial class FavoriteEditorTests
 {
+    [AvaloniaTheory]
+    [InlineData(1100, 11)]
+    [InlineData(1500, 8)]
+    [InlineData(1950, 6)]
+    public void FavoriteArrowsNavigateSelectionFromToolbarWithoutChangingFavorites(int width, int rightIndex)
+    {
+        var favorites = Enumerable.Range(1, 19).Select(i => new Favorite { Id = i, Slot = i, Name = $"Favorite {i}", Preset = i, Scene = 1 }).ToList();
+        string original = System.Text.Json.JsonSerializer.Serialize(favorites);
+        int saves = 0;
+        var midi = new FakeMidi { OutputOpen = true };
+        var window = CreateWindow(midi, favorites, saveFavorites: _ => saves++);
+        try
+        {
+            window.Width = width; window.Show(); Click(Find<Button>(window, "NavFavorites")); Dispatcher.UIThread.RunJobs();
+            var list = Field<ListBox>(window, "_favListBox");
+            var rows = list.Items.Cast<ListBoxItem>().ToArray();
+            list.SelectedIndex = 1;
+            SetField(window, "_enteredDigits", "12");
+
+            void Navigate(PhysicalKey key, int expected)
+            {
+                Find<Button>(window, "FavoriteDetailsToggle").Focus();
+                window.KeyPressQwerty(key, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+                Assert.Same(rows[expected], list.SelectedItem);
+                Assert.True(rows[expected].IsFocused);
+            }
+
+            Navigate(PhysicalKey.ArrowRight, rightIndex);
+            Navigate(PhysicalKey.ArrowUp, rightIndex - 1);
+            Navigate(PhysicalKey.ArrowDown, rightIndex);
+            Navigate(PhysicalKey.ArrowLeft, 1);
+            Navigate(PhysicalKey.ArrowLeft, 1);
+            Navigate(PhysicalKey.ArrowUp, 0);
+            Navigate(PhysicalKey.ArrowUp, 0);
+            list.SelectedIndex = rightIndex - 2;
+            Navigate(PhysicalKey.ArrowDown, rightIndex - 2);
+            list.SelectedIndex = rows.Length - 1;
+            Navigate(PhysicalKey.ArrowRight, rows.Length - 1);
+            Navigate(PhysicalKey.ArrowDown, rows.Length - 1);
+            Assert.Equal("12", Field<string>(window, "_enteredDigits"));
+            Assert.Equal(original, System.Text.Json.JsonSerializer.Serialize(favorites));
+            Assert.Equal(0, saves);
+            Assert.Equal(0, midi.TotalSendCount);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void FavoriteArrowNavigationStartsSelectionAndRespectsKeyboardEntryAndTextFocus()
+    {
+        var settings = new AppSettings { Theme = "Light", KeyboardEntryEnabled = false };
+        var window = CreateWindow(favorites: Enumerable.Range(1, 4).Select(i => new Favorite { Id = i, Slot = i, Name = $"Favorite {i}" }).ToList(), settings: settings);
+        try
+        {
+            window.Show(); Click(Find<Button>(window, "NavFavorites")); Dispatcher.UIThread.RunJobs();
+            var list = Field<ListBox>(window, "_favListBox");
+            Find<Button>(window, "FavoriteDetailsToggle").Focus();
+            window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            Assert.Null(list.SelectedItem);
+
+            settings.KeyboardEntryEnabled = true;
+            window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(0, list.SelectedIndex);
+            window.ShowFavoriteEditor((Favorite)((ListBoxItem)list.SelectedItem!).Tag!, false); Dispatcher.UIThread.RunJobs();
+            Field<TextBox>(window, "_favNameBox").Focus();
+            foreach (var key in new[] { PhysicalKey.ArrowDown, PhysicalKey.ArrowRight, PhysicalKey.ArrowUp, PhysicalKey.ArrowLeft })
+            {
+                window.KeyPressQwerty(key, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+                Assert.Equal(0, list.SelectedIndex);
+            }
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
     public void TableKeyboardAndCrossTableDragUseOneSelectionAndUnderlyingOrder()
     {

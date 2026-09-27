@@ -22,6 +22,7 @@ public partial class MainWindow
     private readonly List<string> _favAvailableTags = [];
     private bool _favTagMatchAll = true;
     private bool _updatingSearch;
+    private string _favLastSearchInput = "";
     private Grid _favSearchHost = null!;
     private WrapPanel _favSearchPanel = null!;
     private Popup _favSearchPopup = null!;
@@ -34,6 +35,7 @@ public partial class MainWindow
 
     private Control BuildFavoriteSearch()
     {
+        _favLastSearchInput = "";
         _favSearchHost = new Grid { Name = "FavoriteSearch", ColumnDefinitions = new ColumnDefinitions("*,12,Auto") };
         _favSearchPanel = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
         _favSearchBox = new TextBox
@@ -49,11 +51,13 @@ public partial class MainWindow
         AutomationProperties.SetName(_favSearchBox, "Add tag or search term");
         _favSearchBox.TextChanged += (_, _) =>
         {
-            if (_updatingSearch)
+            string input = _favSearchBox.Text ?? "";
+            if (_updatingSearch || input == _favLastSearchInput)
             {
                 return;
             }
 
+            _favLastSearchInput = input;
             RefreshSearchSuggestions();
             RefreshFavoritesList(refreshOptions: false);
         };
@@ -85,7 +89,9 @@ public partial class MainWindow
         {
             PlacementTarget = inset,
             Placement = PlacementMode.BottomEdgeAlignedLeft,
-            IsLightDismissEnabled = true,
+            // The window commits and dismisses on outside clicks without an overlay
+            // intercepting the click intended for a favorite or another control.
+            IsLightDismissEnabled = false,
             Child = new Border
             {
                 BorderBrush = UiBorderBrush,
@@ -231,7 +237,7 @@ public partial class MainWindow
         _favSearchPopup.IsOpen = _favSearchBox.IsKeyboardFocusWithin;
     }
 
-    private void CommitSearchChip(SearchChip chip)
+    private void CommitSearchChip(SearchChip chip, bool refreshResults = true, bool retainFocus = true)
     {
         if (!_favSearchChips.Any(c => c.IsTag == chip.IsTag && string.Equals(c.Value, chip.Value, StringComparison.OrdinalIgnoreCase)))
         {
@@ -240,11 +246,18 @@ public partial class MainWindow
 
         _updatingSearch = true;
         _favSearchBox.Text = "";
+        _favLastSearchInput = "";
         _updatingSearch = false;
         _favSearchPopup.IsOpen = false;
         RenderSearchChips();
-        RefreshFavoritesList(refreshOptions: false);
-        _favSearchBox.Focus();
+        if (refreshResults)
+        {
+            RefreshFavoritesList(refreshOptions: false);
+        }
+        if (retainFocus)
+        {
+            _favSearchBox.Focus();
+        }
     }
 
     private void RenderSearchChips()
@@ -276,7 +289,7 @@ public partial class MainWindow
             string input = _favSearchBox.Text?.Trim() ?? "";
             if (input.Length > 0)
             {
-                CommitSearchChip(_favSearchPopup.IsOpen && _favSearchSuggestions.SelectedItem is ListBoxItem { Tag: SearchChip choice } ? choice : PreviewChip(input));
+                CommitSearchChip(PendingFavoriteSearchChip(input));
             }
 
             e.Handled = true;
@@ -291,17 +304,53 @@ public partial class MainWindow
             _favSearchSuggestions.SelectedIndex = Math.Clamp(_favSearchSuggestions.SelectedIndex + (e.Key == Key.Down ? 1 : -1), -1, _favSearchSuggestions.Items.Count - 1);
             e.Handled = true;
         }
-        else if (e.Key == Key.Escape) { _favSearchPopup.IsOpen = false; e.Handled = true; }
+        else if (e.Key == Key.Escape)
+        {
+            ResetFavoriteSearch();
+            RefreshFavoritesList(refreshOptions: false);
+            FocusManager?.ClearFocus();
+            e.Handled = true;
+        }
         else if (e.Key == Key.Back && string.IsNullOrEmpty(_favSearchBox.Text) && _favSearchChips.Count > 0)
         {
             _favSearchChips.RemoveAt(_favSearchChips.Count - 1); RenderSearchChips(); RefreshFavoritesList(refreshOptions: false); e.Handled = true;
         }
     }
 
+    private SearchChip PendingFavoriteSearchChip(string input) =>
+        _favSearchPopup.IsOpen && _favSearchSuggestions.SelectedItem is ListBoxItem { Tag: SearchChip choice }
+            ? choice : PreviewChip(input);
+
+    private void OnFavoriteSearchOutsidePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_currentPage != AppPage.Favorites || !FavoriteSearchHasFocus || e.Source is not Visual source ||
+            _favSearchPanel.IsVisualAncestorOf(source) || _favSearchPopup.Child?.IsVisualAncestorOf(source) == true ||
+            _favSearchPopup.PlacementTarget is Visual entry && (entry == source || entry.IsVisualAncestorOf(source)))
+        {
+            return;
+        }
+
+        string input = _favSearchBox.Text?.Trim() ?? "";
+        if (input.Length > 0)
+        {
+            var chip = PendingFavoriteSearchChip(input);
+            // Committing the live preview leaves the results unchanged. Keep the rows
+            // attached so this same click can select a favorite or use its controls.
+            CommitSearchChip(chip, refreshResults: false, retainFocus: false);
+            if (chip != PreviewChip(input))
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => RefreshFavoritesList(refreshOptions: false));
+            }
+        }
+        _favSearchPopup.IsOpen = false;
+        FocusManager?.ClearFocus();
+    }
+
     private void ResetFavoriteSearch()
     {
         _updatingSearch = true;
         _favSearchChips.Clear(); _favTagMatchAll = true; _favSearchBox.Text = "";
+        _favLastSearchInput = "";
         _favSearchPopup.IsOpen = false;
         _updatingSearch = false;
         RenderSearchChips(); UpdateFavoriteTagFilterPresentation();
@@ -321,5 +370,5 @@ public partial class MainWindow
         _favTagMatchThumbTransform.X = _favTagMatchAll ? TagMatchSegmentWidth : 0;
     }
 
-    private bool FavoriteSearchHasFocus => _favSearchHost?.IsKeyboardFocusWithin == true || _favSearchPopup?.IsKeyboardFocusWithin == true;
+    private bool FavoriteSearchHasFocus => _favSearchPanel?.IsKeyboardFocusWithin == true || _favSearchPopup?.IsKeyboardFocusWithin == true;
 }
