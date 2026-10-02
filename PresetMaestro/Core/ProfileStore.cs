@@ -4,8 +4,11 @@ using System.IO.Compression;
 
 namespace PresetMaestro.Core;
 
-public sealed class ProfileStore(string directory)
+public sealed partial class ProfileStore(string directory)
 {
+    static partial void PrepareIndexCopy(ProfileSettings settings);
+    partial void PrepareIndexExport(ProfileSettings settings);
+    static partial void PrepareIndexImport(ProfileSettings settings);
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private List<string>? _profiles;
     public string DirectoryPath => Path.GetFullPath(directory);
@@ -194,7 +197,9 @@ public sealed class ProfileStore(string directory)
             throw new InvalidOperationException("A profile with that name already exists.");
         }
 
-        WriteJson(SettingsPath(name), settings ?? new ProfileSettings());
+        settings = JsonSerializer.Deserialize<ProfileSettings>(JsonSerializer.Serialize(settings ?? new ProfileSettings(), JsonOptions), JsonOptions)!;
+        PrepareIndexCopy(settings);
+        WriteJson(SettingsPath(name), settings);
         try
         {
             WriteJson(FavoritesPath(name), favorites ?? []);
@@ -275,6 +280,7 @@ public sealed class ProfileStore(string directory)
     {
         var settings = LoadProfile(name);
         var favorites = LoadFavorites(name);
+        PrepareIndexExport(settings);
         if (!path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException("Export profiles as a .zip file.");
@@ -351,6 +357,7 @@ public sealed class ProfileStore(string directory)
         }
         var settings = ReadProfileSettings(settingsJson);
         var favorites = ValidateFavorites(favoritesJson);
+        PrepareIndexImport(settings);
         string name = AvailableName(string.IsNullOrWhiteSpace(preferredName) ? sourceName : preferredName);
         Create(name, settings, favorites);
         return name;

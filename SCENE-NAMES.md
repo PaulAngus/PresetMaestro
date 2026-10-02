@@ -44,6 +44,8 @@ Bulk sync starts at slot 0 each time; there is no resume-from-last-slot feature.
 
 The new UI does not rename scenes, save presets to the device, or import `.syx` files. Its dump decoder is used internally to read saved names. Scene selection remains the existing configurable MIDI CC behavior.
 
+On 2026-10-01, a second read-only `MIDI Forwarder` session queried saved FM9 slots 122, 0, 43, 256 and 511. All five passed the existing stored-dump decoder's integrity and decompression checks and yielded eight scene-name fields. The active preset and scene remained at slot 122 / scene 4 after every read. No raw preset dump was retained. The unnamed higher slots were not confirmed empty. Audio was not monitored during this five-slot pass. During a separate single-slot read, the user monitored the FM9 and reported no audible change. Amp structure and live-status checks are recorded in [the protocol research](docs/fractal-protocol-research.md); Scene Ignore remains unverified.
+
 ## Code map
 
 | File | Responsibility |
@@ -77,4 +79,4 @@ Sources (format facts; implementation is independently written in C#):
 
 ## Verification
 
-Run controller tests and probe tests with `dotnet test` on their respective project files. Tests cover documented wire bytes, malformed frames, fragmentation, complete synthetic compressed dumps, wrong slots, corruption, cancellation, late replies, and device changes. The probe has explicit current-scene and stored-slot scene reads with raw logging. First verify one saved preset and its eight names on the device, then try bulk sync. Favorite scene selection has been verified on physical device hardware with Scene Select assigned to CC#34; other protocol behavior still requires hardware verification where noted.
+Run controller tests and probe tests with `dotnet test` on their respective project files. Tests cover documented wire bytes, malformed frames, fragmentation, complete synthetic compressed dumps, wrong slots, corruption, cancellation, late replies, and device changes. The probe has explicit current-scene and stored-slot scene reads with raw logging. On 2026-09-30 a temporary console harness using the probe's MIDI client read slot 0 from an attached FM9 through `MIDI Forwarder`: one `0x77`, eight `0x78`, and one `0x79` frame passed the existing decoder's checks and yielded the preset name and eight saved scene names. Current-preset/scene-name reads before and after reported the same active slot (43) and names. This verifies one FM9 saved read, not all slots, firmware variants, audio continuity, or Amp/scene-state fields; no raw dump was committed. Favorite scene selection has separately been verified on physical hardware with Scene Select assigned to CC#34. The probe UI project currently fails to build due to AXAML-generated member errors; the hardware check used its MIDI client in a throwaway console harness.

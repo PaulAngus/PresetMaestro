@@ -16,6 +16,38 @@ public partial class MainWindow
     private bool _changingProfile;
     private int _profileGeneration;
 
+    private Button BuildHeaderProfileSelector()
+    {
+        var choices = new MenuFlyout();
+        choices.Opening += (_, _) =>
+        {
+            choices.Items.Clear();
+            foreach (string name in _profileStore?.ListProfiles() ?? [_settings.ActiveProfile])
+            {
+                var item = new MenuItem { Header = name, IsEnabled = name != _settings.ActiveProfile && !_changingProfile && _presetNamesCts is null };
+                item.Click += async (_, _) => await RunProfileActionAsync("select", name);
+                choices.Items.Add(item);
+            }
+        };
+        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        content.Children.Add(_activeProfileLabel);
+        var arrow = new TextBlock { Text = "▾", FontSize = 12, Foreground = SecondaryBrush, Margin = new Avalonia.Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(arrow, 1); content.Children.Add(arrow);
+        var selector = new Button
+        {
+            Name = "HeaderProfileSelector",
+            Content = content,
+            Flyout = choices,
+            MinHeight = 28,
+            Height = 28,
+            MaxWidth = 175,
+            Padding = new Avalonia.Thickness(6, 1),
+            IsEnabled = _profileStore is not null,
+        };
+        Avalonia.Automation.AutomationProperties.SetName(selector, "Select active profile");
+        return selector;
+    }
+
     private Control BuildProfileCard(Action showProfiles)
     {
         var card = ApprovedCard("Profiles", "Favorites, preset mapping and cached names", compact: true);
@@ -225,6 +257,7 @@ public partial class MainWindow
         {
             RefreshProfileList();
             UpdateActiveProfileIndicator();
+            RefreshIndexContext();
             _changingProfile = false;
             UpdatePresetSyncButtons();
         }

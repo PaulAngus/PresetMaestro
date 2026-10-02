@@ -1,11 +1,17 @@
 using System.Threading.Channels;
 using PresetMaestro.Core;
+#if FRACTAL_INDEX
+using PresetMaestro.FractalIndex;
+#endif
 using PresetNameSync.Core;
 
 namespace PresetMaestro.Midi;
 
 /// <summary>Serializes all name/state reads on the existing MIDI connection.</summary>
 public sealed class PresetNameClient : IDisposable
+#if FRACTAL_INDEX
+    , IStoredPresetImageSource, IStoredPresetNameSource
+#endif
 {
     private readonly IMidiManager _midi;
     private readonly SemaphoreSlim _requestGate = new(1, 1);
@@ -80,14 +86,38 @@ public sealed class PresetNameClient : IDisposable
         return Exchange(StoredPresetDecoder.BuildQuery(slot), f => decoder.Accept(f, slot), TimeSpan.FromSeconds(15), ct);
     }, token);
 
-    private async Task<T> Locked<T>(Func<CancellationToken, Task<T>> action, CancellationToken token)
+#if FRACTAL_INDEX
+    public async Task<string?> ReadStoredPresetNameAsync(int slot, FractalDeviceDefinition device, CancellationToken token)
+    {
+        // Keep the cheap name check on the existing verified FM9 path.
+        if (device.Variant != FractalDeviceVariant.FM9) { return null; }
+        if (device.Variant.ToDeviceModel() != _deviceModel)
+        { throw new InvalidOperationException("Index name query does not match the connected device model."); }
+        return (await QueryAsync(slot, TimeSpan.FromSeconds(1.5), token).ConfigureAwait(false)).PresetName;
+    }
+
+    /// <summary>Index reads share the name client's request gate and late-reply quarantine.</summary>
+    public Task<StoredPresetImage> ReadStoredImageAsync(int slot, FractalDeviceDefinition device, CancellationToken token) => Locked(ct =>
+    {
+        if (device.Variant.ToDeviceModel() != _deviceModel)
+        {
+            throw new InvalidOperationException("Index decoder does not match the connected device model.");
+        }
+        var decoder = new StoredPresetDecoder(device.ModelByte, device.PresetSlots - 1);
+        return Exchange(StoredPresetDecoder.BuildQuery(slot, device.ModelByte, device.PresetSlots - 1),
+            frame => decoder.AcceptImage(frame, slot), TimeSpan.FromSeconds(15), ct);
+    }, token, allowIndexRead: true);
+#endif
+
+    private async Task<T> Locked<T>(Func<CancellationToken, Task<T>> action, CancellationToken token, bool allowIndexRead = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, _lifetime.Token);
         await _requestGate.WaitAsync(linked.Token).ConfigureAwait(false);
         try
         {
-            if (_deviceModel != DeviceModel.FM9)
+            if (_deviceModel != DeviceModel.FM9 &&
+                !(allowIndexRead && _deviceModel is DeviceModel.FM3 or DeviceModel.AxeFxIII))
             {
                 throw new NotSupportedException("Preset and scene name reads are verified for FM9 only.");
             }

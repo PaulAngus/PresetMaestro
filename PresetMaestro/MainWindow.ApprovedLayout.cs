@@ -95,6 +95,8 @@ public partial class MainWindow
             AppPage.ManageProfiles => profiles,
             _ => sender,
         };
+        RestoreIndexPage(host);
+        InitializeLibraryManagement(host, ShowConfig);
         SetMode(_mode);
         var root = new Grid { RowDefinitions = new RowDefinitions("48,*") };
         root.Children.Add(ApprovedHeader(host, sender, favorites, config));
@@ -120,13 +122,14 @@ public partial class MainWindow
         Button Nav(string label, Control page, AppPage pageKind, EntryMode? entryMode = null)
         {
             bool active = _currentPage == pageKind ||
-                (pageKind == AppPage.Config && _currentPage is AppPage.Diagnostics or AppPage.ManageProfiles);
-            double width = label switch { "Preset Sender" => 120, "Favorites" => 88, "Config" => 68, _ => 0 };
+                (pageKind == AppPage.Config && _currentPage is AppPage.Diagnostics or AppPage.ManageProfiles or AppPage.ManageLibraries);
+            double width = label switch { "Preset Sender" => 120, "Favorites" => 88, "Config" => 68, _ => 110 };
             var button = new Button { Name = $"Nav{label.Replace(" ", string.Empty)}", Content = label, Width = width, Height = 32, MinHeight = 32, Padding = new Thickness(10, 0), FontSize = 14, FontWeight = FontWeight.Medium, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(0), Background = active ? AccentBrush : Brushes.Transparent, Foreground = active ? Brushes.White : TextBrush };
             button.Click += (_, _) =>
             {
                 _currentPage = pageKind;
                 host.Content = page;
+                UpdateIndexButtons();
                 if (entryMode.HasValue)
                 {
                     SetMode(entryMode.Value);
@@ -140,6 +143,7 @@ public partial class MainWindow
         }
         nav.Children.Add(Nav("Preset Sender", sender, AppPage.PresetSender, EntryMode.Preset));
         nav.Children.Add(Nav("Favorites", favorites, AppPage.Favorites, EntryMode.Favorite));
+        AddIndexNavigation(nav, Nav);
         nav.Children.Add(Nav("Config", config, AppPage.Config));
         var navigation = new Border { Height = 40, Margin = new Thickness(12, 0), Padding = new Thickness(3), Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = nav };
         Grid.SetColumn(navigation, 1); grid.Children.Add(navigation);
@@ -150,9 +154,10 @@ public partial class MainWindow
         statusContent.Children.Add(_headerStatusLabel);
         var state = new Border { Height = 28, VerticalAlignment = VerticalAlignment.Center, Child = statusContent };
         _activeProfileLabel = new TextBlock { Name = "HeaderActiveProfile", FontSize = 13, Foreground = TextBrush, MaxWidth = 160, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
-        _activeProfileBadge = new Border { Name = "HeaderActiveProfileBadge", Height = 28, Padding = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Child = _activeProfileLabel };
+        _activeProfileBadge = new Border { Name = "HeaderActiveProfileBadge", Height = 28, Padding = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Child = BuildHeaderProfileSelector() };
         UpdateActiveProfileIndicator();
         var indicators = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Children = { state, _activeProfileBadge } };
+        AddIndexHeader(indicators);
         Grid.SetColumn(indicators, 2); grid.Children.Add(indicators); header.Child = grid; return header;
     }
 
@@ -652,6 +657,7 @@ public partial class MainWindow
         page.Children.Add(version);
         var connection = new StackPanel { Name = "ConfigLeftColumn", Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), ApprovedEntryOptions() } };
         var mapping = new StackPanel { Name = "ConfigRightColumn", Spacing = 16, Children = { BuildProfileCard(showProfiles), BuildApprovedMapping(), BuildPresetNameSyncCard(), BuildApprovedAppearance() } };
+        AddIndexConfiguration(mapping);
         page.Children.Add(connection); page.Children.Add(mapping);
 
         void Arrange()

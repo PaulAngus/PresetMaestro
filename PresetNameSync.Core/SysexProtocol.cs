@@ -5,19 +5,23 @@ namespace PresetNameSync.Core;
 
 public static class SysexProtocol
 {
-    public static byte[] Frame(byte opcode, ReadOnlySpan<byte> payload)
+    public static byte[] Frame(byte opcode, ReadOnlySpan<byte> payload) => Frame(0x12, opcode, payload);
+
+    public static byte[] Frame(byte modelByte, byte opcode, ReadOnlySpan<byte> payload)
     {
         byte[] frame = new byte[payload.Length + 8];
-        byte[] header = [0xf0, 0, 1, 0x74, 0x12, opcode];
+        byte[] header = [0xf0, 0, 1, 0x74, modelByte, opcode];
         header.CopyTo(frame, 0); payload.CopyTo(frame.AsSpan(6));
         frame[^2] = ComputeChecksum(frame.AsSpan(0, frame.Length - 2)); frame[^1] = 0xf7;
         return frame;
     }
 
-    public static bool ValidFrame(ReadOnlySpan<byte> frame, byte opcode, int length)
+    public static bool ValidFrame(ReadOnlySpan<byte> frame, byte opcode, int length) => ValidFrame(frame, 0x12, opcode, length);
+
+    public static bool ValidFrame(ReadOnlySpan<byte> frame, byte modelByte, byte opcode, int length)
     {
         if (frame.Length != length || length < 8 || frame[0] != 0xf0 || frame[^1] != 0xf7 ||
-            frame[1] != 0 || frame[2] != 1 || frame[3] != 0x74 || frame[4] != 0x12 || frame[5] != opcode)
+            frame[1] != 0 || frame[2] != 1 || frame[3] != 0x74 || frame[4] != modelByte || frame[5] != opcode)
         {
             return false;
         }

@@ -2,6 +2,7 @@ namespace PresetMaestro.Core;
 
 public sealed class ProfileSettings
 {
+    public System.Text.Json.JsonElement? FractalIndex { get; set; }
     public DeviceModel DeviceModel { get; set; } = DeviceModel.FM9;
     public string? DeviceName { get; set; }
     public int MidiChannel { get; set; } = 1;
@@ -13,6 +14,7 @@ public sealed class ProfileSettings
 
     public static ProfileSettings From(AppSettings settings) => new()
     {
+        FractalIndex = settings.FractalIndex,
         DeviceModel = settings.DeviceModel,
         DeviceName = settings.DeviceName,
         MidiChannel = settings.MidiChannel,
@@ -25,6 +27,7 @@ public sealed class ProfileSettings
 
     public void ApplyTo(AppSettings settings)
     {
+        settings.FractalIndex = FractalIndex;
         settings.DeviceModel = DeviceModel;
         settings.DeviceName = DeviceName;
         settings.MidiChannel = MidiChannel;

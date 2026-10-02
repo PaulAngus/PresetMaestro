@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <EnableFractalIndex Condition="'$(EnableFractalIndex)' == ''">true</EnableFractalIndex>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -29,6 +30,7 @@
   <ItemGroup>
     <AvaloniaResource Include="preset_maestro.ico" />
     <ProjectReference Include="..\PresetNameSync.Core\PresetNameSync.Core.csproj" />
+    <ProjectReference Include="..\PresetMaestro.FractalIndex\PresetMaestro.FractalIndex.csproj" Condition="'$(EnableFractalIndex)' == 'true'" />
     <!-- Use only the Windows UI and MIDI backends; the umbrella packages pull in unused platforms and WinForms. -->
     <PackageReference Include="Avalonia" Version="11.2.3" />
     <PackageReference Include="Avalonia.Win32" Version="11.2.3" />
@@ -37,5 +39,9 @@
     <PackageReference Include="NAudio.Midi" Version="3.0.1" />
     <PackageReference Include="NAudio.WinMM" Version="3.0.1" />
   </ItemGroup>
+
+  <PropertyGroup Condition="'$(EnableFractalIndex)' == 'true'">
+    <DefineConstants>$(DefineConstants);FRACTAL_INDEX</DefineConstants>
+  </PropertyGroup>
 
 </Project>

@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="PresetMaestro.Tests/PresetMaestro.Tests.csproj" />
   <Project Path="PresetMaestro/PresetMaestro.csproj" />
+  <Project Path="PresetMaestro.FractalIndex/PresetMaestro.FractalIndex.csproj" />
   <Project Path="PresetNameSync.Core/PresetNameSync.Core.csproj" />
   <Project Path="PresetNameSyncProbe/Tests/PresetNameSyncProbe.Tests.csproj" />
 </Solution>

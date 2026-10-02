@@ -120,6 +120,10 @@ public partial class MainWindow
         if (generation == _connectionGeneration && _detectedDevice is not null)
         {
             OpenCheckedThruInputs(reopen: false);
+#if FRACTAL_INDEX
+            await CheckAssignedLibraryAsync();
+            if (generation != _connectionGeneration || _detectedDevice is null) { return; }
+#endif
             StartSceneTracking();
 
             await Task.Delay(ThruInputRetryDelay);

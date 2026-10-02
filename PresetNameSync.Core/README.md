@@ -32,4 +32,4 @@ Scene additions:
 
 The probe project is the hardware investigation harness. Verify new device protocol behavior there first, then expose it through the production MIDI manager and an explicit user action.
 
-Scene-name and stored-dump reads are available in the probe for hardware verification. See [SCENE-NAMES.md](../SCENE-NAMES.md) for the wire format, source references, controller workflow, and remaining hardware validation. Passing synthetic tests is not a claim of hardware validation.
+Scene-name and stored-dump reads are available in the probe for hardware verification. A read-only FM9 slot-0 stored dump and eight scene names were verified through `MIDI Forwarder` on 2026-09-30 using the probe's MIDI client in a temporary console harness. See [SCENE-NAMES.md](../SCENE-NAMES.md) for the observed scope, wire format, controller workflow, and remaining validation. Passing synthetic tests alone is not a claim of hardware validation.

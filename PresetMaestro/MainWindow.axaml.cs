@@ -14,7 +14,14 @@ namespace PresetMaestro;
 public partial class MainWindow : Window
 {
     private enum EntryMode { Preset, Favorite }
-    private enum AppPage { PresetSender, Favorites, Config, Diagnostics, ManageProfiles }
+    private enum AppPage { PresetSender, Favorites, Config, Diagnostics, ManageProfiles, PresetIndex, ManageLibraries }
+    partial void InitializeLibraryManagement(ContentControl host, Action showConfig);
+    partial void RefreshIndexContext();
+    partial void UpdateIndexButtons();
+    partial void AddIndexConfiguration(StackPanel panel);
+    partial void AddIndexNavigation(StackPanel nav, Func<string, Control, AppPage, EntryMode?, Button> create);
+    partial void AddIndexHeader(StackPanel indicators);
+    partial void RestoreIndexPage(ContentControl host);
     private enum StatusKind { NotConnected, ConnectedBoth, InputOnly, OutputOnly, Disconnected, DeviceError }
 
     // ── Persistent state ────────────────────────────────────────────
@@ -84,6 +91,9 @@ public partial class MainWindow : Window
         _midi.LogMessage += OnMidiLogMessage;
         _midi.NoteOnReceived += OnNoteOnReceived;
         _presetNameClient = new PresetNameClient(_midi);
+#if FRACTAL_INDEX
+        InitializeFractalIndex();
+#endif
         _queryPresetNameAsync = queryPresetNameAsync ?? _presetNameClient.QueryAsync;
         _queryStoredScenesAsync = queryStoredScenesAsync ?? _presetNameClient.StoredScenesAsync;
         InitializeSceneTracking();
@@ -129,7 +139,7 @@ public partial class MainWindow : Window
         // Buttons and list controls consume Enter before the window's bubbling handler sees it.
         // Once a command has been entered, Enter should send it regardless of which non-editor
         // control currently owns keyboard focus.
-        if (_currentPage != AppPage.ManageProfiles && _settings.KeyboardEntryEnabled &&
+        if (_currentPage is not (AppPage.ManageProfiles or AppPage.PresetIndex or AppPage.ManageLibraries) && _settings.KeyboardEntryEnabled &&
             e.Key == Key.Enter &&
             _enteredDigits.Length > 0 &&
             FocusManager?.GetFocusedElement() is not TextBox && !FavoriteSearchHasFocus)
@@ -143,7 +153,7 @@ public partial class MainWindow : Window
     {
         base.OnKeyDown(e);
 
-        if (_currentPage == AppPage.ManageProfiles || !_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
+        if (_currentPage is AppPage.ManageProfiles or AppPage.PresetIndex or AppPage.ManageLibraries || !_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
         {
             return;
         }

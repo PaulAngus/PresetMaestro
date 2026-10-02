@@ -714,6 +714,7 @@ public partial class MainWindow
         UpdatePresetCapacityUI();
         SetStatus("Not connected", StatusKind.NotConnected);
         UpdateConnectButtons();
+        UpdateIndexButtons();
     }
 
     private void SetStatus(string text, StatusKind kind)

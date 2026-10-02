@@ -5,19 +5,36 @@ namespace PresetNameSync.Core;
 /// <summary>Read-only device 0x77/78/79 dump decoder. See SCENE-NAMES.md for wire-format sources.</summary>
 public sealed class StoredPresetDecoder
 {
+    private readonly byte _modelByte;
+    private readonly int _maxSlot;
     private int? _slot;
     private readonly List<byte> _raw = [];
-    public static byte[] BuildQuery(int slot)
+
+    public StoredPresetDecoder(byte modelByte = 0x12, int maxSlot = 511)
     {
-        if (slot is < 0 or > 511)
+        if (modelByte > 0x7f || maxSlot is < 0 or > 16383)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxSlot), "Invalid Gen-3 MIDI model or preset capacity.");
+        }
+        _modelByte = modelByte;
+        _maxSlot = maxSlot;
+    }
+
+    public static byte[] BuildQuery(int slot) => BuildQuery(slot, 0x12, 511);
+
+    public static byte[] BuildQuery(int slot, byte modelByte, int maxSlot)
+    {
+        if (slot < 0 || slot > maxSlot || maxSlot > 16383 || modelByte > 0x7f)
         {
             throw new ArgumentOutOfRangeException(nameof(slot));
         }
         // Dump addresses are high septet first, followed by a reserved zero.
-        return SysexProtocol.Frame(0x03, [(byte)(slot >> 7), (byte)(slot & 127), 0]);
+        return SysexProtocol.Frame(modelByte, 0x03, [(byte)(slot >> 7), (byte)(slot & 127), 0]);
     }
 
-    public PresetScenes? Accept(byte[] frame, int? expectedSlot = null)
+    public PresetScenes? Accept(byte[] frame, int? expectedSlot = null) => AcceptImage(frame, expectedSlot)?.Scenes;
+
+    public StoredPresetImage? AcceptImage(byte[] frame, int? expectedSlot = null)
     {
         ArgumentNullException.ThrowIfNull(frame);
 
@@ -27,7 +44,7 @@ public sealed class StoredPresetDecoder
         }
 
         int length = frame[5] switch { 0x77 => 13, 0x78 => 3082, _ => 11 };
-        if (!SysexProtocol.ValidFrame(frame, frame[5], length))
+        if (!SysexProtocol.ValidFrame(frame, _modelByte, frame[5], length))
         {
             throw new InvalidDataException("Invalid preset dump frame/checksum.");
         }
@@ -36,7 +53,7 @@ public sealed class StoredPresetDecoder
         {
             _raw.Clear(); _slot = null;
             int slot = frame[6] << 7 | frame[7];
-            if (slot > 511)
+            if (slot > _maxSlot)
             {
                 throw new InvalidDataException("Invalid stored preset slot.");
             }
@@ -107,7 +124,7 @@ public sealed class StoredPresetDecoder
             names[i] = SysexProtocol.ReadName(body.AsSpan(4 + 32 * i, 32));
         }
 
-        return new PresetScenes(address, SysexProtocol.ReadName(raw.AsSpan(8, 32)), names);
+        return new StoredPresetImage(new PresetScenes(address, SysexProtocol.ReadName(raw.AsSpan(8, 32)), names), raw, body);
     }
     private static int Word(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset, 2));
     public static ushort ComputeCrc(ReadOnlySpan<byte> raw)
@@ -169,3 +186,5 @@ public sealed class StoredPresetDecoder
         return output;
     }
 }
+
+public sealed record StoredPresetImage(PresetScenes Scenes, byte[] RawImage, byte[] Body);

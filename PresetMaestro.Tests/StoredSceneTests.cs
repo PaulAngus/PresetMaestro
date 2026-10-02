@@ -56,9 +56,9 @@ public class StoredSceneTests
     }
 
     // Independent synthetic encoder: balanced 256-symbol tree, fixed eight-bit codes.
-    internal static byte[][] Fixture()
+    internal static byte[][] Fixture(byte[]? presetBody = null)
     {
-        var body = new byte[260];
+        var body = presetBody ?? new byte[260];
         string[] names = ["Clean", "Drive", "Lead", "", "Five", "Six", "Seven", "Eight"];
         for (int i = 0; i < 8; i++)
         {

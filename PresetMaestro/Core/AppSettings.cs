@@ -2,6 +2,8 @@ namespace PresetMaestro.Core;
 
 public class AppSettings
 {
+    // Opaque optional feature data survives builds that do not include the index module.
+    public System.Text.Json.JsonElement? FractalIndex { get; set; }
     public string ActiveProfile { get; set; } = "Default";
     public List<string> Profiles { get; set; } = [];
     public string MidiInputPort { get; set; } = string.Empty;

@@ -43,4 +43,4 @@ It also supports read-only current scene-name queries and stored-preset dumps, d
 
 **Cancel Scan** also cancels a scene read. A timeout or validation error is shown in the status/log. Capture the raw log and the device firmware version when reporting a failure.
 
-These controls use the documented `0x0E` live query and the community-documented `0x03` stored-preset dump format. Automated tests pass, but physical device verification remains to be performed. See [scene-name implementation details](../SCENE-NAMES.md) for the exact format and limitations.
+These controls use the documented `0x0E` live query and the community-documented `0x03` stored-preset dump format. On 2026-09-30, the MIDI client performed one physical FM9 slot-0 stored read and live scene-name reads through `MIDI Forwarder`; the preset remained at the same active slot before and after. The probe UI project currently has AXAML-generated member build errors, so this check used its MIDI client in a temporary console harness. Other slots, firmware variants and devices still require verification. See [scene-name implementation details](../SCENE-NAMES.md) for the observed scope and limitations.

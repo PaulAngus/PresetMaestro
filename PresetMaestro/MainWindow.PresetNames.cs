@@ -154,6 +154,7 @@ public partial class MainWindow
 
     private void UpdatePresetSyncButtons()
     {
+        UpdateIndexButtons();
         bool connected = _midi.InputOpen && _midi.OutputOpen && CanReadDeviceNames;
         bool syncing = _presetNamesCts is not null;
         if (_syncPresetNamesButton is not null)
