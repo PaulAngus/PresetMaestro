@@ -1,0 +1,46 @@
+PresetMaestro Amp Browser catalogue, version 2026-10-02.2
+
+fm9-12-candidates.json contains the Amp-only ID/name table extracted from:
+https://github.com/TheAndrewStaker/mcp-midi-control/blob/12e3bb735f8e8527b277e9567f3f70196879541a/packages/fractal-gen3/src/gen3BodyTables.ts
+Copyright 2026 Stephen Staker. Apache License, Version 2.0.
+The upstream table derives from fractal-syx-codec:
+Copyright 2026 Andrew Mercurio ("BoodieTraps"). Apache License, Version 2.0.
+https://github.com/drewmerc302/fractal-syx-codec
+The complete license and upstream notices accompany this file.
+
+Modifications: extracted 284 Amp entries into JSON; no other effect rosters or
+parameter tables are included. PresetMaestro applies this as an INCOMPLETE
+candidate roster only for FM9 firmware 12.00, independently of the ten observed
+FM9-Edit names in AmpModelCatalog.cs. ID 271 is added at runtime from that local
+hardware evidence. No cross-device ID portability or complete roster is claimed.
+
+real-amp-families.json and real-amp-details.json contain PresetMaestro's explicit
+curated factual identities, relationship types, qualifications and source URLs.
+The review starts from the user's 331-name CSV, whose original file is unchanged.
+See docs/catalog/fm9-12-amp-identities.json for per-row provenance and input hash.
+Sources checked on 2026-10-02:
+https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json
+https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models
+https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf
+https://shop.fractalaudio.com/products/icons-fullerton-complete
+The official manual is Doc Q7.0, printed pp165-168. The Wiki was inspected through
+search-index table/section excerpts; its live page returned HTTP 403. Historical
+manual details can conflict with current references and are not silently adopted.
+Ampdex transcribes Clayton Welch's guide, which draws on Yek, the Wiki and forum.
+Those two community references are NOT independent evidence. Their explanatory
+prose, guide pages and images are not redistributed in these runtime files.
+Only factual product identities and original review notes are included.
+The runtime table joins 280 CSV names to existing numeric candidates, in 146
+groups. Five numeric candidates have no accepted name join and remain Unmapped.
+No CSV row position or Ampdex entry number is used as a DSP model ID. Matching
+names does not verify the numeric identity or firmware availability. Physical
+custom amps, virtual originals and schematic interpretations remain distinct.
+No prefix-based runtime grouping is used.
+
+Source mappings do not prove firmware availability. The roster is known to omit
+models, including a verified FM9 ID and the later Bassguy reissue variant. Do not
+assign an ID to the reissue by guessing or merge it into an original variant.
+FM3, Axe-Fx III and other FM9 firmware versions require independent rosters.
+
+Manufacturer and product names are trademarks of their respective owners,
+used descriptively. This catalogue does not imply endorsement or affiliation.

@@ -21,18 +21,19 @@ public sealed record LibraryMatchResult(bool IsSample, int Matched, int Compared
 
 public static class LibraryMatch
 {
-    // Empty slots and repeated copies do not provide independent sample evidence.
+    public const int QuickMatchPresetCount = 16;
+
+    // Explicit empty slots provide no populated content to sample.
     public static bool IsPopulated(IndexedPreset preset) => !preset.NameOnlyEmpty &&
         preset.Name.Trim() != "<EMPTY>" && !string.IsNullOrEmpty(preset.ContentSha256);
 
-    public static int[] SampleSlots(IndexScan baseline, int maximum = 12)
+    public static int[] SampleSlots(IndexScan baseline, int maximum = QuickMatchPresetCount, Random? random = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maximum, 1);
         var slots = baseline.Presets.Values.Where(IsPopulated).OrderBy(p => p.Slot)
-            .DistinctBy(p => p.ContentSha256).Select(p => p.Slot).ToArray();
-        if (slots.Length <= maximum) { return slots; }
-        if (maximum == 1) { return [slots[slots.Length / 2]]; }
-        return Enumerable.Range(0, maximum).Select(i => slots[i * (slots.Length - 1) / (maximum - 1)]).ToArray();
+            .Select(p => p.Slot).Distinct().ToArray();
+        (random ?? Random.Shared).Shuffle(slots);
+        return slots.Take(maximum).ToArray();
     }
 
     public static LibraryMatchResult Compare(IndexScan baseline, IReadOnlyDictionary<int, IndexedPreset> observed,
@@ -40,13 +41,15 @@ public static class LibraryMatch
     {
         var slots = sample ? requestedSlots?.ToArray() ?? SampleSlots(baseline) :
             baseline.Presets.Values.Where(IsPopulated).Select(p => p.Slot)
-                .Union(observed.Values.Where(IsPopulated).Select(p => p.Slot)).ToArray();
+                .Union(observed.Values.Where(IsPopulated).Select(p => p.Slot))
+                .Union(requestedSlots?.Where(slot => !observed.ContainsKey(slot)) ?? []).ToArray();
         int matched = 0, failed = 0;
         foreach (int slot in slots)
         {
             if (!observed.TryGetValue(slot, out var current)) { failed++; continue; }
             if (baseline.Presets.TryGetValue(slot, out var previous) && IsPopulated(previous) && IsPopulated(current) &&
-                previous.Variant == current.Variant && previous.ContentSha256 == current.ContentSha256) { matched++; }
+                previous.Variant == current.Variant && previous.ContentSha256 == current.ContentSha256 &&
+                previous.SceneNames.SequenceEqual(current.SceneNames)) { matched++; }
         }
         string? caution = null;
         if (!string.IsNullOrWhiteSpace(baseline.ConnectedDeviceName) &&
@@ -55,17 +58,31 @@ public static class LibraryMatch
         if (baseline.Firmware is not null && firmware is not null &&
             Version.TryParse(baseline.Firmware, out var oldVersion) && Version.TryParse(firmware, out var newVersion) && oldVersion != newVersion)
         { caution = "Firmware differs; saved preset fingerprints may have changed."; }
+        if (baseline.Firmware is not null && firmware is null)
+        { caution = "Connected firmware is unavailable; the saved version has not been assumed."; }
         return new(sample, matched, slots.Length, failed, caution);
     }
 
-    public static async Task<LibraryMatchResult> CheckSampleAsync(PresetIndexReader reader, DeviceIndex cache,
-        IndexScan baseline, string? connectedDeviceName, CancellationToken token)
+    public static Task<LibraryMatchResult> CheckSampleAsync(PresetIndexReader reader, DeviceIndex cache,
+        IndexScan baseline, string? connectedDeviceName, CancellationToken token,
+        Action<LibraryMatchProgress>? progress = null) =>
+        CheckAsync(reader, cache, baseline, connectedDeviceName, sample: true, progress, token);
+
+    public static Task<LibraryMatchResult> CheckFullAsync(PresetIndexReader reader, DeviceIndex cache,
+        IndexScan baseline, string? connectedDeviceName, CancellationToken token,
+        Action<LibraryMatchProgress>? progress = null) =>
+        CheckAsync(reader, cache, baseline, connectedDeviceName, sample: false, progress, token);
+
+    private static async Task<LibraryMatchResult> CheckAsync(PresetIndexReader reader, DeviceIndex cache,
+        IndexScan baseline, string? connectedDeviceName, bool sample, Action<LibraryMatchProgress>? progress,
+        CancellationToken token)
     {
         var device = FractalDeviceDefinition.For(cache.Device.Variant);
         var firmware = Version.TryParse(cache.Device.Firmware, out var version) ? version : null;
-        var slots = SampleSlots(baseline);
+        var slots = sample ? SampleSlots(baseline) : Enumerable.Range(0, device.PresetSlots).ToArray();
         var observed = new Dictionary<int, IndexedPreset>();
-        int consecutiveFailures = 0;
+        int consecutiveFailures = 0, checkedSlots = 0, failed = 0;
+        progress?.Invoke(new(0, slots.Length, 0));
         foreach (int slot in slots)
         {
             token.ThrowIfCancellationRequested();
@@ -76,10 +93,15 @@ public static class LibraryMatch
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or TimeoutException)
             {
-                if (++consecutiveFailures >= 3) { break; }
+                failed++;
+                consecutiveFailures++;
             }
+            progress?.Invoke(new(++checkedSlots, slots.Length, failed));
+            if (consecutiveFailures >= 3) { break; }
         }
         token.ThrowIfCancellationRequested();
-        return Compare(baseline, observed, true, connectedDeviceName, cache.Device.Firmware, slots);
+        return Compare(baseline, observed, sample, connectedDeviceName, cache.Device.Firmware, slots);
     }
 }
+
+public sealed record LibraryMatchProgress(int Checked, int Total, int Failed);

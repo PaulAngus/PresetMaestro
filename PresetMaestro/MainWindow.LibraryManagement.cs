@@ -111,13 +111,20 @@ public partial class MainWindow
         _libraryFacts = new TextBlock { Name = "LibraryFacts", FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap };
         details.Children.Add(_libraryFacts);
         _indexDeviceName = new TextBox { Name = "IndexDeviceName", Watermark = "e.g. Stage FM9", MaxLength = 80 };
-        _indexFirmware = new TextBox { Name = "IndexFirmware", Watermark = "e.g. 12.00", Width = 185, HorizontalAlignment = HorizontalAlignment.Left };
+        _indexFirmware = new TextBlock { Name = "IndexFirmware", FontSize = 14, Foreground = TextBrush };
         _indexVariant = new ComboBox { Name = "IndexDeviceVariant", ItemsSource = LibraryVariants(), HorizontalAlignment = HorizontalAlignment.Stretch };
         details.Children.Add(CompactField("Library name", _indexDeviceName));
         _libraryModelLabel = new TextBlock { FontSize = 14, Foreground = TextBrush };
         var model = new Grid(); model.Children.Add(_indexVariant); model.Children.Add(_libraryModelLabel);
         details.Children.Add(CompactField("Device model", model));
-        details.Children.Add(CompactField("Firmware (optional)", _indexFirmware));
+        details.Children.Add(CompactField("Firmware", _indexFirmware));
+        details.Children.Add(new TextBlock
+        {
+            Text = "Model and firmware are saved with this library. Firmware is read from the connected device; each saved scan keeps the version it was read with.",
+            FontSize = 12,
+            Foreground = SecondaryBrush,
+            TextWrapping = TextWrapping.Wrap,
+        });
         var commands = new WrapPanel { Orientation = Orientation.Horizontal };
         _librarySave = ProfileCommand("IndexUpdateDevice", "Save changes");
         _librarySave.Click += (_, _) => SaveManagedLibrary();
@@ -197,11 +204,14 @@ public partial class MainWindow
         var cache = _managedLibraryId is Guid id ? _indexLibrary.Load(id) : null;
         _libraryHeading.Text = _creatingLibrary ? "Create library" : cache is null ? "No library selected" : LibraryDisplayName(cache.Device);
         _indexDeviceName.Text = _creatingLibrary ? "" : cache?.Device.Name ?? "";
-        _indexFirmware!.Text = _creatingLibrary ? "" : cache?.Device.Firmware ?? "";
-        var choices = (IndexVariantChoice[])_indexVariant!.ItemsSource!;
+        _indexFirmware!.Text = (_creatingLibrary ? _detectedDevice?.Firmware : cache?.Device.Firmware) ?? "Not detected";
+        var choices = LibraryVariants().Where(c => !_creatingLibrary || _detectedDevice is null ||
+            c.Variant.ToDeviceModel() == _detectedDevice.Model).ToArray();
+        _indexVariant!.ItemsSource = choices;
         _indexVariant.SelectedItem = _creatingLibrary ? choices.First(c => c.Variant.ToDeviceModel() == _settings.DeviceModel) : choices.FirstOrDefault(c => c.Variant == cache?.Device.Variant);
-        _indexVariant.IsVisible = _creatingLibrary;
-        _libraryModelLabel!.IsVisible = !_creatingLibrary;
+        // WHO_AM_I fixes the model family, but does not distinguish Axe-Fx III revisions.
+        _indexVariant.IsVisible = _creatingLibrary && choices.Length > 1;
+        _libraryModelLabel!.IsVisible = !_indexVariant.IsVisible;
         _libraryModelLabel.Text = (_indexVariant.SelectedItem as IndexVariantChoice)?.Label ?? "—";
         foreach (var item in _managedLibraries!.Items.OfType<ListBoxItem>())
         {
@@ -240,8 +250,7 @@ public partial class MainWindow
         _libraryDelete.IsEnabled = ready && cache is not null;
         _libraryCancel!.IsVisible = _creatingLibrary;
         _indexDeviceName!.IsEnabled = ready && (_creatingLibrary || cache is not null);
-        _indexFirmware!.IsEnabled = _indexDeviceName.IsEnabled;
-        _indexVariant!.IsEnabled = ready && _creatingLibrary;
+        _indexVariant!.IsEnabled = ready && _creatingLibrary && _indexVariant.IsVisible;
         _managedLibraries!.IsEnabled = ready;
         if (_indexAvailableDevices is not null) { _indexAvailableDevices.IsEnabled = ready; }
     }
@@ -254,6 +263,7 @@ public partial class MainWindow
         {
             _indexSelectedSlot = null; RefreshIndexContext();
             SetIndexMessage($"'{device.Name}' is now assigned to '{_settings.ActiveProfile}'.");
+            _ = CheckAssignedLibraryAsync();
         }
     }
 
@@ -263,12 +273,15 @@ public partial class MainWindow
         try
         {
             if (!_creatingLibrary && _managedLibraryId is null) { return; }
-            string? firmware = _indexFirmware?.Text?.Trim();
-            if (string.IsNullOrEmpty(firmware)) { firmware = null; }
-            else if (!Version.TryParse(firmware, out _)) { throw new ArgumentException("Enter firmware as major.minor, for example 12.00."); }
             if (_indexVariant?.SelectedItem is not IndexVariantChoice choice) { throw new ArgumentException("Choose a device model."); }
             bool creating = _creatingLibrary;
-            var device = new IndexDevice(creating ? Guid.NewGuid() : _managedLibraryId!.Value, _indexDeviceName?.Text ?? "", choice.Variant, firmware);
+            // Editing a name cannot edit the saved device identity, even through stale UI state.
+            var existing = creating ? null : _indexLibrary.Load(_managedLibraryId!.Value)
+                ?? throw new InvalidOperationException("This library is no longer available.");
+            var variant = existing?.Device.Variant ?? (_detectedDevice is { } detected && choice.Variant.ToDeviceModel() != detected.Model
+                ? LibraryVariants().First(c => c.Variant.ToDeviceModel() == detected.Model).Variant : choice.Variant);
+            var device = new IndexDevice(existing?.Device.Id ?? Guid.NewGuid(), _indexDeviceName?.Text ?? "", variant,
+                existing is null ? _detectedDevice?.Firmware : existing.Device.Firmware);
             var saved = _indexLibrary.SaveDevice(device);
             _managedLibraryId = saved.Device.Id; _creatingLibrary = false;
             RefreshIndexContext();

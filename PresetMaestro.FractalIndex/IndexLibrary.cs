@@ -75,6 +75,7 @@ public sealed class IndexProfile
     // An explicit reconciliation can be undone, including scene-number reassignment.
     public List<IndexTagReassignment> ReviewHistory { get; set; } = [];
     public List<DeviceIndex> PortableSnapshots { get; set; } = [];
+    public List<AmpReference> PortableAmpReferences { get; set; } = [];
 
     public PresetAnnotation? Find(Guid deviceId, IndexedPreset preset, string? firmware) =>
         Annotations.FirstOrDefault(a => a.Matches(deviceId, preset, firmware));
@@ -139,6 +140,8 @@ public sealed class IndexProfile
 
     public void Validate()
     {
+        if (PortableAmpReferences is null) { throw new InvalidDataException("Invalid portable amp references."); }
+        PortableAmpReferences = AmpReferenceStore.Validate(PortableAmpReferences);
         if (SchemaVersion != 1 || PresetMatchThresholdPercent is < 1 or > 100 || ProfileId == Guid.Empty || Devices is null || Annotations is null ||
             ReviewHistory is null || PortableSnapshots is null || Devices.Any(d => d is null) ||
             ReviewHistory.Any(h => h is null || h.Before is null || h.After is null || h.Before.Count is < 1 or > 2 || h.After.Count != 1) ||

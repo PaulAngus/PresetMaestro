@@ -1,6 +1,6 @@
 using PresetNameSync.Core;
 
-namespace PresetNameSyncProbe.Tests;
+namespace PresetMaestro.Tests;
 
 public sealed class SysexProtocolTests
 {

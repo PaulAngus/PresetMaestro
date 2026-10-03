@@ -709,6 +709,7 @@ public partial class MainWindow
         _midi.CloseInput();
         _midi.CloseOutput();
         _detectedDevice = null;
+        _connectionSyncDialog?.Close();
         _profileValidationCts?.Cancel();
         _presetNameClient.SetDeviceModel(Core.DeviceModel.FM9);
         UpdatePresetCapacityUI();

@@ -37,6 +37,7 @@ public partial class MainWindow
         using var cancellation = new CancellationTokenSource();
         _connectionCts = cancellation;
         UpdateConnectButtons();
+        UpdatePresetSyncButtons();
         try
         {
             string input = _inputPortCombo.SelectedItem as string ?? "";
@@ -116,14 +117,21 @@ public partial class MainWindow
 
             UpdateConnectButtons();
             UpdatePresetSyncButtons();
+#if FRACTAL_INDEX
+            RefreshIndexContext();
+#endif
         }
         if (generation == _connectionGeneration && _detectedDevice is not null)
         {
             OpenCheckedThruInputs(reopen: false);
 #if FRACTAL_INDEX
-            await CheckAssignedLibraryAsync();
-            if (generation != _connectionGeneration || _detectedDevice is null) { return; }
+            // An empty local library can record the detected firmware without
+            // reading presets or starting a comparison before the user's choice.
+            if (_indexCache is { Browsable: null, Imported: false } emptyLibrary &&
+                emptyLibrary.Device.Variant.ToDeviceModel() == _detectedDevice.Model)
+            { SaveDetectedLibraryFirmware(emptyLibrary); }
 #endif
+            OpenConnectionSyncOptions();
             StartSceneTracking();
 
             await Task.Delay(ThruInputRetryDelay);

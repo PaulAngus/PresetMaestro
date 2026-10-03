@@ -7,7 +7,7 @@ FM9 preset and scene name reads are supported by the current protocol code. FM3 
 ## Start here when you have forgotten how it works
 
 1. Connect your device over USB, or connect both MIDI directions through a MIDI interface.
-2. Open **Config**, select the MIDI input and output, and click **Connect**. If a port is busy, close device editor, the probe, or another MIDI application using it.
+2. Open **Config**, select the MIDI input and output, and click **Connect**. If a port is busy, close device editor or another MIDI application using it.
 3. Check **MIDI Channel**, **Display Offset**, and **Scene CC#**. Scene CC defaults to **34** in this app; the device's Scene Select assignment must match it.
 4. Open **Preset Sender** and select a preset. Under **Config → Scenes**, the panel shows all eight scenes. Cached names appear first, then the app reads the current names from the device. Preset Sender retains its original display/keypad layout.
 5. Click a scene button to select that scene within the current preset.
@@ -104,16 +104,16 @@ The picker uses device numbering even when **Display Offset** is 1: selecting `0
 
 **Everyday use:** select a preset, then use its populated scene buttons. This uses small name queries and refreshes the loaded preset's names.
 
-**Prepare everything upfront:** first verify one stored-preset read in the [probe](PresetNameSyncProbe/README.md#verify-scene-names-before-a-bulk-sync), then click **Sync all stored scene names**. This reads full saved presets to extract their names. It transfers roughly 12.6 MB and can take over an hour over DIN MIDI; USB timing depends on the device. You can cancel at any time.
+**Prepare everything upfront:** choose **Sync library** in the connection dialog, or **Sync device** on Preset Index. This reads saved presets, scenes and amp data into the assigned library. See [Using Preset Index](docs/fractal-index-usage.md) for progress, cancellation and resume.
 
-A preset change interrupts the bulk scan. A timeout or invalid dump stops it and leaves completed entries cached. Clicking sync again starts at slot 0; automatic resume is not implemented.
+A cancelled library scan retains completed reads. Choose **Resume** to continue an incomplete scan.
 
 ## Things worth remembering
 
 - Every preset has **eight scenes**. An empty name does not mean the scene is unavailable.
 - **Live names** come from the loaded preset and may include unsaved edits. **Stored names** come from saved preset data. Bulk sync does not save edits to the device.
 - Renaming a scene while staying on the same preset is not automatically detected. Click **Refresh current scene names**.
-- The probe always uses internal slots **0–511**. With Display Offset 1, the controller displays **1–512**; for example, displayed preset 153 corresponds to probe slot 152.
+- Protocol reads use internal slots **0–511** on FM9. With Display Offset 1, the controller displays **1–512**; for example, displayed preset 153 corresponds to internal slot 152.
 - Scene names are cached per MIDI input/output port pair. If you swap between two devices with identical port names, clear the cache to avoid seeing the previous unit's labels.
 - If a refresh fails, cached names remain visible and may be out of date. Check the message above the scene buttons and use Refresh after correcting the connection.
 
@@ -137,10 +137,9 @@ dotnet format .\PresetMaestro.slnx --verify-no-changes --no-restore
 
 The Windows x64 executable includes its .NET runtime and needs no separate .NET installation. The project references only Avalonia's Windows and Skia backends and NAudio's MIDI/WinMM packages, avoiding unused desktop platforms, audio playback packages, and the WinForms runtime. Single-file compression reduces distribution size; ReadyToRun remains enabled and code trimming is not used. Compressed assemblies are unpacked on startup, so the executable's size is smaller than its extracted runtime payload.
 
-The solution-level test command runs both the controller and probe suites. The controller suite includes preset-catalog and headless Avalonia dialog tests for ordering, filtering, resizing, selection, and keyboard interaction. Scene tests use simulated MIDI and synthetic compressed presets; **physical device scene-name verification is still outstanding**. Builds enforce the repository's `.editorconfig`, Microsoft recommended .NET analyzers, nullable reference types, and warnings-as-errors.
+The solution-level test command runs the maintained application and shared-protocol regression tests. The suite includes preset-catalog and headless Avalonia dialog tests for ordering, filtering, resizing, selection, and keyboard interaction. Scene tests use simulated MIDI and synthetic compressed presets; hardware observations are recorded in the scene-name and protocol notes. Builds enforce the repository's `.editorconfig`, Microsoft recommended .NET analyzers, nullable reference types, and warnings-as-errors.
 
 ## Further reading
 
 - [Scene-name behavior, troubleshooting, and protocol details](SCENE-NAMES.md)
-- [Read-only hardware verification with the probe](PresetNameSyncProbe/README.md)
 - [Shared protocol code and integration rules](PresetNameSync.Core/README.md)

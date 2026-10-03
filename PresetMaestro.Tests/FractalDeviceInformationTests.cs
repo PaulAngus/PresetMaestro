@@ -54,7 +54,8 @@ public class FractalDeviceInformationTests
         var result = await new FractalDeviceInformationClient(midi).QueryDeviceInformationAsync("USB", "USB", TimeSpan.FromMilliseconds(20), default);
         Assert.Equal(expected, result.Model);
         Assert.Null(result.DeviceName);
-        Assert.Equal(model == 0x12 ? 2 : 1, midi.Sent.Count);
+        Assert.Null(result.Firmware);
+        Assert.Equal(model == 0x12 ? 3 : 2, midi.Sent.Count);
     }
 
     [Theory]
@@ -104,7 +105,7 @@ public class FractalDeviceInformationTests
         midi.Send = request =>
         {
             if (request[5] == 0) { midi.Reply(Capture("identity-fm9")); }
-            else
+            else if (request[5] == 1)
             {
                 midi.Reply(Frame(0x11, 0x64, [0, 0]));
                 var frame = Capture("name-pm-test");
@@ -114,7 +115,7 @@ public class FractalDeviceInformationTests
         var logs = new List<string>();
         var result = await new FractalDeviceInformationClient(midi, logs.Add).QueryDeviceInformationAsync("FM9", "FM9", TimeSpan.FromSeconds(1), default);
         Assert.Equal("FM9 · PM-TEST", result.Label);
-        Assert.Equal(2, midi.Sent.Count);
+        Assert.Equal(3, midi.Sent.Count);
         Assert.DoesNotContain(logs, s => s.Contains("PM-TEST") || s.Contains("28 13 25 55"));
         Assert.Contains(logs, s => s.Contains("payload redacted"));
     }
@@ -150,6 +151,72 @@ public class FractalDeviceInformationTests
         Assert.Null(midi.SnapshotListener());
         midi.Send = _ => oldCallback?.Invoke(midi, Capture("identity-fm9"));
         await Assert.ThrowsAsync<TimeoutException>(() => client.QueryDeviceInformationAsync("FM9", "FM9", TimeSpan.FromMilliseconds(10), default));
+    }
+
+    [Theory]
+    [InlineData(0x10, 0x1d)]
+    [InlineData(0x11, 0x1c)]
+    [InlineData(0x12, 0x1f)]
+    public void FirmwareQueryHasNoWritePayload(int model, int checksum)
+    {
+        Assert.Equal(new byte[] { 0xf0, 0, 1, 0x74, (byte)model, 0x08, (byte)checksum, 0xf7 },
+            FractalDeviceInformationClient.BuildFirmwareRequest((byte)model));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FractalDeviceInformationClient.BuildFirmwareRequest(0x7f));
+    }
+
+    [Theory]
+    [InlineData("loopback")]
+    [InlineData("missing minor")]
+    [InlineData("checksum")]
+    [InlineData("model")]
+    [InlineData("function")]
+    [InlineData("seven bit")]
+    [InlineData("framing")]
+    public void FirmwareRejectsInvalidOrUnrelatedFrames(string reason)
+    {
+        var frame = Frame(0x12, 0x08, [12, 0, 0, 1]);
+        switch (reason)
+        {
+            case "loopback": frame = FractalDeviceInformationClient.BuildFirmwareRequest(0x12); break;
+            case "missing minor": frame = Frame(0x12, 0x08, [12]); break;
+            case "checksum": frame[^2] ^= 1; break;
+            case "model": frame = Frame(0x11, 0x08, [12, 0]); break;
+            case "function": frame = Frame(0x12, 0x64, [8, 0]); break;
+            case "seven bit": frame = Frame(0x12, 0x08, [12, 0x80]); break;
+            case "framing": frame[^1] = 0; break;
+        }
+        Assert.False(FractalDeviceInformationClient.TryParseFirmwareResponse(frame, 0x12, out var firmware));
+        Assert.Null(firmware);
+    }
+
+    [Fact]
+    public async Task FragmentedFirmwareResponseUsesPayloadVersionAndCannotLeakAcrossConnections()
+    {
+        var midi = new DeviceMidi();
+        bool provideFirmware = true;
+        midi.Send = request =>
+        {
+            if (request[5] == 0) { midi.Reply(Capture("identity-fm9")); }
+            if (request[5] == 1) { midi.Reply(Capture("name-fm9")); }
+            if (request[5] == 8 && provideFirmware)
+            {
+                midi.Reply(request); // A loopback query is not a version.
+                midi.Reply(Frame(0x11, 8, [99, 99]));
+                // Synthetic protocol fixture, not a locally captured hardware response.
+                var reply = Frame(0x12, 8, [12, 3, 0, 1, .. System.Text.Encoding.ASCII.GetBytes("08/19/2026"), 0]);
+                midi.Reply(reply[..7]); midi.Reply([0xf8]); midi.Reply(reply[7..]);
+            }
+        };
+        var client = new FractalDeviceInformationClient(midi);
+        var detected = await client.QueryDeviceInformationAsync("FM9", "FM9", TimeSpan.FromMilliseconds(20), default);
+        Assert.Equal("12.03", detected.Firmware);
+        Assert.Equal("FM9", detected.DeviceName);
+        Assert.Equal(new byte[] { 0, 8, 1 }, midi.Sent.Select(frame => frame[5]));
+        provideFirmware = false;
+        detected = await client.QueryDeviceInformationAsync("FM9", "FM9", TimeSpan.FromMilliseconds(20), default);
+        Assert.Null(detected.Firmware);
+        Assert.Equal("FM9", detected.DeviceName);
+        Assert.Null(midi.SnapshotListener());
     }
 
     internal static byte[] SyntheticName(string text)

@@ -1,0 +1,2134 @@
+[
+  {
+    "Id": "fender-champ",
+    "Manufacturer": "Fender",
+    "Name": "Champ",
+    "Aliases": [
+      "5F1",
+      "Tweed Champlifier",
+      "Tweed Champ 5F1"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      153
+    ]
+  },
+  {
+    "Id": "fender-ec-vibrochamp",
+    "Manufacturer": "Fender",
+    "Name": "EC Vibro-Champ",
+    "Aliases": [
+      "2011 EC Vibro-Champ"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      258
+    ]
+  },
+  {
+    "Id": "fender-twin-tweed",
+    "Manufacturer": "Fender",
+    "Name": "Tweed Twin",
+    "Aliases": [
+      "5F8",
+      "1959 high-power Tweed Twin 5F8"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      217,
+      291,
+      292
+    ]
+  },
+  {
+    "Id": "fender-concert",
+    "Manufacturer": "Fender",
+    "Name": "Concert",
+    "Aliases": [
+      "6G12",
+      "Brownface Concert 6G12"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      199
+    ]
+  },
+  {
+    "Id": "fender-bassman-59",
+    "Manufacturer": "Fender",
+    "Name": "'59 Bassman",
+    "Aliases": [
+      "5F6-A",
+      "Tweed Bassman",
+      "Original Tweed Bassman 5F6-A"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      0,
+      282,
+      290
+    ]
+  },
+  {
+    "Id": "fender-bassman-65",
+    "Manufacturer": "Fender",
+    "Name": "'65 Bassman",
+    "Aliases": [
+      "Blackface Bassman",
+      "1965 blackface Bassman AB165"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      1,
+      200
+    ]
+  },
+  {
+    "Id": "marshall-1959slp",
+    "Manufacturer": "Marshall",
+    "Name": "1959SLP reissue",
+    "Aliases": [
+      "1959SLP Super Lead 100W reissue"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      193,
+      194
+    ]
+  },
+  {
+    "Id": "marshall-1987x",
+    "Manufacturer": "Marshall",
+    "Name": "1987X reissue",
+    "Aliases": [
+      "Vintage Series",
+      "1987X 50W reissue"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      13,
+      147
+    ]
+  },
+  {
+    "Id": "evh-5150iii",
+    "Manufacturer": "EVH",
+    "Name": "5150 III",
+    "Aliases": [
+      "5153",
+      "5150 III 100W"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      81,
+      82,
+      83
+    ]
+  },
+  {
+    "Id": "evh-5150iii-stealth",
+    "Manufacturer": "EVH",
+    "Name": "5150 III 100S Stealth",
+    "Aliases": [
+      "5150 III 100S Stealth 100W"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      313,
+      316
+    ]
+  },
+  {
+    "Id": "evh-5150iii-50",
+    "Manufacturer": "EVH",
+    "Name": "5150 III 50W",
+    "Aliases": [
+      "5150 III 50W"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      213
+    ]
+  },
+  {
+    "Id": "morgan-ac20",
+    "Manufacturer": "Morgan",
+    "Name": "AC20 Deluxe",
+    "Aliases": [
+      "AC20 Deluxe"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      129,
+      142,
+      180,
+      237
+    ]
+  },
+  {
+    "Id": "engl-savage",
+    "Manufacturer": "ENGL",
+    "Name": "Savage 120",
+    "Aliases": [
+      "Savage 120"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      175,
+      176
+    ]
+  },
+  {
+    "Id": "prs-archon",
+    "Manufacturer": "PRS",
+    "Name": "Archon 100",
+    "Aliases": [
+      "Archon 100W"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      279,
+      280,
+      281
+    ]
+  },
+  {
+    "Id": "cameron-atomica",
+    "Manufacturer": "Cameron",
+    "Name": "Atomica",
+    "Aliases": [
+      "Atomica"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      97,
+      98
+    ]
+  },
+  {
+    "Id": "fender-bandmaster",
+    "Manufacturer": "Fender",
+    "Name": "Bandmaster",
+    "Aliases": [
+      "Band-Commander",
+      "1968 silverface Bandmaster with AB763 circuit"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      109
+    ]
+  },
+  {
+    "Id": "fas-68",
+    "Manufacturer": "Fractal originals",
+    "Name": "Big Hair",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      68
+    ]
+  },
+  {
+    "Id": "blankenship-leeds",
+    "Manufacturer": "Blankenship",
+    "Name": "Leeds 21",
+    "Aliases": [
+      "Leeds 21"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      80
+    ]
+  },
+  {
+    "Id": "bludotone-ojai",
+    "Manufacturer": "Bludotone",
+    "Name": "Ojai",
+    "Aliases": [
+      "Bludojai",
+      "Ojai"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      124,
+      125,
+      227
+    ]
+  },
+  {
+    "Id": "bogner-fish",
+    "Manufacturer": "Bogner",
+    "Name": "Fish",
+    "Aliases": [
+      "Fish preamp"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      151,
+      152
+    ]
+  },
+  {
+    "Id": "marshall-jcm800",
+    "Manufacturer": "Marshall",
+    "Name": "JCM800 2204",
+    "Aliases": [
+      "2204",
+      "2203",
+      "Brit 800",
+      "JCM800 2204 50W"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      14
+    ]
+  },
+  {
+    "Id": "marshall-jcm800-2203",
+    "Manufacturer": "Marshall",
+    "Name": "2203 100W",
+    "Aliases": [
+      "2203 100W (Brit 800)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      314,
+      319
+    ]
+  },
+  {
+    "Id": "marshall-jcm800-34",
+    "Manufacturer": "Marshall",
+    "Name": "JCM800 #34 basis",
+    "Aliases": [
+      "JCM800 50W with virtual Santiago #34 modifications"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      257
+    ]
+  },
+  {
+    "Id": "marshall-jcm800-mod",
+    "Manufacturer": "Marshall",
+    "Name": "JCM800 modified basis",
+    "Aliases": [
+      "JCM800 50W with virtual modifications"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      122
+    ]
+  },
+  {
+    "Id": "marshall-sc20h",
+    "Manufacturer": "Marshall",
+    "Name": "Studio Classic SC20H",
+    "Aliases": [
+      "Studio Classic SC20H"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      328
+    ]
+  },
+  {
+    "Id": "marshall-afd100",
+    "Manufacturer": "Marshall",
+    "Name": "AFD100SCE",
+    "Aliases": [
+      "Appetite For Destruction",
+      "AFD100 Special Collectors Edition"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      186,
+      187
+    ]
+  },
+  {
+    "Id": "fas-brit-brown",
+    "Manufacturer": "Fractal originals",
+    "Name": "Brit Brown",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      48
+    ]
+  },
+  {
+    "Id": "marshall-jtm45",
+    "Manufacturer": "Marshall",
+    "Name": "JTM45",
+    "Aliases": [
+      "JM45",
+      "JTM45"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      9,
+      146
+    ]
+  },
+  {
+    "Id": "marshall-jvm410",
+    "Manufacturer": "Marshall",
+    "Name": "JVM410H",
+    "Aliases": [
+      "JVM 410",
+      "OD1",
+      "OD2",
+      "JVM410H"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      73,
+      74,
+      119,
+      120,
+      206,
+      207
+    ]
+  },
+  {
+    "Id": "marshall-jmp1",
+    "Manufacturer": "Marshall",
+    "Name": "JMP-1",
+    "Aliases": [
+      "Brit Pre",
+      "JMPre",
+      "JMP-1 preamp"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      59,
+      220,
+      222,
+      223,
+      293
+    ]
+  },
+  {
+    "Id": "marshall-jubilee",
+    "Manufacturer": "Marshall",
+    "Name": "Silver Jubilee",
+    "Aliases": [
+      "25/50",
+      "Brit Silver",
+      "Silver Jubilee"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      103
+    ]
+  },
+  {
+    "Id": "marshall-afd100-schematic",
+    "Manufacturer": "Marshall",
+    "Name": "AFD100 schematic basis",
+    "Aliases": [
+      "AFD100 (schematic-based interpretation)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      15
+    ]
+  },
+  {
+    "Id": "budda-twinmaster",
+    "Manufacturer": "Budda",
+    "Name": "Twinmaster",
+    "Aliases": [
+      "Twinmaster"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      60
+    ]
+  },
+  {
+    "Id": "cae-3plus",
+    "Manufacturer": "Custom Audio Electronics",
+    "Name": "3+ SE",
+    "Aliases": [
+      "CAE",
+      "CA3+",
+      "3+ SE preamp (also credited as Custom Audio Amplifiers)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      41,
+      42,
+      117
+    ]
+  },
+  {
+    "Id": "cameron-ccv",
+    "Manufacturer": "Cameron",
+    "Name": "CCV-100",
+    "Aliases": [
+      "CCV",
+      "CCV-100"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      63,
+      64,
+      208,
+      209,
+      210,
+      211
+    ]
+  },
+  {
+    "Id": "hook-captain",
+    "Manufacturer": "Hook",
+    "Name": "Captain 34",
+    "Aliases": [
+      "Captain Classic 34"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      250,
+      251,
+      252,
+      253,
+      254,
+      255
+    ]
+  },
+  {
+    "Id": "carr-rambler",
+    "Manufacturer": "Carr",
+    "Name": "Rambler",
+    "Aliases": [
+      "Rambler"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      158
+    ]
+  },
+  {
+    "Id": "carolann-od2",
+    "Manufacturer": "Carol-Ann",
+    "Name": "OD-2",
+    "Aliases": [
+      "OD-2",
+      "OD2r",
+      "OD-2 / OD2r"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      45
+    ]
+  },
+  {
+    "Id": "carolann-triptik",
+    "Manufacturer": "Carol-Ann",
+    "Name": "Triptik",
+    "Aliases": [
+      "Triptik"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      133,
+      134,
+      135
+    ]
+  },
+  {
+    "Id": "carolann-tucana",
+    "Manufacturer": "Carol-Ann",
+    "Name": "Tucana 3",
+    "Aliases": [
+      "Tucana 3"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      183,
+      205
+    ]
+  },
+  {
+    "Id": "orange-ad30",
+    "Manufacturer": "Orange",
+    "Name": "AD30HTC",
+    "Aliases": [
+      "AD30HTC"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      162,
+      163
+    ]
+  },
+  {
+    "Id": "orange-rockerverb",
+    "Manufacturer": "Orange",
+    "Name": "Rockerverb 50 MkII",
+    "Aliases": [
+      "RV50",
+      "Citrus",
+      "Rockerverb 50 MkII"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      49
+    ]
+  },
+  {
+    "Id": "orange-tinyterror",
+    "Manufacturer": "Orange",
+    "Name": "Tiny Terror",
+    "Aliases": [
+      "Tiny Terror"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      161
+    ]
+  },
+  {
+    "Id": "vox-ac15",
+    "Manufacturer": "Vox",
+    "Name": "AC15",
+    "Aliases": [
+      "Class A",
+      "Top Boost",
+      "AC15 Top Boost"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      6
+    ]
+  },
+  {
+    "Id": "vox-ac30",
+    "Manufacturer": "Vox",
+    "Name": "AC30",
+    "Aliases": [
+      "Class A",
+      "Top Boost",
+      "AC30TBX",
+      "AC30HW head",
+      "AC30 Bright (exact revision uncertain)",
+      "AC30 basis with alternate Matchless DC-30 tone stack"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      7,
+      8,
+      188,
+      326
+    ]
+  },
+  {
+    "Id": "komet-concorde",
+    "Manufacturer": "Komet",
+    "Name": "Concorde",
+    "Aliases": [
+      "Concorde"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      131
+    ]
+  },
+  {
+    "Id": "cornford-mk50",
+    "Manufacturer": "Cornford",
+    "Name": "MK50 II",
+    "Aliases": [
+      "Cornfed",
+      "Corncob",
+      "MK50 II"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      44
+    ]
+  },
+  {
+    "Id": "diezel-vh4-schematic",
+    "Manufacturer": "Diezel",
+    "Name": "VH4 schematic basis",
+    "Aliases": [
+      "VH4 (schematic-based interpretation)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      58
+    ]
+  },
+  {
+    "Id": "fender-deluxe-brown",
+    "Manufacturer": "Fender",
+    "Name": "Deluxe 6G3",
+    "Aliases": [
+      "Brownface",
+      "Brownface Deluxe 6G3"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      330
+    ]
+  },
+  {
+    "Id": "fender-deluxe-tweed",
+    "Manufacturer": "Fender",
+    "Name": "Deluxe Tweed",
+    "Aliases": [
+      "5E3",
+      "1957 Tweed Deluxe 5E3"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      99,
+      283
+    ]
+  },
+  {
+    "Id": "fender-deluxe-reverb",
+    "Manufacturer": "Fender",
+    "Name": "Deluxe Reverb",
+    "Aliases": [
+      "Blackface Deluxe",
+      "1965 blackface Deluxe Reverb AB763"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      3,
+      224
+    ]
+  },
+  {
+    "Id": "friedman-dirty-shirley",
+    "Manufacturer": "Friedman",
+    "Name": "Dirty Shirley",
+    "Aliases": [
+      "Dirty Shirley 40W (later revision)",
+      "Dirty Shirley 40W (earlier revision)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      89,
+      256
+    ]
+  },
+  {
+    "Id": "div13-cj11",
+    "Manufacturer": "Divided by 13",
+    "Name": "CJ11",
+    "Aliases": [
+      "Div/13 CJ",
+      "CJ11"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      85,
+      214
+    ]
+  },
+  {
+    "Id": "div13-ftr37",
+    "Manufacturer": "Divided by 13",
+    "Name": "FTR 37",
+    "Aliases": [
+      "FTR 37"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      164,
+      165
+    ]
+  },
+  {
+    "Id": "diezel-vh4",
+    "Manufacturer": "Diezel",
+    "Name": "VH4",
+    "Aliases": [
+      "Dizzy V4",
+      "Das Metall",
+      "VH4 Blue revision"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      92
+    ]
+  },
+  {
+    "Id": "diezel-vh4-silver",
+    "Manufacturer": "Diezel",
+    "Name": "VH4 Silver",
+    "Aliases": [
+      "VH4 Silver revision"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      189,
+      190,
+      191
+    ]
+  },
+  {
+    "Id": "fender-twin-reverb",
+    "Manufacturer": "Fender",
+    "Name": "Twin Reverb",
+    "Aliases": [
+      "Double Verb",
+      "1966 blackface Twin Reverb"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      4,
+      225
+    ]
+  },
+  {
+    "Id": "fender-twin-reverb-silver",
+    "Manufacturer": "Fender",
+    "Name": "Twin Reverb Silverface",
+    "Aliases": [
+      "1971 silverface Twin Reverb"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      218
+    ]
+  },
+  {
+    "Id": "fender-bassman-dweezil",
+    "Manufacturer": "Fender",
+    "Name": "Dweezil's modified Bassman",
+    "Aliases": [
+      "1965 Bassman AB165 modified by Blankenship"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      245
+    ]
+  },
+  {
+    "Id": "engl-powerball",
+    "Manufacturer": "ENGL",
+    "Name": "Powerball",
+    "Aliases": [
+      "Energyball",
+      "Powerball"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      51
+    ]
+  },
+  {
+    "Id": "bogner-ecstasy",
+    "Manufacturer": "Bogner",
+    "Name": "Ecstasy 20th Anniversary",
+    "Aliases": [
+      "Euro Blue",
+      "Euro Red",
+      "Ecstasy 20th Anniversary"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      29,
+      30,
+      139,
+      140
+    ]
+  },
+  {
+    "Id": "bogner-uberschall",
+    "Manufacturer": "Bogner",
+    "Name": "Uberschall",
+    "Aliases": [
+      "Euro Uber",
+      "Uberschall"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      33
+    ]
+  },
+  {
+    "Id": "fas-75",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas 6160",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      75
+    ]
+  },
+  {
+    "Id": "fas-289",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Buttery",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      289
+    ]
+  },
+  {
+    "Id": "fas-167",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Class-A",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      167
+    ]
+  },
+  {
+    "Id": "fas-272",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Express",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      272
+    ]
+  },
+  {
+    "Id": "fas-229",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Hot Rod",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      229
+    ]
+  },
+  {
+    "Id": "fas-55",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Lead 1",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      55
+    ]
+  },
+  {
+    "Id": "fas-56",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Lead 2",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      56
+    ]
+  },
+  {
+    "Id": "fas-57",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Modern",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      57
+    ]
+  },
+  {
+    "Id": "fas-54",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Rhythm",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      54
+    ]
+  },
+  {
+    "Id": "fas-327",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Stealth Blue",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      327
+    ]
+  },
+  {
+    "Id": "fas-72",
+    "Manufacturer": "Fractal originals",
+    "Name": "Fas Wreck",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      72
+    ]
+  },
+  {
+    "Id": "fuchs-ods",
+    "Manufacturer": "Fuchs",
+    "Name": "Overdrive Supreme 50",
+    "Aliases": [
+      "Fox ODS",
+      "Overdrive Supreme 50"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      107
+    ]
+  },
+  {
+    "Id": "friedman-be",
+    "Manufacturer": "Friedman",
+    "Name": "BE-100 (later)",
+    "Aliases": [
+      "Brown Eye",
+      "Hairy Brown Eye",
+      "BE-100 later revision"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      37,
+      38,
+      243,
+      244,
+      246,
+      247,
+      259,
+      260,
+      262
+    ]
+  },
+  {
+    "Id": "friedman-smallbox",
+    "Manufacturer": "Friedman",
+    "Name": "Smallbox",
+    "Aliases": [
+      "Smallbox 50W"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      212
+    ]
+  },
+  {
+    "Id": "fryette-d60",
+    "Manufacturer": "Fryette",
+    "Name": "Deliverance 60 Series II",
+    "Aliases": [
+      "D60",
+      "Deliverance 60 Series II"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      47
+    ]
+  },
+  {
+    "Id": "gibson-scout",
+    "Manufacturer": "Gibson",
+    "Name": "GA-17RVT Scout",
+    "Aliases": [
+      "Gibtone",
+      "GA-17RVT Scout"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      112
+    ]
+  },
+  {
+    "Id": "diezel-herbert",
+    "Manufacturer": "Diezel",
+    "Name": "Herbert",
+    "Aliases": [
+      "Herbie",
+      "Herbert (earlier revision)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      86,
+      87,
+      88
+    ]
+  },
+  {
+    "Id": "hiwatt-dr103",
+    "Manufacturer": "Hiwatt",
+    "Name": "DR103",
+    "Aliases": [
+      "HiPower",
+      "DR103"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      16,
+      17,
+      144
+    ]
+  },
+  {
+    "Id": "badcat-hotcat",
+    "Manufacturer": "Bad Cat",
+    "Name": "Hot Cat 30",
+    "Aliases": [
+      "Hot Kitty",
+      "Hot Cat 30"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      108
+    ]
+  },
+  {
+    "Id": "roland-jc120",
+    "Manufacturer": "Roland",
+    "Name": "Jazz Chorus JC-120",
+    "Aliases": [
+      "Jazz 120",
+      "JC-120"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      50
+    ]
+  },
+  {
+    "Id": "fender-blues-junior",
+    "Manufacturer": "Fender",
+    "Name": "Blues Junior",
+    "Aliases": [
+      "Junior Blues",
+      "Blues Junior"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      5,
+      184
+    ]
+  },
+  {
+    "Id": "marshall-jvm410hjs",
+    "Manufacturer": "Marshall",
+    "Name": "JVM410HJS",
+    "Aliases": [
+      "JVM410HJS Joe Satriani signature"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      239,
+      240,
+      241,
+      242
+    ]
+  },
+  {
+    "Id": "carvin-legacy",
+    "Manufacturer": "Carvin",
+    "Name": "Legacy VL100",
+    "Aliases": [
+      "Legacy VL100"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      76
+    ]
+  },
+  {
+    "Id": "carvin-legacy3",
+    "Manufacturer": "Carvin",
+    "Name": "Legacy 3 VL300",
+    "Aliases": [
+      "Legacy 3 VL300"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      249
+    ]
+  },
+  {
+    "Id": "matchless-dc30",
+    "Manufacturer": "Matchless",
+    "Name": "DC-30",
+    "Aliases": [
+      "DC-30"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      166,
+      271
+    ]
+  },
+  {
+    "Id": "drz-route66",
+    "Manufacturer": "Dr. Z",
+    "Name": "Route 66",
+    "Aliases": [
+      "Route 66"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      197
+    ]
+  },
+  {
+    "Id": "drz-maz38",
+    "Manufacturer": "Dr. Z",
+    "Name": "Maz 38 SR",
+    "Aliases": [
+      "MZ38",
+      "Maz 38 SR"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      40
+    ]
+  },
+  {
+    "Id": "swart-atomic",
+    "Manufacturer": "Swart",
+    "Name": "Atomic Space Tone",
+    "Aliases": [
+      "Nuclear Tone",
+      "Atomic Space Tone"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      123
+    ]
+  },
+  {
+    "Id": "dumble-ods",
+    "Manufacturer": "Dumble",
+    "Name": "Overdrive Special",
+    "Aliases": [
+      "ODS",
+      "HRM",
+      "Ford",
+      "Overdrive Special (clean; reference revision disputed)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      52
+    ]
+  },
+  {
+    "Id": "dumble-ods-ford",
+    "Manufacturer": "Dumble",
+    "Name": "Overdrive Special Ford basis",
+    "Aliases": [
+      "Overdrive Special #102 Ford schematic basis"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      150,
+      156,
+      196
+    ]
+  },
+  {
+    "Id": "dumble-ods-hrm",
+    "Manufacturer": "Dumble",
+    "Name": "Overdrive Special HRM",
+    "Aliases": [
+      "Overdrive Special HRM"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      53,
+      138
+    ]
+  },
+  {
+    "Id": "marshall-plexi-100-1970",
+    "Manufacturer": "Marshall",
+    "Name": "Plexi 100W (1970)",
+    "Aliases": [
+      "1970 Plexi 100W"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      238
+    ]
+  },
+  {
+    "Id": "marshall-plexi-100",
+    "Manufacturer": "Marshall",
+    "Name": "Plexi 100W (1969)",
+    "Aliases": [
+      "Super Lead",
+      "1959",
+      "1969 Plexi 100W"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      126,
+      127,
+      145
+    ]
+  },
+  {
+    "Id": "marshall-jmp2204",
+    "Manufacturer": "Marshall",
+    "Name": "JMP 2204 (Plexi topology)",
+    "Aliases": [
+      "1981 JMP 2204 50W (Plexi topology)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      261
+    ]
+  },
+  {
+    "Id": "marshall-plexi-50-6550",
+    "Manufacturer": "Marshall",
+    "Name": "Plexi 50W 6550",
+    "Aliases": [
+      "1972 Plexi 50W with 6550 power tubes"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      228
+    ]
+  },
+  {
+    "Id": "marshall-plexi-50-6ca7",
+    "Manufacturer": "Marshall",
+    "Name": "Plexi 50W 6CA7",
+    "Aliases": [
+      "Plexi 50W with 6CA7 power tubes"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      277
+    ]
+  },
+  {
+    "Id": "marshall-plexi-50",
+    "Manufacturer": "Marshall",
+    "Name": "Plexi 50W (1967)",
+    "Aliases": [
+      "Super Lead",
+      "1967 Plexi 50W"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      10,
+      11,
+      141,
+      234
+    ]
+  },
+  {
+    "Id": "marshall-sv20h",
+    "Manufacturer": "Marshall",
+    "Name": "Studio Vintage SV20H",
+    "Aliases": [
+      "Studio Vintage SV20H"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      299
+    ]
+  },
+  {
+    "Id": "ampeg-portaflex",
+    "Manufacturer": "Ampeg",
+    "Name": "Portaflex (submodel unresolved)",
+    "Aliases": [
+      "Portaflex family; exact submodel unresolved"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "partially resolved; see evidence",
+    "ModelIds": [
+      263
+    ]
+  },
+  {
+    "Id": "fender-princeton-5f2",
+    "Manufacturer": "Fender",
+    "Name": "Princeton 5F2",
+    "Aliases": [
+      "Tweed Princeton",
+      "Tweed Princeton 5F2-A"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      79
+    ]
+  },
+  {
+    "Id": "fender-princeton-aa964",
+    "Manufacturer": "Fender",
+    "Name": "Princeton AA964",
+    "Aliases": [
+      "Princetone",
+      "Silverface Princeton AA964 without reverb"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      95
+    ]
+  },
+  {
+    "Id": "fender-princeton-reverb",
+    "Manufacturer": "Fender",
+    "Name": "Princeton Reverb",
+    "Aliases": [
+      "Princetone",
+      "1966 blackface Princeton Reverb (circuit unverified)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      130
+    ]
+  },
+  {
+    "Id": "peavey-5150",
+    "Manufacturer": "Peavey",
+    "Name": "5150 Block Letter",
+    "Aliases": [
+      "6160",
+      "EVH",
+      "5150 Block Letter"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      39
+    ]
+  },
+  {
+    "Id": "peavey-5150-crunch-unresolved",
+    "Manufacturer": "Peavey",
+    "Name": "5150 / 6505 Crunch (unresolved)",
+    "Aliases": [
+      "5150 Block Letter or 6505; sources disagree"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "partially resolved; see evidence",
+    "ModelIds": [
+      298
+    ]
+  },
+  {
+    "Id": "peavey-6505plus",
+    "Manufacturer": "Peavey",
+    "Name": "6505+",
+    "Aliases": [
+      "6160+",
+      "5150 II",
+      "6505+ (5150 II lineage)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      113,
+      230,
+      231,
+      275
+    ]
+  },
+  {
+    "Id": "mesa-rectifier-2channel",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Dual Rectifier (2-channel)",
+    "Aliases": [
+      "Dual Rectifier, original 2-channel generation"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      148,
+      149,
+      174
+    ]
+  },
+  {
+    "Id": "mesa-rectifier-3channel",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Dual Rectifier (3-channel)",
+    "Aliases": [
+      "Dual Rectifier, later 3-channel generation"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      25,
+      26,
+      27,
+      28
+    ]
+  },
+  {
+    "Id": "revv-generator120",
+    "Manufacturer": "Revv",
+    "Name": "Generator 120 MkIII",
+    "Aliases": [
+      "Generator 120 MkIII revision A"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      303,
+      304,
+      307
+    ]
+  },
+  {
+    "Id": "paulruby-rocket",
+    "Manufacturer": "Paul Ruby",
+    "Name": "Rocket",
+    "Aliases": [
+      "Rocket"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      128,
+      236
+    ]
+  },
+  {
+    "Id": "bogner-shiva",
+    "Manufacturer": "Bogner",
+    "Name": "Shiva 20th Anniversary",
+    "Aliases": [
+      "Shiver",
+      "Shiva 20th Anniversary"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      31,
+      32
+    ]
+  },
+  {
+    "Id": "soldano-x88",
+    "Manufacturer": "Soldano",
+    "Name": "X88R",
+    "Aliases": [
+      "Solo 88",
+      "X88R preamp"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      84,
+      185,
+      232
+    ]
+  },
+  {
+    "Id": "soldano-x99",
+    "Manufacturer": "Soldano",
+    "Name": "X99",
+    "Aliases": [
+      "Solo 99",
+      "Soldano/Caswell X99 preamp"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      34,
+      69,
+      278
+    ]
+  },
+  {
+    "Id": "soldano-slo100",
+    "Manufacturer": "Soldano",
+    "Name": "SLO-100",
+    "Aliases": [
+      "Solo 100",
+      "SLO-100"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      35,
+      36,
+      114
+    ]
+  },
+  {
+    "Id": "splawn-nitro",
+    "Manufacturer": "Splawn",
+    "Name": "Nitro",
+    "Aliases": [
+      "Nitrous",
+      "Nitro"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      104,
+      235
+    ]
+  },
+  {
+    "Id": "splawn-quickrod",
+    "Manufacturer": "Splawn",
+    "Name": "Quick Rod",
+    "Aliases": [
+      "Quickrod",
+      "Q-Rod",
+      "Quick Rod"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      100,
+      101,
+      102,
+      202,
+      203,
+      204
+    ]
+  },
+  {
+    "Id": "suhr-badger18",
+    "Manufacturer": "Suhr",
+    "Name": "Badger 18",
+    "Aliases": [
+      "Badger 18"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      93
+    ]
+  },
+  {
+    "Id": "suhr-badger30",
+    "Manufacturer": "Suhr",
+    "Name": "Badger 30",
+    "Aliases": [
+      "Badger 30"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      94
+    ]
+  },
+  {
+    "Id": "fender-super-reverb",
+    "Manufacturer": "Fender",
+    "Name": "Super Reverb",
+    "Aliases": [
+      "Super Verb",
+      "1964 blackface Super Reverb AB763"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      110,
+      226
+    ]
+  },
+  {
+    "Id": "fas-70",
+    "Manufacturer": "Fractal originals",
+    "Name": "Supertweed",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      70
+    ]
+  },
+  {
+    "Id": "supro-1964t",
+    "Manufacturer": "Supro",
+    "Name": "1964T",
+    "Aliases": [
+      "Supremo Trem",
+      "1964T"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      96
+    ]
+  },
+  {
+    "Id": "supro-blackmagick",
+    "Manufacturer": "Supro",
+    "Name": "1695T Black Magick",
+    "Aliases": [
+      "1695T Black Magick"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      329
+    ]
+  },
+  {
+    "Id": "ampeg-svt",
+    "Manufacturer": "Ampeg",
+    "Name": "SVT",
+    "Aliases": [
+      "SV Bass",
+      "SVT"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      264
+    ]
+  },
+  {
+    "Id": "mesa-lonestar",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Lone Star Classic",
+    "Aliases": [
+      "Lonestar",
+      "Texas Star",
+      "Lone Star Classic"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      71,
+      179
+    ]
+  },
+  {
+    "Id": "fas-thordendal",
+    "Manufacturer": "Fractal originals",
+    "Name": "Thordendal",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      136
+    ]
+  },
+  {
+    "Id": "fender-tremolux",
+    "Manufacturer": "Fender",
+    "Name": "Tremolux",
+    "Aliases": [
+      "Tremolo Lux",
+      "Blackface Tremolux AA763"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      172
+    ]
+  },
+  {
+    "Id": "mesa-triplecrown",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Triple Crown TC-100",
+    "Aliases": [
+      "Triple Crown TC-100"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      273,
+      274
+    ]
+  },
+  {
+    "Id": "fas-66",
+    "Manufacturer": "Fractal originals",
+    "Name": "Tube Pre",
+    "Aliases": [
+      "Fractal Audio original / virtual design"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "Fractal-original; two-source classification",
+    "ModelIds": [
+      66
+    ]
+  },
+  {
+    "Id": "tworock-jet35",
+    "Manufacturer": "Two-Rock",
+    "Name": "Jet 35",
+    "Aliases": [
+      "Two Stone",
+      "J35",
+      "Jet 35"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      106,
+      155
+    ]
+  },
+  {
+    "Id": "mesa-bass400",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Bass 400",
+    "Aliases": [
+      "Bass 400"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      168
+    ]
+  },
+  {
+    "Id": "mesa-jp2c",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "JP-2C",
+    "Aliases": [
+      "JP-2C"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      266,
+      267,
+      268,
+      284,
+      285
+    ]
+  },
+  {
+    "Id": "mesa-subwayblues",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Subway Blues",
+    "Aliases": [
+      "Subway Blues"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      159
+    ]
+  },
+  {
+    "Id": "mesa-markiic",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Mark IIC+",
+    "Aliases": [
+      "MK IIC",
+      "Mark II",
+      "Mark IIC+"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      22,
+      216
+    ]
+  },
+  {
+    "Id": "mesa-markiic-modified",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Mark IIC++ (custom)",
+    "Aliases": [
+      "Mark IIC+ custom Metallica variant"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      248
+    ]
+  },
+  {
+    "Id": "mesa-markiv",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Mark IV",
+    "Aliases": [
+      "MK IV",
+      "MKIV",
+      "Mark IV"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      18,
+      20,
+      24,
+      77,
+      78
+    ]
+  },
+  {
+    "Id": "mesa-markv",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "Mark V",
+    "Aliases": [
+      "Mark V"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      317,
+      320,
+      322,
+      324
+    ]
+  },
+  {
+    "Id": "mesa-triaxis",
+    "Manufacturer": "Mesa/Boogie",
+    "Name": "TriAxis",
+    "Aliases": [
+      "USA Pre",
+      "TriAxis preamp"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      19,
+      115,
+      116,
+      177,
+      178
+    ]
+  },
+  {
+    "Id": "fender-vibroking",
+    "Manufacturer": "Fender",
+    "Name": "Vibro-King",
+    "Aliases": [
+      "Vibra King",
+      "Vibro-King custom reference amp"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      111,
+      201
+    ]
+  },
+  {
+    "Id": "fender-vibrolux",
+    "Manufacturer": "Fender",
+    "Name": "Vibrolux",
+    "Aliases": [
+      "Vibrato Lux",
+      "Brownface Vibrolux 6G11 (1962/1963)"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      121
+    ]
+  },
+  {
+    "Id": "fender-vibroverb",
+    "Manufacturer": "Fender",
+    "Name": "Vibroverb (legacy)",
+    "Aliases": [
+      "Vibrato Verb",
+      "Vibroverb legacy model"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      2
+    ]
+  },
+  {
+    "Id": "fender-vibroverb-aa",
+    "Manufacturer": "Fender",
+    "Name": "Vibroverb AA763",
+    "Aliases": [
+      "1964 blackface Vibroverb AA763"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      181
+    ]
+  },
+  {
+    "Id": "fender-vibroverb-ab",
+    "Manufacturer": "Fender",
+    "Name": "Vibroverb AB763",
+    "Aliases": [
+      "Vibroverb AB763"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf\nhttps://shop.fractalaudio.com/products/icons-fullerton-complete",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      182
+    ]
+  },
+  {
+    "Id": "trainwreck-express",
+    "Manufacturer": "Trainwreck",
+    "Name": "Express",
+    "Aliases": [
+      "Wrecker",
+      "Express"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      154,
+      269
+    ]
+  },
+  {
+    "Id": "trainwreck-liverpool",
+    "Manufacturer": "Trainwreck",
+    "Name": "Liverpool",
+    "Aliases": [
+      "Liverpool"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      160,
+      270
+    ]
+  },
+  {
+    "Id": "trainwreck-rocket",
+    "Manufacturer": "Trainwreck",
+    "Name": "Rocket",
+    "Aliases": [
+      "Rocket"
+    ],
+    "Source": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json\nhttps://wiki.fractalaudio.com/wiki/index.php?title=Amp_models\nhttps://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf",
+    "Confidence": "two-source corroborated; shared source lineage",
+    "ModelIds": [
+      43
+    ]
+  }
+]

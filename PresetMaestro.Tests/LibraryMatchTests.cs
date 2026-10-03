@@ -32,18 +32,20 @@ public sealed class LibraryMatchTests
     }
 
     [Fact]
-    public void SamplesExcludeEmptiesAndDuplicatesAndCoverTheLibrary()
+    public void SamplesChooseSixteenRandomPopulatedSlotsWithoutReplacement()
     {
         var baseline = Baseline(512);
         baseline.Presets[10] = baseline.Presets[10] with { Name = "<EMPTY>" };
         baseline.Presets[11] = baseline.Presets[11] with { ContentSha256 = baseline.Presets[0].ContentSha256 };
-        var slots = LibraryMatch.SampleSlots(baseline);
-        Assert.Equal(12, slots.Length);
-        Assert.Equal(0, slots[0]); Assert.Equal(511, slots[^1]);
-        Assert.DoesNotContain(10, slots); Assert.DoesNotContain(11, slots);
+        var slots = LibraryMatch.SampleSlots(baseline, random: new Random(123));
+        Assert.Equal(16, slots.Length);
+        Assert.Equal(16, slots.Distinct().Count());
+        Assert.DoesNotContain(10, slots);
+        Assert.Equal(slots, LibraryMatch.SampleSlots(baseline, random: new Random(123)));
+        Assert.False(slots.SequenceEqual(LibraryMatch.SampleSlots(baseline, random: new Random(456))));
         var observed = slots.ToDictionary(i => i, i => baseline.Presets[i]);
         var result = LibraryMatch.Compare(baseline, observed, true, "Stage", "12.00", slots);
-        Assert.Contains("12 of 12 sampled", result.Describe(99));
+        Assert.Contains("16 of 16 sampled", result.Describe(99));
         Assert.True(result.MeetsThreshold(99));
         observed.Remove(slots[0]);
         result = LibraryMatch.Compare(baseline, observed, true, "Stage", "12.00", slots);
@@ -52,11 +54,35 @@ public sealed class LibraryMatchTests
         Assert.Contains("unconfirmed", result.Describe(1));
     }
 
+    [Fact]
+    public void SmallSamplesIncludeAllPopulatedSlotsAndSceneChangesPreventAMatch()
+    {
+        var baseline = Baseline(8);
+        baseline.Presets[7] = baseline.Presets[7] with { NameOnlyEmpty = true };
+        var slots = LibraryMatch.SampleSlots(baseline);
+        Assert.Equal(Enumerable.Range(0, 7), slots.Order());
+        var observed = slots.ToDictionary(slot => slot, slot => baseline.Presets[slot]);
+        observed[2] = observed[2] with { SceneNames = ["Changed", .. observed[2].SceneNames.Skip(1)] };
+        var result = LibraryMatch.Compare(baseline, observed, true, "Stage", "12.00", slots);
+        Assert.Equal(6, result.Matched);
+        Assert.False(result.MeetsThreshold(99));
+    }
+
+    [Fact]
+    public void FullMatchCannotIgnoreAnUnavailablePreviouslyEmptySlot()
+    {
+        var baseline = Baseline(2);
+        var result = LibraryMatch.Compare(baseline, baseline.Presets, false, "Stage", "12.00", [0, 1, 2]);
+        Assert.Equal(1, result.Failed);
+        Assert.False(result.MeetsThreshold(1));
+    }
+
     [Theory]
     [InlineData("Different", "12.00")]
     [InlineData(null, "12.00")]
     [InlineData("Stage", "13.00")]
-    public void MetadataDifferencesPreventAutomaticAcceptance(string? name, string firmware)
+    [InlineData("Stage", null)]
+    public void MetadataDifferencesPreventAutomaticAcceptance(string? name, string? firmware)
     {
         var baseline = Baseline(3);
         var result = LibraryMatch.Compare(baseline, baseline.Presets, false, name, firmware);

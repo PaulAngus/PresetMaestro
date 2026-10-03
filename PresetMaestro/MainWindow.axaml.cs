@@ -14,7 +14,7 @@ namespace PresetMaestro;
 public partial class MainWindow : Window
 {
     private enum EntryMode { Preset, Favorite }
-    private enum AppPage { PresetSender, Favorites, Config, Diagnostics, ManageProfiles, PresetIndex, ManageLibraries }
+    private enum AppPage { PresetSender, Favorites, Config, Diagnostics, ManageProfiles, PresetIndex, ManageLibraries, Amps }
     partial void InitializeLibraryManagement(ContentControl host, Action showConfig);
     partial void RefreshIndexContext();
     partial void UpdateIndexButtons();
@@ -139,7 +139,7 @@ public partial class MainWindow : Window
         // Buttons and list controls consume Enter before the window's bubbling handler sees it.
         // Once a command has been entered, Enter should send it regardless of which non-editor
         // control currently owns keyboard focus.
-        if (_currentPage is not (AppPage.ManageProfiles or AppPage.PresetIndex or AppPage.ManageLibraries) && _settings.KeyboardEntryEnabled &&
+        if (_currentPage is not (AppPage.ManageProfiles or AppPage.PresetIndex or AppPage.ManageLibraries or AppPage.Amps) && _settings.KeyboardEntryEnabled &&
             e.Key == Key.Enter &&
             _enteredDigits.Length > 0 &&
             FocusManager?.GetFocusedElement() is not TextBox && !FavoriteSearchHasFocus)
@@ -153,7 +153,7 @@ public partial class MainWindow : Window
     {
         base.OnKeyDown(e);
 
-        if (_currentPage is AppPage.ManageProfiles or AppPage.PresetIndex or AppPage.ManageLibraries || !_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
+        if (_currentPage is AppPage.ManageProfiles or AppPage.PresetIndex or AppPage.ManageLibraries or AppPage.Amps || !_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
         {
             return;
         }

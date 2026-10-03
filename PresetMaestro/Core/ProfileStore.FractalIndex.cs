@@ -75,6 +75,10 @@ public sealed partial class ProfileStore
         profile.PortableSnapshots = profile.Devices.Select(device => library.Load(device.Id)
             ?? profile.PortableSnapshots.FirstOrDefault(cache => cache.Device.Id == device.Id)
             ?? new DeviceIndex { Device = device }).Select(IndexJson.Clone).ToList();
+        var relevant = profile.PortableSnapshots.SelectMany(cache => AmpBrowserCatalog.Build(cache).Families)
+            .SelectMany(f => f.Variants.Select(v => v.Id).Append(f.Family.Id)).ToHashSet();
+        profile.PortableAmpReferences = AmpReferenceStore.Validate(profile.PortableAmpReferences.Concat(
+            new AmpReferenceStore(Path.Combine(DirectoryPath, "amp-references.json")).Load().Where(r => relevant.Contains(r.CatalogId))));
         settings.FractalIndex = IndexJson.ToElement(profile);
     }
 

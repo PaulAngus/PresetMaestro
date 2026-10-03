@@ -4,7 +4,7 @@ using PresetNameSync.Core;
 
 namespace PresetMaestro.Midi;
 
-public sealed record FractalDeviceInformation(DeviceModel Model, string? DeviceName)
+public sealed record FractalDeviceInformation(DeviceModel Model, string? DeviceName, string? Firmware = null)
 {
     // null means unverified/unavailable, not a successfully decoded blank name.
     public string Label => DeviceName is null ? ModelLabel : $"{ModelLabel} · {(string.IsNullOrWhiteSpace(DeviceName) ? "Unnamed device" : DeviceName)}";
@@ -27,6 +27,27 @@ public sealed class FractalDeviceInformationClient
 
     // Captured FM9-Edit discovery: broadcast WHO_AM_I, not the rejected 0x46 request.
     public static byte[] BuildDeviceInformationRequest() => [0xf0, 0, 1, 0x74, 0x7f, 0, 0x7a, 0xf7];
+
+    public static byte[] BuildFirmwareRequest(byte modelByte)
+    {
+        if (!TryMapModel(modelByte, out _)) { throw new ArgumentOutOfRangeException(nameof(modelByte)); }
+        // Gen-3 read used by ToneCommand on FM9 and ForgeFX on FM3. See the
+        // pinned protocol sources in FRACTAL-DEVICE-INFORMATION.md.
+        byte[] request = [0xf0, 0, 1, 0x74, modelByte, 0x08, 0, 0xf7];
+        request[^2] = SysexProtocol.ComputeChecksum(request.AsSpan(0, request.Length - 2));
+        return request;
+    }
+
+    public static bool TryParseFirmwareResponse(ReadOnlySpan<byte> message, byte expectedModel, out string? firmware)
+    {
+        firmware = null;
+        // Version bytes must be payload, never the checksum/end of a loopback query.
+        // Remaining payload contains reserved/build information, not version digits.
+        if (!TryValidateFractalFrame(message) || message.Length < 10 ||
+            message[4] != expectedModel || message[5] != 0x08) { return false; }
+        firmware = FormattableString.Invariant($"{message[6]}.{message[7]:00}");
+        return true;
+    }
 
     public static byte[] BuildDeviceNameRequest(byte modelByte)
     {
@@ -133,7 +154,13 @@ public sealed class FractalDeviceInformationClient
             {
                 throw new InvalidDataException("Invalid Fractal identity response.");
             }
-            var identified = new FractalDeviceInformation(model, null);
+            byte[]? firmwareResponse = await ExchangeAsync(BuildFirmwareRequest(identity[4]), frame =>
+                TryParseFirmwareResponse(frame, identity[4], out _), redact: false).ConfigureAwait(false);
+            string? firmware = null;
+            if (firmwareResponse is not null) { TryParseFirmwareResponse(firmwareResponse, identity[4], out firmware); }
+            if (firmware is null) { _log("FRACTAL: firmware read unavailable; no version will be inferred from the model or library."); }
+            else { _log($"FRACTAL: detected firmware {firmware}."); }
+            var identified = new FractalDeviceInformation(model, null, firmware);
             if (identity[4] != 0x12)
             {
                 _log($"FRACTAL: {identified.ModelLabel} identified; name read awaits a captured transaction for this model.");
@@ -141,7 +168,7 @@ public sealed class FractalDeviceInformationClient
             }
             byte[]? response = await ExchangeAsync(BuildDeviceNameRequest(identity[4]), frame =>
                 TryParseDeviceNameResponse(frame, out _), redact: true).ConfigureAwait(false);
-            if (response is not null && TryParseDeviceNameResponse(response, out var name)) { return new(model, name); }
+            if (response is not null && TryParseDeviceNameResponse(response, out var name)) { return identified with { DeviceName = name }; }
             _log("FRACTAL: identity validated; name read timed out or returned an unrecognized payload.");
             return identified;
         }

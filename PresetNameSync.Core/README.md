@@ -1,6 +1,6 @@
 # PresetNameSync.Core
 
-Shared, read-only preset/scene-name and stored-dump parsing used by the controller and probe applications. For user instructions, start with the [main README](../README.md).
+Shared, read-only preset/scene-name and stored-dump parsing used by the application. For user instructions, start with the [main README](../README.md).
 
 The frames below are verified for FM9 only. The controller prevents these queries on FM3 and Axe-Fx III until their corresponding transactions have been captured and tested.
 
@@ -30,6 +30,6 @@ Scene additions:
 - Keep timeout, cancellation, and progress in the caller/UI layer.
 - Add protocol tests before changing the frame format.
 
-The probe project is the hardware investigation harness. Verify new device protocol behavior there first, then expose it through the production MIDI manager and an explicit user action.
+Verify new device protocol behavior with bounded read-only hardware checks before exposing it through the production MIDI manager and an explicit user action. Temporary investigation tools should be removed when the investigation is complete.
 
-Scene-name and stored-dump reads are available in the probe for hardware verification. A read-only FM9 slot-0 stored dump and eight scene names were verified through `MIDI Forwarder` on 2026-09-30 using the probe's MIDI client in a temporary console harness. See [SCENE-NAMES.md](../SCENE-NAMES.md) for the observed scope, wire format, controller workflow, and remaining validation. Passing synthetic tests alone is not a claim of hardware validation.
+A read-only FM9 slot-0 stored dump and eight scene names were verified through `MIDI Forwarder` on 2026-09-30 using a temporary console harness. The obsolete standalone probe and investigation harnesses were removed on 2026-10-03; shared-protocol regression tests are in `PresetMaestro.Tests`. See [SCENE-NAMES.md](../SCENE-NAMES.md) for the observed scope, wire format, application workflow, and remaining validation. Passing synthetic tests alone is not a claim of hardware validation.

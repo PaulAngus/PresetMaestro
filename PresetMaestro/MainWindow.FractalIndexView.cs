@@ -46,14 +46,20 @@ public partial class MainWindow
     partial void RestoreIndexPage(ContentControl host)
     {
         _indexPageControl = BuildIndexPage();
+        _ampsPage = BuildAmpsPage();
         if (_currentPage == AppPage.PresetIndex) { host.Content = _indexPageControl; }
+        if (_currentPage == AppPage.Amps) { host.Content = _ampsPage; }
     }
 
     partial void AddIndexNavigation(StackPanel nav, Func<string, Control, AppPage, EntryMode?, Button> create)
     {
         var button = create("Preset Index", _indexPageControl!, AppPage.PresetIndex, null);
+        _presetIndexNavigation = button;
         button.Click += (_, _) => { RefreshIndexContext(); };
         nav.Children.Add(button);
+        _ampsNavigation = create("Amps", _ampsPage!, AppPage.Amps, null);
+        _ampsNavigation.Click += (_, _) => RefreshIndexContext();
+        nav.Children.Add(_ampsNavigation);
     }
 
     private Control BuildIndexPage()
@@ -89,7 +95,8 @@ public partial class MainWindow
         Grid.SetRow(syncInfo, 1); content.Children.Add(syncInfo);
         var search = BuildIndexSearch(); Grid.SetRow(search, 2); content.Children.Add(search);
         _indexCount = new TextBlock { Name = "IndexResultCount", FontSize = 11, Foreground = SecondaryBrush, Margin = new Thickness(0, 4, 0, 4) };
-        Grid.SetRow(_indexCount, 3); content.Children.Add(_indexCount);
+        var resultsHeading = new StackPanel { Spacing = 4, Children = { BuildAmpFilterRow(), _indexCount } };
+        Grid.SetRow(resultsHeading, 3); content.Children.Add(resultsHeading);
         var results = new Grid { Margin = new Thickness(0, 5, 0, 5), MinHeight = 100 };
         _indexList = new ListBox { Name = "IndexPresetList", Background = SurfaceBrush, BorderThickness = new Thickness(0), ItemContainerTheme = CompactListItemTheme() };
         _indexList.ItemsPanel = new FuncTemplate<Panel?>(() => new IndexTablesPanel());
@@ -226,13 +233,20 @@ public partial class MainWindow
         var scan = _indexCache?.Browsable;
         var chips = _indexSearchChips.ToList();
         if (!string.IsNullOrWhiteSpace(_indexSearchBox?.Text)) { chips.Add(IndexPreviewChip(_indexSearchBox.Text.Trim())); }
-        var saved = scan?.Presets.Values.OrderBy(p => p.Slot).ToArray() ?? [];
+        var saved = scan?.Presets.Values.OrderBy(p => p.Slot).Select(p => AmpBrowserCatalog.ResolveForDisplay(p, scan.Firmware)).ToArray() ?? [];
+        if (_ampContains is not null && (_indexCache is null || _ampContains.DeviceId != _indexCache.Device.Id ||
+            _ampContains.Variant != _indexCache.Device.Variant || !AmpBrowserCatalog.SameFirmware(_ampContains.Firmware, _indexCache.Device.Firmware))) { _ampContains = null; }
+        if (_ampFilterRow is not null)
+        {
+            _ampFilterRow.IsVisible = _ampContains is not null;
+            _ampFilterLabel!.Text = "Contains: " + _ampContains?.Label;
+        }
         // Use exactly the Favorites picker's empty-edge policy. Unknown names and interior gaps remain.
         var visibleSlots = PresetSelection.TrimExplicitEmptyEdges(saved.Select(p => new PresetChoice(p.Slot, p.Name)).ToArray())
             .Select(p => p.Slot).ToHashSet();
         var presets = saved.Where(p => visibleSlots.Contains(p.Slot)).ToArray();
         if (_indexSelectedSlot is int selected && !visibleSlots.Contains(selected)) { _indexSelectedSlot = null; }
-        var filtered = presets.Where(p => IndexSearch.Matches(p, _indexProfile.Find(_indexCache!.Device.Id, p, scan!.Firmware),
+        var filtered = presets.Where(p => (_ampContains is null || _ampContains.AppliesTo(_indexCache) && _ampContains.Matches(p) && MatchesAmpScene(p)) && IndexSearch.Matches(p, _indexProfile.Find(_indexCache!.Device.Id, p, scan!.Firmware),
             chips.Where(c => !c.IsTag).Select(c => c.Value), chips.Where(c => c.IsTag).Select(c => c.Value), _indexAllTags, _settings.DisplayOffset)).ToArray();
         _indexRendering = true;
         _indexList.Items.Clear();
@@ -256,10 +270,26 @@ public partial class MainWindow
             }
             };
             Grid.SetColumn(titleTags, 1); row.Children.Add(titleTags);
+            if (_ampContains is not null)
+            {
+                row.Children.Remove(titleTags);
+                var summary = new StackPanel
+                {
+                    Spacing = 0,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Children =
+                {
+                    titleTags,
+                    new TextBlock { Text = string.Join(" · ", _ampContains.MatchingChannels(preset)), FontSize = 10, Foreground = SecondaryBrush, TextTrimming = TextTrimming.CharacterEllipsis },
+                }
+                };
+                Grid.SetColumn(summary, 1); row.Children.Add(summary);
+            }
             var item = new ListBoxItem { Tag = preset, Content = row, Padding = new Thickness(3, 0), HorizontalContentAlignment = HorizontalAlignment.Stretch };
             AutomationProperties.SetName(item, $"Preset {preset.Slot + _settings.DisplayOffset}: {preset.Name}");
             ToolTip.SetTip(item, string.Join(" · ", new[] { preset.Name }.Concat(annotation?.Tags ?? [])
-                .Concat(annotation?.SceneTags.SelectMany(p => p.Value.Select(t => $"S{p.Key + 1}: {t}")) ?? [])));
+                .Concat(annotation?.SceneTags.SelectMany(p => p.Value.Select(t => $"S{p.Key + 1}: {t}")) ?? [])
+                .Concat(_ampContains?.MatchingChannels(preset) ?? [])));
             _indexList.Items.Add(item);
         }
         _indexList.SelectedItem = _indexList.Items.OfType<ListBoxItem>().FirstOrDefault(i => ((IndexedPreset)i.Tag!).Slot == _indexSelectedSlot);
@@ -269,6 +299,12 @@ public partial class MainWindow
             : _indexScanning && presets.Length == 0 ? "Sync is in progress. Completed reads are being saved; you can cancel and resume."
             : saved.Length > 0 && presets.Length == 0 ? "No populated presets. Empty slots at the start and end are hidden, as in Select Preset."
             : presets.Length == 0 ? "No saved presets have been indexed yet. Connect this device and choose Sync device." : "No presets match this search.";
+        if (_ampContains is not null && filtered.Length == 0)
+        {
+            _indexEmpty.Text = scan is null ? "No saved scan is available. Sync this device to find presets containing this amp."
+                : !_ampContains.AppliesTo(_indexCache) ? "The saved scan uses different firmware. Sync again to check this amp."
+                : "No presets in this saved index match the Contains filter and current search. The amp remains in the Amps directory.";
+        }
         int pending = _indexCache is null ? 0 : _indexProfile.Pending(_indexCache).Count();
         _indexReviewButton!.Content = $"Needs review ({pending})";
         _indexReviewButton.IsVisible = pending > 0 || _indexProfile.ReviewHistory.Count > 0;
@@ -310,6 +346,7 @@ public partial class MainWindow
         _indexInspector.Children.Clear();
         _indexInspectorFrame!.IsVisible = false;
         if (_indexSelectedSlot is not int slot || _indexCache?.Browsable is not { } scan || !scan.Presets.TryGetValue(slot, out var preset)) { return; }
+        preset = AmpBrowserCatalog.ResolveForDisplay(preset, scan.Firmware);
         _indexInspectorFrame.IsVisible = true;
         if (preset.NameOnlyEmpty)
         {
@@ -322,6 +359,10 @@ public partial class MainWindow
         var close = IndexButton("Close", "IndexCloseInspector");
         close.Click += (_, _) => { _indexSelectedSlot = null; _indexList!.SelectedItem = null; RenderIndexInspector(); };
         Grid.SetColumn(close, 1); header.Children.Add(close); _indexInspector.Children.Add(header);
+        if (_ampContains is not null)
+        {
+            _indexInspector.Children.Add(new TextBlock { Name = "IndexAmpMatches", Text = string.Join("   ·   ", _ampContains.MatchingChannels(preset)), Foreground = AccentBrush, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(6, 4) });
+        }
         var scenes = new Grid { Name = "IndexScenes", ColumnDefinitions = new ColumnDefinitions("*,14,*"), RowDefinitions = new RowDefinitions("32,32,32,32,0,0,0,0") };
         for (int scene = 0; scene < 8; scene++)
         {

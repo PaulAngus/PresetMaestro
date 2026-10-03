@@ -21,7 +21,8 @@ public partial class MainWindow
     private bool _refreshingIndex, _indexScanning;
     private ComboBox? _indexAvailableDevices;
     private TextBlock? _indexDeviceLabel, _indexAssignmentLabel;
-    private TextBox? _indexDeviceName, _indexFirmware;
+    private TextBox? _indexDeviceName;
+    private TextBlock? _indexFirmware;
     private ComboBox? _indexVariant;
     private TextBlock? _indexConfigStatus;
 
@@ -48,6 +49,11 @@ public partial class MainWindow
                 ? _indexLibrary.Load(id) ?? _indexProfile.PortableSnapshots.FirstOrDefault(c => c.Device.Id == id)
                     ?? new DeviceIndex { Device = _indexProfile.Devices.Single(d => d.Id == id), Imported = true } : null;
             _indexError = null;
+            if (_profileStore is not null && _indexProfile.PortableAmpReferences.Count > 0)
+            {
+                try { AmpReferences.Merge(_indexProfile.PortableAmpReferences); _ampReferenceError = null; }
+                catch (Exception ex) { _ampReferenceError = "Could not import Wiki links: " + ex.Message; }
+            }
         }
         catch (Exception ex) { _indexError = ex.Message; _indexCache = null; _indexProfile = new(); }
     }
@@ -77,6 +83,7 @@ public partial class MainWindow
         catch (Exception ex) { _indexError = ex.Message; }
         finally { _refreshingIndex = false; }
         RefreshManagedLibraries();
+        RefreshAmpsContext();
         RenderIndexResults();
         UpdateIndexButtons();
     }
@@ -203,13 +210,13 @@ public partial class MainWindow
         _indexResumeButton!.IsEnabled = ready && _indexCache?.LastAttempt is { Status: not "Complete" };
         _indexResumeButton.IsVisible = _indexCache?.LastAttempt is { Status: not "Complete" };
         _indexCancelButton!.IsVisible = _indexScanning || _indexChecking;
-        _indexProgressPanel!.IsVisible = _indexScanning;
+        _indexProgressPanel!.IsVisible = _indexScanning || _indexChecking;
         if (_indexCheckButton is not null) { _indexCheckButton.IsEnabled = ready && _indexCache?.Committed is not null; }
         if (_indexMatchThreshold is not null) { _indexMatchThreshold.IsEnabled = !_indexScanning && !_indexChecking && !_changingProfile; }
         RefreshLibraryMatchStatus();
         UpdateLibraryManagementButtons();
-        if (_indexDeviceLabel is not null) { _indexDeviceLabel.IsVisible = _currentPage == AppPage.PresetIndex; }
-        if (_headerStatusLabel is not null) { _headerStatusLabel.IsVisible = _currentPage != AppPage.PresetIndex; }
+        if (_indexDeviceLabel is not null) { _indexDeviceLabel.IsVisible = _currentPage is AppPage.PresetIndex or AppPage.Amps; }
+        if (_headerStatusLabel is not null) { _headerStatusLabel.IsVisible = _currentPage is not (AppPage.PresetIndex or AppPage.Amps); }
         if (_indexError is not null) { SetIndexMessage(_indexError + " The original data has been preserved."); }
     }
 
@@ -220,6 +227,9 @@ public partial class MainWindow
         int generation = _profileGeneration;
         long connection = _connectionGeneration;
         string? deviceName = _detectedDevice!.DeviceName;
+        // Every new read uses this connection's reported firmware, including null
+        // on failure. Never carry a previous connection's version into a new scan.
+        cache.Device = cache.Device with { Firmware = _detectedDevice.Firmware };
         int threshold = _indexProfile.PresetMatchThresholdPercent;
         var baseline = cache.Committed;
         using var cancellation = new CancellationTokenSource();
@@ -233,6 +243,7 @@ public partial class MainWindow
         UpdatePresetSyncButtons();
         RenderIndexResults();
         string outcome = "";
+        bool libraryUpdated = false;
         try
         {
             if (baseline is null && !await ConfirmProfileAsync("Establish device library",
@@ -259,6 +270,7 @@ public partial class MainWindow
                 _indexProgress.Value = checkedSlots;
                 _indexProgressMessage = $"{checkedSlots * 100 / progress.Total}% · {checkedSlots} of {progress.Total} slots checked · {progress.Read - progress.EmptySkipped} presets read · {progress.EmptySkipped} empty skipped · {progress.Failed} failed";
                 _indexProgressText!.Text = _indexProgressMessage;
+                RefreshConnectionSyncOptions();
             }), cancellation.Token, publish: false, connectedDeviceName: deviceName);
             if (cache.LastAttempt!.Status != "Complete")
             { outcome = "Partial scan saved. Resume to retry missing presets."; return; }
@@ -277,7 +289,8 @@ public partial class MainWindow
             cache.Committed = IndexJson.Clone(candidate);
             cache.Imported = false;
             _indexLibrary.Save(cache);
-            RememberLibraryMatch(cache, match, "Confirmed sync established this library's baseline. Future connections will compare a sample against it.");
+            libraryUpdated = true;
+            RememberLibraryMatch(cache, match, "Confirmed sync established this library's baseline. Choose Quick match or Full match on future connections to compare it.");
             outcome = $"Device index synchronized. {candidate.Presets.Values.Count(p => p.NameOnlyEmpty)} empty slots skipped.";
         }
         catch (OperationCanceledException)
@@ -293,6 +306,11 @@ public partial class MainWindow
             _presetNamesCts = null;
             RefreshIndexContext();
             SetIndexMessage(outcome);
+            SetConnectionSyncOutcome(libraryUpdated ? "Device library synced" : "Library sync needs attention",
+                outcome,
+                libraryUpdated ? "Next: Choose Done to continue. Preset Index and Amps now use the refreshed library."
+                    : cache.LastAttempt is { Status: not "Complete" } ? "Next: Choose Resume to retry missing presets, or Done to use the data already saved."
+                        : "Next: Choose Sync library to review an update, or Done to keep the previous library.", needsAttention: !libraryUpdated);
             UpdatePresetSyncButtons();
         }
     }

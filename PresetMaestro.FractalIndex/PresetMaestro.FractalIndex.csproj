@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Catalog/*.json" />
+    <Content Include="Catalog/*.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="..\PresetNameSync.Core\PresetNameSync.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -1,5 +1,6 @@
 #if FRACTAL_INDEX
 using Avalonia.Controls;
+using Avalonia.Threading;
 using PresetMaestro.FractalIndex;
 using PresetMaestro.Midi;
 
@@ -11,6 +12,8 @@ public partial class MainWindow
     private TextBlock? _indexMatchStatus;
     private Button? _indexCheckButton;
     private bool _indexChecking;
+    private bool _indexCheckingFull;
+    private LibraryMatchProgress? _libraryMatchProgress;
     private LibraryMatchResult? _libraryMatch;
     private Guid? _matchLibraryId, _matchBaselineId;
     private long _matchConnection;
@@ -31,7 +34,7 @@ public partial class MainWindow
         if (_indexMatchStatus is null) { return; }
         bool current = _matchLibraryId == _indexCache?.Device.Id && _matchBaselineId == _indexCache?.Committed?.Id &&
             _matchConnection == _connectionGeneration;
-        _indexMatchStatus.Text = _indexChecking ? "Checking a sample of saved presets…" :
+        _indexMatchStatus.Text = _indexChecking ? (_indexCheckingFull ? "Full match: checking every saved preset and its scenes…" : "Quick match: checking random saved presets and their scenes…") :
             _indexCache is null ? "Assign a device library in Config to check its presets." :
             _detectedDevice is null ? "Device library check: connect the device to compare saved presets." :
             _indexCache.Device.Variant.ToDeviceModel() != _detectedDevice.Model ? "Device model differs from this library." :
@@ -43,42 +46,112 @@ public partial class MainWindow
         ToolTip.SetTip(_indexMatchStatus, "Matches compare saved preset content at the same slots. A sample is not a full-library percentage. Identical backups can match on different physical units.");
     }
 
-    internal async Task CheckAssignedLibraryAsync()
+    internal async Task CheckAssignedLibraryAsync(bool full = false)
     {
-        if (_indexCache?.Committed is not { } baseline || _detectedDevice is null ||
+        if (_indexCache is null || _detectedDevice is null ||
             _indexCache.Device.Variant.ToDeviceModel() != _detectedDevice.Model ||
             _presetNamesCts is not null || _changingProfile || !_midi.InputOpen || !_midi.OutputOpen) { return; }
+        if (_indexCache.Committed is not { } baseline)
+        {
+            // An assigned empty library has no saved identity evidence to contradict.
+            // A partial or imported library must first be confirmed through Sync.
+            if (_indexCache.Browsable is null && !_indexCache.Imported) { SaveDetectedLibraryFirmware(_indexCache); }
+            return;
+        }
         var cache = IndexJson.Clone(_indexCache);
+        cache.Device = cache.Device with { Firmware = _detectedDevice.Firmware };
         int profile = _profileGeneration;
         long connection = _connectionGeneration;
         string? deviceName = _detectedDevice.DeviceName;
         using var cancellation = new CancellationTokenSource();
+        _connectionSyncOutcome = null;
         _presetNamesCts = cancellation;
         _indexChecking = true;
+        _indexCheckingFull = full;
+        _libraryMatchProgress = new(0, full ? FractalDeviceDefinition.For(cache.Device.Variant).PresetSlots
+            : Math.Min(LibraryMatch.QuickMatchPresetCount, baseline.Presets.Values.Count(LibraryMatch.IsPopulated)), 0);
+        _indexProgress!.Maximum = Math.Max(1, _libraryMatchProgress.Total);
+        _indexProgress.Value = 0;
+        _indexProgressText!.Text = $"{(full ? "Full" : "Quick")} match · 0 of {_libraryMatchProgress.Total} presets checked";
         _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _favoriteSceneCts?.Cancel();
         UpdatePresetSyncButtons();
         RefreshLibraryMatchStatus();
         try
         {
-            var result = await LibraryMatch.CheckSampleAsync(_fractalIndexReader, cache, baseline, deviceName, cancellation.Token);
+            void Report(LibraryMatchProgress progress) => Dispatcher.UIThread.Post(() =>
+            {
+                if (!_indexChecking || !ReferenceEquals(_presetNamesCts, cancellation)) { return; }
+                _libraryMatchProgress = progress;
+                _indexProgress!.Maximum = Math.Max(1, progress.Total);
+                _indexProgress.Value = progress.Checked;
+                _indexProgressText!.Text = $"{(full ? "Full" : "Quick")} match · {progress.Checked} of {progress.Total} presets checked · {progress.Failed} failed";
+                RefreshConnectionSyncOptions();
+            });
+            var result = full
+                ? await LibraryMatch.CheckFullAsync(_fractalIndexReader, cache, baseline, deviceName, cancellation.Token, Report)
+                : await LibraryMatch.CheckSampleAsync(_fractalIndexReader, cache, baseline, deviceName, cancellation.Token, Report);
             if (profile == _profileGeneration && connection == _connectionGeneration && cache.Device.Id == _indexCache?.Device.Id)
-            { RememberLibraryMatch(cache, result); }
+            {
+                RememberLibraryMatch(cache, result);
+                string evidence = result.Compared == 0 ? "No populated saved presets were available to compare."
+                    : $"{result.Matched} of {result.Compared} {(full ? "populated" : "sampled")} presets match ({result.Percent:0.##}%)." +
+                        (result.Failed == 0 ? " Preset content and all eight scenes were compared." : " Available preset content and saved scenes were compared.");
+                if (result.Failed > 0) { evidence += $" {result.Failed} reads were unavailable."; }
+                if (result.Caution is not null) { evidence += " " + result.Caution; }
+                if (cache.Imported) { evidence += " This imported library needs review before updating."; }
+                bool confirmed = !cache.Imported && result.MeetsThreshold(_indexProfile.PresetMatchThresholdPercent);
+                SetConnectionSyncOutcome(confirmed ? (full ? "Full match complete" : "Quick match complete") : "Library match needs review",
+                    evidence + (confirmed ? $" {(full ? "The device contents are" : "The sample is")} consistent with “{cache.Device.Name}”." : " The assigned library could not be confirmed.") + " Library data was not refreshed.",
+                    confirmed ? "Next: Choose Done to use the saved library, or Sync library if you want to refresh presets, scenes and amp data."
+                        : "Next: Use Manage libraries to review the assignment, or Sync library to review an update.", needsAttention: !confirmed);
+                if (!cache.Imported && result.MeetsThreshold(_indexProfile.PresetMatchThresholdPercent))
+                { SaveDetectedLibraryFirmware(cache); }
+            }
         }
         catch (OperationCanceledException)
         {
-            if (connection == _connectionGeneration) { RememberLibraryMatch(cache, null, "Library check cancelled. Sync will check again before updating."); }
+            if (connection == _connectionGeneration)
+            {
+                RememberLibraryMatch(cache, null, "Library check cancelled. Sync will check again before updating.");
+                SetConnectionSyncOutcome("Library check cancelled", "The preset comparison did not finish. Saved library data was kept.",
+                    "Next: Choose Quick match or Full match to retry, or Done to use the saved data.", needsAttention: true);
+            }
         }
         catch (Exception ex)
         {
-            if (connection == _connectionGeneration) { RememberLibraryMatch(cache, null, "Library check unavailable: " + ex.Message); }
+            if (connection == _connectionGeneration)
+            {
+                RememberLibraryMatch(cache, null, "Library check unavailable: " + ex.Message);
+                SetConnectionSyncOutcome("Library check unavailable", "Saved library data was kept. " + ex.Message,
+                    "Next: Check the MIDI connection, then choose Quick match or Full match to retry.", needsAttention: true);
+            }
         }
         finally
         {
             _indexChecking = false;
+            _libraryMatchProgress = null;
             if (ReferenceEquals(_presetNamesCts, cancellation)) { _presetNamesCts = null; }
             UpdatePresetSyncButtons();
             RefreshLibraryMatchStatus();
         }
+    }
+
+    private void SaveDetectedLibraryFirmware(DeviceIndex cache)
+    {
+        if (_detectedDevice?.Firmware is not { } firmware || _profileStore is null ||
+            _indexError is not null || cache.Device.Id != _indexProfile.SelectedDeviceId ||
+            cache.Device.Variant.ToDeviceModel() != _detectedDevice.Model) { return; }
+        try
+        {
+            // Keep the committed and partial scans' original firmware untouched.
+            var saved = _indexLibrary.Load(cache.Device.Id) ?? cache;
+            if (saved.Device.Firmware == firmware) { return; }
+            saved.Device = saved.Device with { Firmware = firmware };
+            _indexLibrary.Save(saved);
+            SaveIndexProfile(profile => profile.AssignDevice(saved.Device));
+            RefreshIndexContext();
+        }
+        catch (Exception ex) { SetIndexMessage("Could not save detected firmware: " + ex.Message); }
     }
 }
 #endif

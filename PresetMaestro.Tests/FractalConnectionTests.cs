@@ -156,7 +156,7 @@ public class FractalConnectionTests
             window.GetVisualDescendants().OfType<RadioButton>().Single(radio => Equals(radio.Content, "Dark")).IsChecked = true;
             Dispatcher.UIThread.RunJobs();
             Assert.Contains("FM9 only", window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "PresetSyncStatus").Text);
-            Assert.All(midi.Sent, frame => Assert.Equal((byte)0, frame[5]));
+            Assert.Equal(new byte[] { 0, 8 }, midi.Sent.Select(frame => frame[5]));
             Assert.True(midi.InputOpen && midi.OutputOpen);
         }
         finally { window.Close(); }
@@ -205,9 +205,17 @@ public class FractalConnectionTests
             var pending = window.ConnectAsync();
             Assert.True(midi.InputOpen && midi.OutputOpen);
             Assert.Equal("Not connected", Header(window).Text);
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "NavConfig").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            var sync = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ConfigPresetSync");
+            Assert.False(sync.IsEnabled);
+            Assert.Equal("Connecting…", sync.Content);
+            Assert.Contains("reading device information", window.GetVisualDescendants().OfType<TextBlock>().Single(b => b.Name == "PresetSyncStatus").Text);
             midi.Send = request => { if (request[5] == 1) { midi.Reply(FractalDeviceInformationTests.Capture("name-pm-test")); } };
             midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9"));
             await pending;
+            Assert.True(sync.IsEnabled);
+            Assert.Contains("Ready to sync", window.GetVisualDescendants().OfType<TextBlock>().Single(b => b.Name == "PresetSyncStatus").Text);
             var header = Header(window);
             foreach (string page in new[] { "PresetSender", "Favorites", "Config" })
             {

@@ -143,6 +143,62 @@ public sealed class LibraryManagementTests : IDisposable
         Assert.NotNull(library.Load(other.Id));
     }
 
+    [AvaloniaFact]
+    public async Task DetectionStoresReadOnlyLibraryIdentityAndNameEditsCannotChangeIt()
+    {
+        var store = new ProfileStore(_directory);
+        var settings = store.LoadSettings(); settings.Theme = "Light";
+        settings.MidiInputPort = "FM9"; settings.MidiOutputPort = "FM9";
+        var library = new IndexLibrary(Path.Combine(_directory, "FractalIndex"));
+        var device = new IndexDevice(Guid.NewGuid(), "Stage", FractalDeviceVariant.FM9);
+        library.SaveDevice(device);
+        settings.FractalIndex = IndexJson.ToElement(new IndexProfile { Devices = [device], SelectedDeviceId = device.Id });
+        store.SaveSettings(settings);
+        var midi = new DeviceMidi();
+        midi.Send = request =>
+        {
+            if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9")); }
+            if (request[5] == 8) { midi.Reply(FractalDeviceInformationTests.Frame(0x12, 8, [12, 0, 0, 1])); }
+            if (request[5] == 1) { midi.Reply(FractalDeviceInformationTests.Capture("name-fm9")); }
+        };
+        var window = new MainWindow(settings, [], midi, profileStore: store)
+        { DeviceInformationTimeout = TimeSpan.FromMilliseconds(20), ThruInputRetryDelay = TimeSpan.Zero, Width = 1200, Height = 800 };
+        window.Show();
+        try
+        {
+            await window.ConnectAsync();
+            Assert.Equal("12.00", library.Load(device.Id)!.Device.Firmware);
+            Assert.Equal("12.00", IndexJson.ReadProfile(settings.FractalIndex).AssignedDevice!.Firmware);
+            Click(window, "NavConfig"); Click(window, "ManageLibraries");
+            Assert.Equal("12.00", Find<TextBlock>(window, "IndexFirmware").Text);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBox>(), c => c.Name == "IndexFirmware");
+            var choices = Find<ComboBox>(window, "IndexDeviceVariant");
+            Assert.False(choices.IsVisible); Assert.False(choices.IsEnabled);
+            choices.SelectedIndex = 1; // Programmatic stale UI cannot change the detected/saved model.
+            Find<TextBlock>(window, "IndexFirmware").Text = "99.00";
+            Find<TextBox>(window, "IndexDeviceName").Text = "Renamed";
+            Click(window, "IndexUpdateDevice");
+            var saved = library.Load(device.Id)!.Device;
+            Assert.Equal("Renamed", saved.Name);
+            Assert.Equal(FractalDeviceVariant.FM9, saved.Variant); Assert.Equal("12.00", saved.Firmware);
+            Click(window, "IndexCreateDevice");
+            Assert.False(choices.IsVisible); Assert.False(choices.IsEnabled);
+            Assert.Single(choices.Items);
+            Find<TextBox>(window, "IndexDeviceName").Text = "New connected library";
+            Click(window, "IndexUpdateDevice");
+            var created = library.ListDevices().Single(d => d.Name == "New connected library");
+            Assert.Equal(FractalDeviceVariant.FM9, created.Variant); Assert.Equal("12.00", created.Firmware);
+            string? output = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
+            if (output is not null)
+            {
+                Directory.CreateDirectory(output);
+                using var capture = window.CaptureRenderedFrame(); capture!.Save(Path.Combine(output, "library-detected-firmware.png"));
+            }
+        }
+        finally { window.Close(); }
+        Assert.Equal("12.00", new IndexLibrary(library.DirectoryPath).Load(device.Id)!.Device.Firmware);
+    }
+
     private static T Find<T>(Window window, string name) where T : Control => window.GetVisualDescendants().OfType<T>().Single(c => c.Name == name);
     private static void Click(Window window, string name)
     { Find<Button>(window, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); }
