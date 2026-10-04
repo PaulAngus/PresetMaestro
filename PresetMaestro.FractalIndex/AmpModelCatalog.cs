@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace PresetMaestro.FractalIndex;
 
 public sealed record AmpModelEntry(int Id, string FractalName, string? RealAmpFamily, string Evidence);
@@ -44,23 +46,25 @@ public sealed class AmpModelCatalogRegistry(IEnumerable<AmpModelCatalog> catalog
         return new AmpModelResolution(modelId, $"Unknown Amp model #{modelId}", null, "unmapped", false);
     }
 
-    // Only entries checked against the attached FM9 are seeded here. FM3 and Axe-Fx III
-    // catalogs are independent; raw IDs remain searchable until their rosters are verified.
+    private sealed record ObservedModel(int Id, string Name);
+
+    private static Dictionary<int, AmpModelEntry> ObservedFm9Models()
+    {
+        using var stream = typeof(AmpModelCatalogRegistry).Assembly.GetManifestResourceStream(
+            "PresetMaestro.FractalIndex.Catalog.fm9-12-candidates.json")
+            ?? throw new InvalidDataException("Missing observed FM9 amp-name table.");
+        var models = JsonSerializer.Deserialize<ObservedModel[]>(stream)
+            ?? throw new InvalidDataException("Invalid observed FM9 amp-name table.");
+        return models.ToDictionary(m => m.Id, m => new AmpModelEntry(m.Id, m.Name, null,
+            "FM9 12.00 device amp-name table, read directly over USB MIDI on 2026-10-03; docs/catalog/fm9-12-device-roster.json"));
+    }
+
+    // All FM9 entries were read from the attached firmware-12.00 device. This
+    // confirms ID/name pairs, not reference-amp years/circuits or other firmware.
+    // FM3 and Axe-Fx III catalogs remain independent.
     public static AmpModelCatalogRegistry CreateStarter() => new(
     [
-        new AmpModelCatalog("FM9", new Dictionary<int, AmpModelEntry>
-        {
-            [6] = new(6, "Class-A 15W TB", null, "FM9-Edit 12.00 / preset 126"),
-            [17] = new(17, "Hipower Brilliant", null, "FM9-Edit 12.00 / preset 109"),
-            [18] = new(18, "USA MK IV Rhythm 1", null, "FM9-Edit 12.00 / preset 109"),
-            [141] = new(141, "Plexi 50W Jumped", null, "FM9-Edit 12.00 / preset 126"),
-            [145] = new(145, "Plexi 100W Jumped", null, "FM9-Edit 12.00 / preset 126"),
-            [163] = new(163, "Citrus A30 Dirty", null, "FM9-Edit 12.00 / preset 126"),
-            [261] = new(261, "Plexi 2204", null, "FM9-Edit 12.00 / preset 126"),
-            [271] = new(271, "Matchbox D-30 EF86", null, "FM9-Edit 12.00 / preset 126"),
-            [277] = new(277, "Plexi 50W 6CA7", null, "FM9-Edit 12.00 / preset 126"),
-            [326] = new(326, "Class-A 30W Brilliant", null, "FM9-Edit 12.00 / preset 126"),
-        }, minFirmware: new Version(12, 0), maxFirmware: new Version(12, 0)),
+        new AmpModelCatalog("FM9", ObservedFm9Models(), minFirmware: new Version(12, 0), maxFirmware: new Version(12, 0)),
         new AmpModelCatalog("AxeFxIII", new Dictionary<int, AmpModelEntry>()),
         new AmpModelCatalog("FM3", new Dictionary<int, AmpModelEntry>()),
     ]);

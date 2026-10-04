@@ -131,7 +131,7 @@ public partial class MainWindow
                 emptyLibrary.Device.Variant.ToDeviceModel() == _detectedDevice.Model)
             { SaveDetectedLibraryFirmware(emptyLibrary); }
 #endif
-            OpenConnectionSyncOptions();
+            OpenConnectionSyncOptions(initialConnection: true);
             StartSceneTracking();
 
             await Task.Delay(ThruInputRetryDelay);

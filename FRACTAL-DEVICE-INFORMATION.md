@@ -121,3 +121,12 @@ in a later matching request window cannot be distinguished from a fresh reply.
 - `PresetMaestro.Tests/Fixtures/Fractal/`: selected read-only exchange fixtures
   and provenance, excluding unrelated device traffic.
 - `FRACTAL-DEVICE-INFORMATION.md`: corrected protocol and verification limits.
+
+
+## FM9 12.00 catalogue confirmation (2026-10-03)
+
+A direct USB MIDI query identified the connected FM9 and firmware 12.00. Sequential read-only parameter string-table queries returned 336 selectable amp ID/name pairs. These now supply the shared index/browser catalogue for this exact device family and firmware. The active preset, scene, current amp type reply and complete current Amp block data matched before and after the read.
+
+The observed request uses function `0x01`, subaction `0x1F`, effect 58, parameter 10, with the table index at frame bytes 12/13 in 7-bit little-endian order. Index zero means the first catalogue entry, not the active amp. Current Type uses the separate observed subaction `0x1A`. Entry 336 returned a different descriptor and was excluded. See [the protocol observation](docs/fractal-protocol-research.md#12-direct-fm9-1200-amp-name-roster-observation-2026-10-03) and [raw device evidence](docs/catalog/fm9-12-device-roster.json).
+
+This is a captured firmware-specific catalogue, not an automatic runtime harvesting feature or evidence that FM3/Axe-Fx III IDs match. Numeric confirmation does not establish a reference amplifier's exact year or circuit.

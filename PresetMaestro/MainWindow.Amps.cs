@@ -22,7 +22,10 @@ public partial class MainWindow
     private Button? _ampsNavigation, _presetIndexNavigation;
     private TextBox? _ampsSearch;
     private ComboBox? _ampsManufacturer;
-    private CheckBox? _ampsUsed;
+    private enum AmpUsageFilter { All, Used, Unused }
+    private ComboBox? _ampsUsage;
+    private TextBlock? _ampsUnusedNotice;
+    private AmpUsageFilter SelectedAmpUsage => _ampsUsage?.SelectedItem is ComboBoxItem { Tag: AmpUsageFilter usage } ? usage : AmpUsageFilter.All;
     private ListBox? _ampsList;
     private TextBlock? _ampsCoverage, _ampsCount, _ampsEmpty;
     private Button? _ampsCoverageDetails;
@@ -52,7 +55,7 @@ public partial class MainWindow
     {
         string search = _ampsSearch?.Text ?? "";
         string manufacturer = _ampsManufacturer?.SelectedItem as string ?? "All manufacturers";
-        bool used = _ampsUsed?.IsChecked == true;
+        var usage = SelectedAmpUsage;
         var body = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto,*,Auto") };
         body.Children.Add(new TextBlock { Text = "Amps", FontSize = 16, FontWeight = FontWeight.Bold, Foreground = TextBrush, Margin = new(0, 0, 0, 10) });
         var searchRow = new Grid { ColumnDefinitions = new("*,12,Auto") };
@@ -68,11 +71,21 @@ public partial class MainWindow
         AutomationProperties.SetName(_ampsManufacturer, "Manufacturer");
         _ampsManufacturer.ItemsSource = new[] { manufacturer }; _ampsManufacturer.SelectedIndex = 0;
         _ampsManufacturer.SelectionChanged += (_, _) => FilterAmps();
-        _ampsUsed = new CheckBox { Name = "AmpsUsedOnly", Content = "Used in my presets", IsChecked = used, MinHeight = 30, VerticalAlignment = VerticalAlignment.Center };
-        _ampsUsed.IsCheckedChanged += (_, _) => FilterAmps();
+        _ampsUsage = new ComboBox { Name = "AmpsPresetUsage", Width = 230, MinHeight = 30, VerticalAlignment = VerticalAlignment.Center };
+        AutomationProperties.SetName(_ampsUsage, "Preset usage");
+        _ampsUsage.ItemsSource = new[]
+        {
+            new ComboBoxItem { Name = "AmpsAll", Content = "All amps", Tag = AmpUsageFilter.All },
+            new ComboBoxItem { Name = "AmpsUsedOnly", Content = "Used in my presets", Tag = AmpUsageFilter.Used },
+            new ComboBoxItem { Name = "AmpsUnusedOnly", Content = "Not used in my presets", Tag = AmpUsageFilter.Unused },
+        };
+        _ampsUsage.SelectedIndex = (int)usage;
+        _ampsUsage.SelectionChanged += (_, _) => FilterAmps();
         _ampsCount = new TextBlock { Name = "AmpsCount", Foreground = SecondaryBrush, FontSize = 12, Margin = new(18, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        filters.Children.Add(_ampsManufacturer); filters.Children.Add(_ampsUsed); filters.Children.Add(_ampsCount);
-        Grid.SetRow(filters, 2); body.Children.Add(filters);
+        filters.Children.Add(_ampsManufacturer); filters.Children.Add(_ampsUsage); filters.Children.Add(_ampsCount);
+        _ampsUnusedNotice = new TextBlock { Name = "AmpsUnusedNotice", FontSize = 14, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap, IsVisible = false, Margin = new(0, 0, 0, 8) };
+        var filterArea = new StackPanel { Children = { filters, _ampsUnusedNotice } };
+        Grid.SetRow(filterArea, 2); body.Children.Add(filterArea);
         _ampsFirmwareNotice = new StackPanel { Name = "AmpsFirmwareNotice", Spacing = 6, Margin = new(0, 0, 0, 10), IsVisible = false };
         _ampsUsageNotice = AmpText("", 14);
         _ampsFirmwareNotice.Children.Add(_ampsUsageNotice);
@@ -138,10 +151,18 @@ public partial class MainWindow
             ? "Firmware has not been detected. Browse the FM9 reference catalogue below. Connect in Config, then choose Sync device in Preset Index to read amp usage."
             : _indexCache?.Browsable is null
                 ? "Amp usage has not been synced. Preset-name sync updates names only. Choose Sync device in Preset Index to read amp data."
-                : "Amp usage is unavailable for this firmware. Choose Sync device in Preset Index to refresh the saved amp data.";
-        _ampsUsed!.IsEnabled = _ampsCatalog.HasUsageData;
-        ToolTip.SetTip(_ampsUsed, _ampsCatalog.HasUsageData ? "Show amps found in the saved preset index." : "Sync device in Preset Index to collect amp usage; preset-name sync updates names only.");
-        if (!_ampsCatalog.HasUsageData) { _ampsUsed.IsChecked = false; }
+                : string.IsNullOrWhiteSpace(_indexCache.Browsable.EffectiveFirmware) && !_indexCache.Imported
+                    ? "Check this library with your device to show which amps your saved presets use. Open Sync options in Config and choose Quick check or Full check."
+                    : "Your device’s software has changed since this amp information was saved. Choose Sync device in Preset Index to refresh the saved amp data.";
+        var usageOptions = _ampsUsage!.Items.OfType<ComboBoxItem>().ToArray();
+        usageOptions[1].IsEnabled = _ampsCatalog.HasUsageData;
+        usageOptions[2].IsEnabled = _ampsCatalog.CanListUnusedAmps;
+        ToolTip.SetTip(_ampsUsage, "Usage includes every saved amp channel, even if no scene selects it. Not used shows families with no variants in your presets.");
+        if (_ampsUsage.SelectedItem is ComboBoxItem { IsEnabled: false }) { _ampsUsage.SelectedIndex = 0; }
+        _ampsUnusedNotice!.IsVisible = _ampsCatalog.HasUsageData && !_ampsCatalog.CanListUnusedAmps;
+        _ampsUnusedNotice.Text = !_ampsCatalog.HasCatalogueRoster && !_ampsCatalog.IsComplete
+            ? "The app does not yet include an amp catalogue for this device’s software, so it cannot list unused amps."
+            : "To find amps not used in any preset, complete a library sync in Preset Index.";
         _renderingAmps = false;
         _ampsCoverage!.Text = _ampsCatalog.Coverage + (_indexCache is null ? "" : $" · Catalogue {_ampsCatalog.Version}" +
             (_indexCache.Browsable is { } scan ? $" · Saved scan {scan.StartedAt.LocalDateTime:g}" : " · No saved scan") +
@@ -158,8 +179,14 @@ public partial class MainWindow
         var scroll = _ampsList.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
         var offset = !_ampsDetailOpen ? scroll?.Offset ?? _ampsDirectoryOffset : _ampsDirectoryOffset;
         string manufacturer = _ampsManufacturer?.SelectedItem as string ?? "All manufacturers";
+        var usage = SelectedAmpUsage;
         var families = _ampsCatalog.Families.Where(f => (manufacturer == "All manufacturers" || manufacturer == f.Family.Manufacturer) &&
-            f.Matches(_ampsSearch?.Text ?? "") && (_ampsUsed?.IsChecked != true || f.MatchingPresets > 0)).ToArray();
+            f.Matches(_ampsSearch?.Text ?? "") && (usage switch
+            {
+                AmpUsageFilter.Used => f.MatchingPresets > 0,
+                AmpUsageFilter.Unused => f.UsageComplete && f.MatchingPresets == 0,
+                _ => true,
+            })).ToArray();
         _renderingAmps = true;
         _ampsList.Items.Clear();
         foreach (var family in families)
@@ -188,11 +215,17 @@ public partial class MainWindow
         _ampsList.SelectedItem = _ampsList.Items.OfType<ListBoxItem>().FirstOrDefault(i => ((BrowserAmpFamily)i.Tag!).Family.Id == _ampsSelectedFamily);
         foreach (var row in _ampsList.Items.OfType<ListBoxItem>()) { row.Background = row.IsSelected ? ThemeBrush("SelectedBrush") : SurfaceBrush; }
         _renderingAmps = false;
-        _ampsCount!.Text = (_ampsCatalog.IsReferencePreview ? "Reference catalog · " : _ampsUsed?.IsChecked == true ? "" : "All available amps · ") + $"{families.Length} families · {families.Sum(f => f.Variants.Length)} variants";
+        _ampsCount!.Text = (_ampsCatalog.IsReferencePreview ? "Reference catalog · " : usage switch
+        {
+            AmpUsageFilter.Used => "Used in my presets · ",
+            AmpUsageFilter.Unused => "Not used in my presets · ",
+            _ => "All available amps · ",
+        }) + $"{families.Length} families · {families.Sum(f => f.Variants.Length)} variants";
         _ampsEmpty!.IsVisible = families.Length == 0;
         _ampsEmpty.Text = _indexCache is null ? "Assign a device library in Config to browse amps." : _ampsCatalog.Families.Length == 0
             ? "No roster is verified for this device and firmware. Sync device in Preset Index to browse the observed models."
-            : _ampsUsed?.IsChecked == true ? "No matching amps were found in the saved preset index. Turn off Used in my presets to browse the catalogue."
+            : usage == AmpUsageFilter.Used ? "No matching amps were found in the saved preset index. Choose All amps to browse the catalogue."
+            : usage == AmpUsageFilter.Unused ? "No unused amps match these filters. Clear search, choose All manufacturers, or choose All amps."
             : "No amps match these filters. Clear search or choose All manufacturers.";
         if (scroll is not null) { Dispatcher.UIThread.Post(() => scroll.Offset = offset, DispatcherPriority.Loaded); }
     }

@@ -48,6 +48,10 @@
     "Name": "Plexi 50W High 1"
   },
   {
+    "Id": 12,
+    "Name": "1987X Normal"
+  },
+  {
     "Id": 13,
     "Name": "1987X Treble"
   },
@@ -78,6 +82,10 @@
   {
     "Id": 20,
     "Name": "USA MK IV Rhythm 2"
+  },
+  {
+    "Id": 21,
+    "Name": "USA MK IIC+"
   },
   {
     "Id": 22,
@@ -176,6 +184,10 @@
     "Name": "Carol-Ann OD-2"
   },
   {
+    "Id": 46,
+    "Name": "Fryette D60 Less"
+  },
+  {
     "Id": 47,
     "Name": "Fryette D60 More"
   },
@@ -248,8 +260,16 @@
     "Name": "Cameron CCV 2A"
   },
   {
+    "Id": 65,
+    "Name": "SV Bass 2"
+  },
+  {
     "Id": 66,
     "Name": "Tube Pre"
+  },
+  {
+    "Id": 67,
+    "Name": "FAS Brown"
   },
   {
     "Id": 68,
@@ -340,6 +360,14 @@
     "Name": "Dirty Shirley 1"
   },
   {
+    "Id": 90,
+    "Name": "Dizzy V4 Blue 2"
+  },
+  {
+    "Id": 91,
+    "Name": "Dizzy V4 Blue 3"
+  },
+  {
     "Id": 92,
     "Name": "Dizzy V4 Blue 4"
   },
@@ -390,6 +418,10 @@
   {
     "Id": 104,
     "Name": "Spawn Nitrous 2"
+  },
+  {
+    "Id": 105,
+    "Name": "FAS Crunch"
   },
   {
     "Id": 106,
@@ -496,6 +528,10 @@
     "Name": "Comet Concourse"
   },
   {
+    "Id": 132,
+    "Name": "FAS Modern II"
+  },
+  {
     "Id": 133,
     "Name": "Carol-Ann Triptik Modern"
   },
@@ -510,6 +546,10 @@
   {
     "Id": 136,
     "Name": "Thordendal Vintage"
+  },
+  {
+    "Id": 137,
+    "Name": "Thordendal Modern"
   },
   {
     "Id": 138,
@@ -530,6 +570,10 @@
   {
     "Id": 142,
     "Name": "AC-20 EF86 Treble"
+  },
+  {
+    "Id": 143,
+    "Name": "Comet 60"
   },
   {
     "Id": 144,
@@ -584,6 +628,10 @@
     "Name": "ODS-100 Ford"
   },
   {
+    "Id": 157,
+    "Name": "Mr Z MZ-8"
+  },
+  {
     "Id": 158,
     "Name": "Car Ambler"
   },
@@ -628,8 +676,24 @@
     "Name": "USA Bass 400 1"
   },
   {
+    "Id": 169,
+    "Name": "USA Bass 400 2"
+  },
+  {
+    "Id": 170,
+    "Name": "Citrus Bass 200"
+  },
+  {
+    "Id": 171,
+    "Name": "FAS Bass"
+  },
+  {
     "Id": 172,
     "Name": "Tremolo Lux"
+  },
+  {
+    "Id": 173,
+    "Name": "FAS Brootalz"
   },
   {
     "Id": 174,
@@ -704,6 +768,10 @@
     "Name": "Dizzy V4 Silver 4"
   },
   {
+    "Id": 192,
+    "Name": "1959SLP Normal"
+  },
+  {
     "Id": 193,
     "Name": "1959SLP Treble"
   },
@@ -712,12 +780,20 @@
     "Name": "1959SLP Jumped"
   },
   {
+    "Id": 195,
+    "Name": "FAS Modern III"
+  },
+  {
     "Id": 196,
     "Name": "ODS-100 Ford PAB Mid"
   },
   {
     "Id": 197,
     "Name": "Mr Z Highway 66"
+  },
+  {
+    "Id": 198,
+    "Name": "6G4 Super"
   },
   {
     "Id": 199,
@@ -784,6 +860,10 @@
     "Name": "Div/13 CJ Boost"
   },
   {
+    "Id": 215,
+    "Name": "USA MK IIC+ Deep"
+  },
+  {
     "Id": 216,
     "Name": "USA MK IIC+ Deep Bright"
   },
@@ -802,6 +882,10 @@
   {
     "Id": 220,
     "Name": "JMPre-1 OD1"
+  },
+  {
+    "Id": 221,
+    "Name": "JMPre-1 OD2"
   },
   {
     "Id": 222,
@@ -846,6 +930,10 @@
   {
     "Id": 232,
     "Name": "Solo 88 Clean"
+  },
+  {
+    "Id": 233,
+    "Name": "Class-A 30W Bright"
   },
   {
     "Id": 234,
@@ -972,6 +1060,10 @@
     "Name": "SV Bass 1"
   },
   {
+    "Id": 265,
+    "Name": "FAS Skull Crusher"
+  },
+  {
     "Id": 266,
     "Name": "USA JP IIC+ Red"
   },
@@ -992,6 +1084,10 @@
     "Name": "Wrecker Liverpool Bright"
   },
   {
+    "Id": 271,
+    "Name": "Matchbox D-30 EF86"
+  },
+  {
     "Id": 272,
     "Name": "FAS Express"
   },
@@ -1006,6 +1102,10 @@
   {
     "Id": 275,
     "Name": "PVH 6160+ Crunch Bright"
+  },
+  {
+    "Id": 276,
+    "Name": "PVH 6160+ Clean Bright"
   },
   {
     "Id": 277,
@@ -1033,7 +1133,7 @@
   },
   {
     "Id": 283,
-    "Name": "Deluxe Tweed"
+    "Name": "Deluxe Tweed Bright"
   },
   {
     "Id": 284,
@@ -1042,6 +1142,18 @@
   {
     "Id": 285,
     "Name": "USA JP IIC+ Yellow Shred"
+  },
+  {
+    "Id": 286,
+    "Name": "Friedman BE C45"
+  },
+  {
+    "Id": 287,
+    "Name": "Friedman BE 2010"
+  },
+  {
+    "Id": 288,
+    "Name": "Friedman HBE 2010"
   },
   {
     "Id": 289,
@@ -1064,12 +1176,40 @@
     "Name": "JMPre-1 Clean1"
   },
   {
+    "Id": 294,
+    "Name": "JMPre-1 Clean1 Bass Shift"
+  },
+  {
+    "Id": 295,
+    "Name": "JMPre-1 Clean2"
+  },
+  {
+    "Id": 296,
+    "Name": "JMPre-1 Clean2 Bass Shift"
+  },
+  {
+    "Id": 297,
+    "Name": "Diamante Fire"
+  },
+  {
     "Id": 298,
     "Name": "PVH 6160 Block Crunch"
   },
   {
     "Id": 299,
     "Name": "Plexi Studio 20"
+  },
+  {
+    "Id": 300,
+    "Name": "Plexi 50W 6CA7 Jumped"
+  },
+  {
+    "Id": 301,
+    "Name": "Herbie MK3"
+  },
+  {
+    "Id": 302,
+    "Name": "59 Bassguy RI Jumped"
   },
   {
     "Id": 303,
@@ -1080,8 +1220,36 @@
     "Name": "Revv Gen Purple 2"
   },
   {
+    "Id": 305,
+    "Name": "Revv Gen Purple 3"
+  },
+  {
+    "Id": 306,
+    "Name": "Revv Gen Red 1"
+  },
+  {
     "Id": 307,
     "Name": "Revv Gen Red 2"
+  },
+  {
+    "Id": 308,
+    "Name": "Revv Gen Red 3"
+  },
+  {
+    "Id": 309,
+    "Name": "Revv Gen Green 1"
+  },
+  {
+    "Id": 310,
+    "Name": "Revv Gen Green 2"
+  },
+  {
+    "Id": 311,
+    "Name": "Revv Gen Green 3"
+  },
+  {
+    "Id": 312,
+    "Name": "JS410 Lead Green"
   },
   {
     "Id": 313,
@@ -1092,12 +1260,20 @@
     "Name": "Brit 800 2203 High"
   },
   {
+    "Id": 315,
+    "Name": "5153 100W Stealth Green"
+  },
+  {
     "Id": 316,
     "Name": "5153 100W Stealth Red"
   },
   {
     "Id": 317,
     "Name": "USA MK V Green"
+  },
+  {
+    "Id": 318,
+    "Name": "Brit 800 2204 Low"
   },
   {
     "Id": 319,
@@ -1108,12 +1284,24 @@
     "Name": "USA MK V Red IIC+"
   },
   {
+    "Id": 321,
+    "Name": "USA MK V Red IIC+ Bright"
+  },
+  {
     "Id": 322,
     "Name": "USA MK V Red MKIV"
   },
   {
+    "Id": 323,
+    "Name": "USA MK V Red MKIV Bright"
+  },
+  {
     "Id": 324,
     "Name": "USA MK V Red XT"
+  },
+  {
+    "Id": 325,
+    "Name": "USA MK V Red XT Bright"
   },
   {
     "Id": 326,
@@ -1134,5 +1322,25 @@
   {
     "Id": 330,
     "Name": "Deluxe 6G3"
+  },
+  {
+    "Id": 331,
+    "Name": "Deluxe Tweed Normal"
+  },
+  {
+    "Id": 332,
+    "Name": "PVH 6160 Block Clean"
+  },
+  {
+    "Id": 333,
+    "Name": "Brit JVM Crunch Green"
+  },
+  {
+    "Id": 334,
+    "Name": "Brit JVM Crunch Orange"
+  },
+  {
+    "Id": 335,
+    "Name": "Brit JVM Crunch Red"
   }
 ]

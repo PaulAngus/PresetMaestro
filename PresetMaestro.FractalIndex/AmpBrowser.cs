@@ -20,13 +20,17 @@ public sealed record BrowserAmpFamily(RealAmpFamily Family, BrowserAmpVariant[] 
 }
 
 public sealed record AmpBrowserDirectory(string Version, string Coverage, bool IsComplete, BrowserAmpFamily[] Families,
-    bool IsReferencePreview = false, bool HasUsageData = false);
+    bool IsReferencePreview = false, bool HasUsageData = false, bool HasCatalogueRoster = false)
+{
+    public bool HasCompleteUsageData => HasUsageData && Families.Length > 0 && Families.All(f => f.UsageComplete);
+    public bool CanListUnusedAmps => HasCompleteUsageData && (IsComplete || HasCatalogueRoster);
+}
 
-/// <summary>Curated mapping and candidate roster are independent of a saved scan and of profile tags.</summary>
+/// <summary>Curated mappings and the device-confirmed roster are independent of saved scans and profile tags.</summary>
 public static class AmpBrowserCatalog
 {
-    public const string CatalogVersion = "2026-10-02.2";
-    public const string RosterSource = "https://github.com/TheAndrewStaker/mcp-midi-control/blob/12e3bb735f8e8527b277e9567f3f70196879541a/packages/fractal-gen3/src/gen3BodyTables.ts";
+    public const string CatalogVersion = "2026-10-03.4";
+    public const string RosterSource = "FM9 12.00 device amp-name table, read directly over USB MIDI on 2026-10-03; docs/catalog/fm9-12-device-roster.json";
     public const string Wiki = "https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models";
     private sealed record RosterEntry(int Id, string Name);
     private sealed record AmpDetail(int ModelId, string SpecificModel, string Relationship, string Notes, string MappingEvidence);
@@ -59,13 +63,12 @@ public static class AmpBrowserCatalog
         var version = Version.TryParse(firmware, out var parsed) ? parsed : null;
         // A scan from an earlier firmware cannot be joined to the current roster's raw IDs.
         var scan = cache.Browsable;
-        bool compatibleScan = !preview && SameFirmware(scan?.Firmware, firmware);
+        bool compatibleScan = !preview && SameFirmware(scan?.EffectiveFirmware, firmware);
         var presets = compatibleScan ? scan?.Presets.Values.Where(p => p.Variant == cache.Device.Variant).ToArray() ?? [] : [];
         bool complete = compatibleScan && cache.Committed is { Status: "Complete", FinishedAt: not null } committed &&
             committed.Errors.Count == 0 && committed.Presets.Count == device.PresetSlots &&
             Enumerable.Range(0, device.PresetSlots).All(committed.Presets.ContainsKey);
         var names = candidates ? Roster.ToDictionary(e => e.Id, e => e.Name) : new Dictionary<int, string>();
-        if (candidates) { names[271] = "Matchbox D-30 EF86"; }
         foreach (var channel in presets.SelectMany(p => p.Amps).SelectMany(a => a.Channels))
         {
             if (!names.ContainsKey(channel.Model.Id))
@@ -91,21 +94,25 @@ public static class AmpBrowserCatalog
         string coverage = preview
             ? "FM9 12.00 reference catalogue preview · Library firmware is missing. Preset usage and matching are unavailable until firmware is recorded and a matching scan is saved."
             : candidates
-            ? "Catalogue incomplete · FM9 12.00 candidates; firmware availability needs review. Verified names are marked in details."
+            ? $"FM9 12.00 · {Roster.Length} device-confirmed amp names. Reference amplifier details retain their source qualifications."
             : $"Catalogue incomplete · No validated roster for {device.CatalogFamily} {firmware ?? "unknown firmware"}. Showing models observed in this library only.";
-        if (!preview && !compatibleScan && scan is not null) { coverage += " Scan firmware differs; sync again to check usage."; }
-        return new(CatalogVersion, coverage, false, families.OrderBy(f => f.Family.Manufacturer == "Unmapped" ? 2 : f.Family.Manufacturer == "Fractal originals" ? 1 : 0)
-            .ThenBy(f => f.Family.Manufacturer, StringComparer.OrdinalIgnoreCase).ThenBy(f => f.Family.Name, StringComparer.OrdinalIgnoreCase).ToArray(), preview, presets.Length > 0);
+        if (!preview && !compatibleScan && scan is not null)
+        { coverage += string.IsNullOrWhiteSpace(scan.EffectiveFirmware) ? " Check this library with the connected device to show saved amp usage." : " Scan firmware differs; sync again to check usage."; }
+        if (compatibleScan && scan?.FirmwareConfirmation is { } confirmation)
+        { coverage += $" Saved amp data confirmed by a {(confirmation.IsSample ? "quick" : "full")} library check ({confirmation.Matched} of {confirmation.Compared} presets matched)."; }
+        return new(CatalogVersion, coverage, candidates && !preview, families.OrderBy(f => f.Family.Manufacturer == "Unmapped" ? 2 : f.Family.Manufacturer == "Fractal originals" ? 1 : 0)
+            .ThenBy(f => f.Family.Manufacturer, StringComparer.OrdinalIgnoreCase).ThenBy(f => f.Family.Name, StringComparer.OrdinalIgnoreCase).ToArray(), preview, presets.Length > 0, candidates);
 
         BrowserAmpVariant Variant(int id, string name)
         {
             var verified = VerifiedNames.Resolve(device, version, id);
-            // Attribution research never promotes a candidate DSP ID to a verified identity.
+            // Device name-table evidence verifies numeric identity independently of
+            // the research assigning reference amplifiers, revisions and circuits.
             AmpDetail? detail = candidates ? Details.GetValueOrDefault(id) : null;
             string specific = detail?.SpecificModel ?? name;
             return new($"{device.CatalogFamily}:{(preview ? "12.00" : firmware ?? "unknown")}:{id}", id, name, specific,
                 preview ? "FM9 12.00 reference only; not matched to this library's unknown firmware. " + RosterSource :
-                verified.IsKnown ? verified.Evidence : candidates ? "Candidate identity from open roster; device confirmation pending. " + RosterSource : "Saved scan identity; mapping needs review.", !preview && verified.IsKnown,
+                verified.IsKnown ? verified.Evidence : candidates ? "FM9 12.00 reference identity; this library's firmware has not been confirmed. " + RosterSource : "Saved scan identity; mapping needs review.", !preview && verified.IsKnown,
                 detail is null ? "Real amplifier attribution has not been joined to this identity." :
                     $"{detail.Relationship}. {detail.Notes}\nManufacturer/model sources (shared lineage): {detail.MappingEvidence}");
         }
@@ -139,7 +146,7 @@ public static class AmpBrowserCatalog
 public sealed record AmpContainsFilter(Guid DeviceId, FractalDeviceVariant Variant, string? Firmware, string Label, int[] ModelIds)
 {
     public bool AppliesTo(DeviceIndex? cache) => !string.IsNullOrWhiteSpace(Firmware) && cache is not null && cache.Device.Id == DeviceId && cache.Device.Variant == Variant &&
-        AmpBrowserCatalog.SameFirmware(Firmware, cache.Device.Firmware) && AmpBrowserCatalog.SameFirmware(Firmware, cache.Browsable?.Firmware);
+        AmpBrowserCatalog.SameFirmware(Firmware, cache.Device.Firmware) && AmpBrowserCatalog.SameFirmware(Firmware, cache.Browsable?.EffectiveFirmware);
     public bool Matches(IndexedPreset preset) => preset.Variant == Variant && ModelIds.Any(preset.Contains);
     public string[] MatchingChannels(IndexedPreset preset) => preset.Amps.SelectMany(a => a.Channels
         .Where(c => ModelIds.Contains(c.Model.Id)).Select(c => $"Amp {a.BlockNumber} / {(char)('A' + c.Channel)} · {c.Model.DisplayName}")).ToArray();

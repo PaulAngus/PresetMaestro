@@ -1,6 +1,6 @@
-PresetMaestro Amp Browser catalogue, version 2026-10-02.2
+PresetMaestro Amp Browser catalogue, version 2026-10-03.4
 
-fm9-12-candidates.json contains the Amp-only ID/name table extracted from:
+The initial fm9-12-candidates.json Amp-only ID/name table was extracted from:
 https://github.com/TheAndrewStaker/mcp-midi-control/blob/12e3bb735f8e8527b277e9567f3f70196879541a/packages/fractal-gen3/src/gen3BodyTables.ts
 Copyright 2026 Stephen Staker. Apache License, Version 2.0.
 The upstream table derives from fractal-syx-codec:
@@ -8,11 +8,14 @@ Copyright 2026 Andrew Mercurio ("BoodieTraps"). Apache License, Version 2.0.
 https://github.com/drewmerc302/fractal-syx-codec
 The complete license and upstream notices accompany this file.
 
-Modifications: extracted 284 Amp entries into JSON; no other effect rosters or
-parameter tables are included. PresetMaestro applies this as an INCOMPLETE
-candidate roster only for FM9 firmware 12.00, independently of the ten observed
-FM9-Edit names in AmpModelCatalog.cs. ID 271 is added at runtime from that local
-hardware evidence. No cross-device ID portability or complete roster is claimed.
+Initial modifications: extracted 284 Amp entries into JSON; no other effect
+rosters or parameter tables were included. The original licence notices remain.
+On 2026-10-03 this table was superseded by all 336 factual ID/name pairs read
+directly from the connected FM9 running firmware 12.00, using read-only amp-name
+table queries. The historical filename is retained. Raw replies and unchanged
+device-state checks are in docs/catalog/fm9-12-device-roster.json. Both index
+lookup and browser use this complete FM9 12.00 table. Other device families and
+firmware versions require independently confirmed rosters.
 
 real-amp-families.json and real-amp-details.json contain PresetMaestro's explicit
 curated factual identities, relationship types, qualifications and source URLs.
@@ -30,16 +33,22 @@ Ampdex transcribes Clayton Welch's guide, which draws on Yek, the Wiki and forum
 Those two community references are NOT independent evidence. Their explanatory
 prose, guide pages and images are not redistributed in these runtime files.
 Only factual product identities and original review notes are included.
-The runtime table joins 280 CSV names to existing numeric candidates, in 146
-groups. Five numeric candidates have no accepted name join and remain Unmapped.
+The review joins 329 original CSV entries to device-confirmed numeric IDs.
+The combined MK IV LEAD/RHYTHM heading and Fox ODS Deep remain unjoined; the
+device's selectable Lead and Mid names have separate mappings. Runtime family
+data covers all 336 observed names in 162 family/original groups.
 No CSV row position or Ampdex entry number is used as a DSP model ID. Matching
-names does not verify the numeric identity or firmware availability. Physical
+names alone does not verify numeric identity or firmware availability; the
+device observation establishes these separately for FM9 12.00. Physical
 custom amps, virtual originals and schematic interpretations remain distinct.
 No prefix-based runtime grouping is used.
 
-Source mappings do not prove firmware availability. The roster is known to omit
-models, including a verified FM9 ID and the later Bassguy reissue variant. Do not
-assign an ID to the reissue by guessing or merge it into an original variant.
+The device confirms Bassguy RI Jumped at ID 302; its family is separate from
+the original 5F6-A. Official FM9 12.00 release notes establish new model/channel
+attributions at IDs 331-335 and the Deluxe Tweed Bright rename at 283:
+https://www.fractalaudio.com/fm9-downloads/
+https://www.fractalaudio.com/downloads/firmware-presets/fm9/12p0/fm9_dsp_rel_12p00.zip
+Reference amplifier years, circuits and inferred variants retain qualifications.
 FM3, Axe-Fx III and other FM9 firmware versions require independent rosters.
 
 Manufacturer and product names are trademarks of their respective owners,

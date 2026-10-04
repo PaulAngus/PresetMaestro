@@ -104,7 +104,7 @@ The picker uses device numbering even when **Display Offset** is 1: selecting `0
 
 **Everyday use:** select a preset, then use its populated scene buttons. This uses small name queries and refreshes the loaded preset's names.
 
-**Prepare everything upfront:** choose **Sync library** in the connection dialog, or **Sync device** on Preset Index. This reads saved presets, scenes and amp data into the assigned library. See [Using Preset Index](docs/fractal-index-usage.md) for progress, cancellation and resume.
+**Prepare everything upfront:** choose **Sync library** in the connection dialog, or **Sync device** on Preset Index. This reads saved presets, scenes and amp data into the assigned library, and an accepted complete scan also refreshes the active profile's preset and scene names. A successful FM9 quick/full library check automatically refreshes all preset names using the shared fast name-read path; library content stays unchanged until you sync it. See [Using Preset Index](docs/fractal-index-usage.md) for progress, cancellation and resume.
 
 A cancelled library scan retains completed reads. Choose **Resume** to continue an incomplete scan.
 

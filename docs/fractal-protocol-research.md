@@ -244,3 +244,22 @@ The Axe-Fx III Original and Mark II/Turbo remain **NO-GO for a support claim unt
 5. **Optional UI:** add explicit Sync and cached search through the one registration seam; only then offer the reviewed Add Favorite adapter. Verify feature-off and feature-on builds, and disabled startup with no feature MIDI/database activity.
 
 **Recommended first production coding milestone after the research gate:** a feature-core decoder plus fixture tests for the validated device/firmware. The disposable console feasibility experiment is research, not that milestone. Full-device synchronization and UI follow only after decoding and identity semantics are supported by fixtures.
+
+
+## 12. Direct FM9 12.00 amp-name roster observation (2026-10-03)
+
+The connected FM9 identified itself over USB MIDI as firmware **12.00** and returned **336 amp names at IDs 0-335**. This supersedes the initial open-roster numeric candidates for that firmware. [Raw replies and before/after evidence](catalog/fm9-12-device-roster.json) are preserved; no personal preset dump is included.
+
+The read-only request is function `0x01`, subaction `0x1F`, effect 58 (Amp 1), parameter 10 (Type). Its 23-byte frame is:
+
+```text
+F0 00 01 74 12 01 1F 00 3A 00 0A 00 lo hi 00 00 00 00 00 00 00 checksum F7
+```
+
+`lo` and `hi` contain the model-table index in 7-bit little-endian order. They are not a float32 parameter value. The checksum is the XOR of preceding frame bytes, masked to seven bits. Requests were sequential and replies were checked for checksum, function, subaction, effect and parameter. Reply bytes 19/20 describe the string length; the ASCII string is MSB-first septet-packed from byte 21.
+
+Index zero returned the first selectable name, **59 Bassguy Bright**, rather than the current type. Current type was read separately with subaction `0x1A` and zero value; it returned **Vibrato Lux**, matching saved ID 121. Entry 336 returned a different descriptor format and invalid string data, so it was rejected. The current normalized Type value also agreed with ordinal 121 out of maximum 335. These observations establish the attached firmware's table, not a portable rule for other devices or versions.
+
+The active preset and scene, current Type reply, and SHA-256 of the complete current Amp 1 block response matched before and after the read. No parameter-set, preset-change, scene-change or store command was sent. The temporary research harness is outside the repository and is not part of the application. Its cleanup was blocked by automatic approval after the captured table was incorporated into the shared runtime catalogue. The application does not automatically harvest live amp-name tables.
+
+The old table omitted 52 names; all earlier names agreed except ID 283, now **Deluxe Tweed Bright**. IDs 233, 287 and 288 directly resolved the Bright and Friedman 2010 gaps. Fractal's official FM9 12.00 release notes separately establish the new channel/model descriptions at IDs 331-335; they do not supply these numeric IDs. Manufacturer/product and reference-year qualifications remain a separate attribution layer.

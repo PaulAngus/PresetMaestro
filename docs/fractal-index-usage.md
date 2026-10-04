@@ -30,30 +30,44 @@ Profile rename, copy, delete, import and export retain the embedded index data. 
 
 **Config → Device library for this profile → Preset match threshold (%)** defaults to **99** and accepts whole percentages from **1–100**. It belongs to the profile, including copy/import/export; profiles sharing a library may use different thresholds. Existing profiles default to 99. Profile-management UX remains provisional.
 
-Connecting offers **Quick match** or **Full match** before reading comparison data. Quick match selects 16 random populated slots without replacement, or all populated slots if fewer than 16 are saved. Each selected preset's full saved content, including all eight scenes, is compared at the same slot. The result explicitly reports the sample count, for example **16 of 16 sampled presets match**. At 99%, a 16-preset sample must match all 16. Empty slots are excluded from sampling. **Check library** on Preset Index repeats a quick check; changing the assigned library also runs a quick check.
+Connecting explains that the library is PresetMaestro's saved copy of presets, scenes and amp settings. Two side-by-side choices compare that copy with the connected device: **Start quick check** (recommended) checks up to 16 random presets and all their saved scenes; **Start full check** checks every slot and all saved scenes and may take several minutes. **Sync library** refreshes the saved copy, while **Skip for now** continues using saved data.
 
-Full match checks every device slot, including previously empty slots so newly added presets can be detected. Both checks are read-only comparisons; they do not replace the library's saved baseline or refresh its preset data. Failed or missing reads leave the match unconfirmed regardless of the threshold. Three consecutive failed reads stop a check. Both options show checked counts and can be cancelled. Full match can take several minutes.
+On FM9, both choices first read all 512 preset names using the same fast request path as Config → Preset Name Sync. Names are compared at the same slots using the profile's match threshold; newly populated, renamed and cleared slots count as differences, while empty slots do not inflate the percentage. An incomplete read or below-threshold name match stops the longer preset-and-scene check. Matching names alone cannot establish a content match: the selected quick/full check must still pass. After it passes, the freshly read name list is saved automatically in the active profile. Failed or cancelled checks keep the previous cached names. FM3 and Axe-Fx III continue using their supported saved-preset paths until their fast name-query paths are validated.
+
+Quick match selects 16 random populated slots without replacement, or all populated slots if fewer than 16 are saved. Each selected preset's full saved content, including all eight scenes, is compared at the same slot. The result explicitly reports the sample count, for example **16 of 16 sampled presets match**. At 99%, a 16-preset sample must match all 16. Empty slots are excluded from sampling. **Check library** on Preset Index repeats a quick check; changing the assigned library also runs a quick check.
+
+Full match checks every device slot, including previously empty slots so newly added presets can be detected. Neither check replaces the library's saved baseline or refreshes its preset data; successful FM9 checks additionally refresh the profile's preset-name list. Failed or missing reads leave the match unconfirmed regardless of the threshold. Three consecutive failed reads stop a check. Both options show checked counts and can be cancelled. Full match can take several minutes.
 
 In Config, the Preset Name Sync card shows **Connecting…** while device information is read. After connecting, preset-name sync is ready immediately. If you choose either library match, the card shows **Checking library…** until that check finishes or is cancelled. **Cancel** stops the check. Cached names remain usable; refreshing them is optional on each connection.
 
 After a successful connection, **Sync with connected device** opens automatically.
-It identifies the active profile and assigned library, then offers preset names,
-saved scene names for the profile's favorite presets, the shared device library,
-resume for an incomplete scan, and quick/full library-match choices. Each action says
-what it refreshes. Options without the required data or supported device path are
+It identifies the device, active profile and assigned library, then shows the quick/full
+check choices. After a check, the large choice cards disappear; **Check library again**
+can bring them back. The result says what was compared and what was refreshed.
+**Use saved library** is the main action after a successful check or accepted full sync.
+The refresh actions and management buttons are visible without an accordion:
+
+- **Sync library** refreshes Preset Index, Amps, and the active profile's preset and scene names. Use it after editing device presets or to establish the first library. An accepted complete scan supplies all these names without extra MIDI queries; partial or declined scans do not replace profile name caches. Other profiles sharing the library retain their own caches. Live edit-buffer scene labels remain intact.
+- **Sync names** refreshes only the profile's preset list used by the Favorites picker. Use it after renaming or moving presets when a full library refresh is unnecessary; it is automatic after a successful FM9 library check.
+- **Sync scenes** refreshes scene names for this profile's favorite presets. Use it after renaming scenes when you do not need a full library sync.
+- **Resume** continues an incomplete library scan. **Manage profiles** and **Manage libraries** open the existing management screens.
+
+Options without the required data or supported device path are
 disabled. A prominent panel below the connection details shows the active operation
 and progress. It turns green on success or amber when a read is cancelled, fails,
 or leaves the library match unconfirmed. The result remains visible with a next
-step, including whether to retry, review the library assignment, refresh data, or
-choose Done. A successful sample check reports how many sampled presets matched
-and explicitly says that library data was not refreshed. Preset-name and favorite
+step in a separate neutral **Next step** panel below the result, including whether to retry, review the library assignment, refresh data, or
+continue. A successful sample check reports how many sampled presets matched,
+whether all preset names were refreshed, and that library data was not refreshed. Preset-name and favorite
 scene-name results report the completed reads. Reopening the dialog retains the
 last result for the current connection, profile and library.
 Device information is read on connection. Manage profiles and Manage
-libraries open the existing management screens. **Done** continues without a sync;
-**Config → Sync options…** reopens the dialog. Library scans open Preset Index for
-their progress and existing confirmation flow. Favorite scene reads are deduplicated
+libraries open the existing management screens. **Skip for now** continues without a sync;
+**Config → Sync options…** reopens the dialog. Library scans keep progress in the dialog
+and use the existing confirmation flow. Favorite scene reads are deduplicated
 by preset and save completed results in the profile without selecting presets.
+
+The dialog follows Microsoft Fluent's guidance to keep task-critical information visible ([accordions](https://fluent2.microsoft.design/components/web/react/core/accordion/usage)) and make completion feedback specific and actionable ([message bars](https://fluent2.microsoft.design/components/web/react/core/messagebar/usage)). A quick check does not automatically start a minutes-long library scan.
 
 A full scan reports the actual fraction of matching populated slots against the previous complete baseline, including newly populated and cleared slots as differences. Matching compares exact saved-image SHA-256 hashes at the same slot; renames, moves, edits and firmware changes can reduce the percentage. Empty slots do not inflate the match. Resumed scans include previously checkpointed reads. Firmware comparisons and new scans use the version reported by the current connection, never an assumed saved version. Each scan retains its original firmware.
 
@@ -70,8 +84,14 @@ Amp grid coordinates are not indexed. An Amp is its block instance, channel mode
 ## Amp Browser
 
 Open **Amps** to browse the assigned library's catalogue by manufacturer and real
-amp family. Search also matches Fractal model names and aliases. **Used in my
-presets** is optional; unused catalogue models remain visible by default. Open a
+amp family. Search also matches Fractal model names and aliases. The usage selector
+offers **All amps**, **Used in my presets**, and **Not used in my presets**. All amps
+is the default. Not used lists families whose variants do not appear in any saved
+amp channel, including channels no scene selects. It requires a complete library
+scan for the current device software and an available model catalogue. A partial
+scan can show known usage but cannot prove an amp is unused; a device with only
+observed model identities cannot supply unused catalogue models. Search and
+manufacturer filters work with each option. Open a
 family, choose all its variants or one exact Fractal model, then select **Find
 presets containing this amp**. Preset Index shows an explicit Contains filter,
 matching block/channel names, and optional saved-scene selection/engagement
@@ -92,7 +112,11 @@ See [implementation and catalogue evidence](amp-browser-implementation.md).
 - A fresh sync checks every slot; FM9 explicit empty markers avoid full transfers. It can take substantially longer over DIN MIDI than USB; there is no validated cheap remote checksum query.
 - The existing quick **Sync Preset Names**, Favorites, and live scene tracker retain their established behavior. Full index reads share their MIDI request gate and block profile changes during the scan.
 
+After a successful check in the dialog opened on initial connection, the dialog closes and **Preset Index** opens automatically. A compact, dismissible summary shows the check result and what was refreshed. An accepted complete **Sync library** takes the same route. Optional refreshes do not hold up browsing. If reads are incomplete, the library differs, saving fails or device information is still needed, the dialog stays open with a visible **Next step**. Sync options opened manually from Config remain open after completion.
+
 ## Storage and build
+
+Older libraries that did not save the device's software version are repaired automatically after an accepted Quick or Full check. This makes saved amp usage and **Find presets** available immediately and when reopening offline; no full library sync is needed for this repair. The original preset data, scan dates and tags are preserved. Separate confirmation metadata records the detected version, check date, sample scope, match counts and threshold. Failed, cancelled or unconfirmed checks do not add that confirmation. A later software-version change still requires fresh library data.
 
 Device cache: `%APPDATA%\PresetMaestro\FractalIndex\<device-id>.json`, with `.bak` recovery files.
 

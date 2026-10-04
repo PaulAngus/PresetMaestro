@@ -84,6 +84,13 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 12,
+    "SpecificModel": "1987X 50W reissue",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 13,
     "SpecificModel": "Marshall 1987X 50W reissue",
     "Relationship": "physical-amp",
@@ -140,10 +147,24 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 21,
+    "SpecificModel": "Mark IIC+",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 22,
     "SpecificModel": "Mesa/Boogie Mark IIC+",
     "Relationship": "physical-amp",
     "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 23,
+    "SpecificModel": "Mesa/Boogie Mark IV - Lead channel",
+    "Relationship": "physical-amp",
+    "Notes": "Basic Lead-channel variant. Supplied research identifies the reference as probably Rev B; that revision is not proven. The original CSV LEAD/RHYTHM heading is retained without a direct numeric join; the exact selectable Lead name is mapped separately.",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
@@ -301,6 +322,13 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 46,
+    "SpecificModel": "Deliverance 60 Series II",
+    "Relationship": "physical-amp",
+    "Notes": "D60 identity also supported by historical manual; Series II detail comes from contemporary Wiki and Ampdex.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 47,
     "SpecificModel": "Fryette Deliverance 60 Series II",
     "Relationship": "physical-amp",
@@ -337,10 +365,10 @@
   },
   {
     "ModelId": 52,
-    "SpecificModel": "Dumble Overdrive Special (clean; reference revision disputed)",
+    "SpecificModel": "Dumble Overdrive Special - Clean channel",
     "Relationship": "physical-amp",
-    "Notes": "Wiki and Ampdex currently assign Clean to Ford; historical official manual p167 assigns it to HRM serial 213. Dumble ODS identity corroborated; exact FM9 12 reference unresolved.",
-    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+    "Notes": "Current model-reference research assigns Clean to ODS-100 Ford (#102 schematic lineage); historical Fractal descriptions assign ODS-100 to HRM serial 0213. Amp and Clean channel are established; the exact FM9 12 reference remains unconfirmed. Model evolution is a possible explanation, not a proven conclusion.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://www.rig-talk.com/forum/threads/axe-fx-ii-firmware-10-release-notes.134534/"
   },
   {
     "ModelId": 53,
@@ -399,6 +427,20 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
   },
   {
+    "ModelId": 61,
+    "SpecificModel": "Matchless Chieftain - normal/unboosted",
+    "Relationship": "physical-amp",
+    "Notes": "Chiefman is the selectable-name alias for Chieftain. Historical Boutique 1/2 models represent the normal/boosted pair of the same reference amp.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 62,
+    "SpecificModel": "Matchless Chieftain - boosted",
+    "Relationship": "virtual-modification",
+    "Notes": "Same Chieftain reference as Chiefman 1, with added gain and high-frequency emphasis; not a separate physical amplifier.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 63,
     "SpecificModel": "Cameron CCV-100",
     "Relationship": "physical-amp",
@@ -413,7 +455,21 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 65,
+    "SpecificModel": "SVT",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 66,
+    "SpecificModel": "Fractal Audio original / virtual design",
+    "Relationship": "virtual-original",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 67,
     "SpecificModel": "Fractal Audio original / virtual design",
     "Relationship": "virtual-original",
     "Notes": "",
@@ -574,6 +630,20 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 90,
+    "SpecificModel": "VH4 Blue revision",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 91,
+    "SpecificModel": "VH4 Blue revision",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 92,
     "SpecificModel": "Diezel VH4 Blue revision",
     "Relationship": "physical-amp",
@@ -652,15 +722,22 @@
   },
   {
     "ModelId": 103,
-    "SpecificModel": "Marshall Silver Jubilee",
+    "SpecificModel": "Marshall Silver Jubilee 2555, 100W",
     "Relationship": "physical-amp",
-    "Notes": "Current sources identify Silver Jubilee; older model used a Lerxst Omega. Exact Jubilee production revision is not established.",
-    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+    "Notes": "Supplied research identifies the 100W 2555 and cites a Fractal administrator for the newer Silver Jubilee reference replacing the historical Lerxst Omega. Exact production revision/year is not established; the cited administrator page was not independently confirmed in this follow-up.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://forum.fractalaudio.com/threads/axe-fx-iii-firmware-24-03-release.200627/page-16"
   },
   {
     "ModelId": 104,
     "SpecificModel": "Splawn Nitro",
     "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 105,
+    "SpecificModel": "Fractal Audio original / virtual design",
+    "Relationship": "virtual-original",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
@@ -749,6 +826,13 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 118,
+    "SpecificModel": "Fuchs Overdrive Supreme 50 - Overdrive, Mid-boost variant",
+    "Relationship": "physical-amp",
+    "Notes": "Fox ODS Mid has a Fuchs ODS-50 basis with PAB engaged. Historical Fox ODS I/II used Mid on/off; current Wiki descriptions use Deep. The exact Mid switch setting is firmware-specific and unconfirmed; Mid is not treated as an alias for Deep.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://wiki.fractalaudio.com/wiki/index.php?title=User%3AGreg_Ferguson; https://www.rig-talk.com/forum/threads/axe-fx-ii-firmware-10-release-notes.134534/"
+  },
+  {
     "ModelId": 119,
     "SpecificModel": "Marshall JVM410H",
     "Relationship": "physical-amp",
@@ -764,10 +848,10 @@
   },
   {
     "ModelId": 121,
-    "SpecificModel": "Fender Brownface Vibrolux 6G11 (1962/1963)",
+    "SpecificModel": "Fender 1963 brownface Vibrolux 6G11 - Bright channel",
     "Relationship": "physical-amp",
-    "Notes": "Manufacturer and model corroborated; sources alternate 1962 and 1963 reference years, so neither is asserted alone.",
-    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete"
+    "Notes": "Supplied research and reproduced original firmware 10 release text specify 1963; current Wiki also uses 1962/63. The release is a third-party repost. This is Vibrolux, not Vibrolux Reverb; exact manufacturing date is not independently authenticated.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete; https://www.rig-talk.com/forum/threads/axe-fx-ii-firmware-10-release-notes.134534/"
   },
   {
     "ModelId": 122,
@@ -827,15 +911,22 @@
   },
   {
     "ModelId": 130,
-    "SpecificModel": "Fender 1966 blackface Princeton Reverb (circuit unverified)",
+    "SpecificModel": "Fender 1966 blackface Princeton Reverb - AA1164-family circuit (inferred)",
     "Relationship": "physical-amp",
-    "Notes": "Princeton Reverb identity corroborated by official Fullerton and manual. AA964 circuit claim is not accepted; leave exact circuit unset.",
+    "Notes": "Amp/year identification is retained. AA1164-family circuit is the supplied Fender-history inference for Princeton Reverb; the Wiki instead says AA964, associated with the non-reverb Princeton. The conflict remains explicit; exact reference circuit is not independently verified.",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete"
   },
   {
     "ModelId": 131,
     "SpecificModel": "Komet Concorde",
     "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 132,
+    "SpecificModel": "Fractal Audio original / virtual design",
+    "Relationship": "virtual-original",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
@@ -862,6 +953,13 @@
   },
   {
     "ModelId": 136,
+    "SpecificModel": "Fractal Audio original / virtual design",
+    "Relationship": "virtual-original",
+    "Notes": "Legacy virtual Rectifier interpretation for Fredrik Thordendal; not a third Dual Rectifier hardware generation.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 137,
     "SpecificModel": "Fractal Audio original / virtual design",
     "Relationship": "virtual-original",
     "Notes": "Legacy virtual Rectifier interpretation for Fredrik Thordendal; not a third Dual Rectifier hardware generation.",
@@ -898,6 +996,13 @@
   {
     "ModelId": 142,
     "SpecificModel": "Morgan AC20 Deluxe",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 143,
+    "SpecificModel": "60",
     "Relationship": "physical-amp",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
@@ -994,6 +1099,13 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 157,
+    "SpecificModel": "Maz 8",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 158,
     "SpecificModel": "Carr Rambler",
     "Relationship": "physical-amp",
@@ -1071,11 +1183,39 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 169,
+    "SpecificModel": "Bass 400",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 170,
+    "SpecificModel": "AD200B bass amp",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 171,
+    "SpecificModel": "Fractal Audio original / virtual design",
+    "Relationship": "virtual-original",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 172,
     "SpecificModel": "Fender Blackface Tremolux AA763",
     "Relationship": "physical-amp",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete"
+  },
+  {
+    "ModelId": 173,
+    "SpecificModel": "Fractal Audio original / virtual design",
+    "Relationship": "virtual-original",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
     "ModelId": 174,
@@ -1204,6 +1344,13 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 192,
+    "SpecificModel": "1959SLP Super Lead 100W reissue",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 193,
     "SpecificModel": "Marshall 1959SLP Super Lead 100W reissue",
     "Relationship": "physical-amp",
@@ -1214,6 +1361,13 @@
     "ModelId": 194,
     "SpecificModel": "Marshall 1959SLP Super Lead 100W reissue",
     "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 195,
+    "SpecificModel": "Fractal Audio original / virtual design",
+    "Relationship": "virtual-original",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
@@ -1230,6 +1384,13 @@
     "Relationship": "physical-amp",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 198,
+    "SpecificModel": "Brownface Super 6G4",
+    "Relationship": "physical-amp",
+    "Notes": "Official Q7 manual has a contradictory Super Reverb note. Use the 6G4 identity, supported by Wiki, Ampdex and Fullerton; do not inherit that note.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete"
   },
   {
     "ModelId": 199,
@@ -1344,6 +1505,13 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 215,
+    "SpecificModel": "Mark IIC+",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 216,
     "SpecificModel": "Mesa/Boogie Mark IIC+",
     "Relationship": "physical-amp",
@@ -1365,8 +1533,22 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete"
   },
   {
+    "ModelId": 219,
+    "SpecificModel": "Fender '64 Vibroverb Custom reissue - SRV/Mod configuration",
+    "Relationship": "modified-reference-amp",
+    "Notes": "FractalAudio describes the Custom model with the normal-channel preamp triode removed, increasing gain and changing vibrato-channel bias. Custom reissue/SRV lineage is separate from stock AA763 and AB763 Vibroverbs.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete; https://forum.fractalaudio.com/threads/vibroverb.214777/post-2697459"
+  },
+  {
     "ModelId": 220,
     "SpecificModel": "Marshall JMP-1 preamp",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 221,
+    "SpecificModel": "JMP-1 preamp",
     "Relationship": "physical-amp",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
@@ -1447,6 +1629,13 @@
     "Relationship": "physical-amp",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 233,
+    "SpecificModel": "Vox AC30 - Bright channel, non-Top-Boost",
+    "Relationship": "physical-amp",
+    "Notes": "Supplied research cites historical release/reference text for the non-Top-Boost Bright channel. Exact year is undocumented. The release repost is not independently authenticated here. The numeric ID/name was confirmed separately from the FM9 12.00 device table.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://www.guitariste.com/forums/pedales-effets-homestudio%2Cfractal-audio-axe-fx-ii-user-s-club%2C406485%2C12900.html"
   },
   {
     "ModelId": 234,
@@ -1653,10 +1842,10 @@
   },
   {
     "ModelId": 263,
-    "SpecificModel": "Ampeg Portaflex family; exact submodel unresolved",
+    "SpecificModel": "Ampeg B-15R Portaflex reissue (inferred)",
     "Relationship": "physical-amp",
-    "Notes": "Only Ampeg Portaflex family is corroborated. Remove the unsupported SVT-7 PRO guess; no precise Portaflex submodel established.",
-    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+    "Notes": "B-15 Portaflex is identified in the archived Ares 12.05 model table. B-15R is inferred from the supplied research comparing the 6L6 section, pad, Ultra Hi/Lo, three-band EQ, selectable mid frequency and master volume; it is not explicitly named by Fractal. Exact reference year is undocumented. The numeric ID/name was confirmed separately from the FM9 12.00 device table.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://archive.axefx.fr/AxeFX%20III/Docs/FAS_Amps%20Models%20Axe%20III%20Ares12.05.pdf"
   },
   {
     "ModelId": 264,
@@ -1664,6 +1853,13 @@
     "Relationship": "physical-amp",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 265,
+    "SpecificModel": "Fractal Audio original / virtual design",
+    "Relationship": "virtual-original",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
   },
   {
     "ModelId": 266,
@@ -1701,6 +1897,13 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
+    "ModelId": 271,
+    "SpecificModel": "Matchless DC-30",
+    "Relationship": "physical-amp",
+    "Notes": "EF86 is the second preamp channel of the same Matchless DC-30, not another amplifier.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
     "ModelId": 272,
     "SpecificModel": "Fractal Audio original / virtual design",
     "Relationship": "virtual-original",
@@ -1724,6 +1927,13 @@
   {
     "ModelId": 275,
     "SpecificModel": "Peavey 6505+ (5150 II lineage)",
+    "Relationship": "physical-amp",
+    "Notes": "Corrected CSV/Ampdex Peavey 6160+ typo to 6505+ using Wiki and official manual p167. 5150 II is a lineage alias, not the EVH-brand 5150 III.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 276,
+    "SpecificModel": "6505+ (5150 II lineage)",
     "Relationship": "physical-amp",
     "Notes": "Corrected CSV/Ampdex Peavey 6160+ typo to 6505+ using Wiki and official manual p167. 5150 II is a lineage alias, not the EVH-brand 5150 III.",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
@@ -1772,10 +1982,10 @@
   },
   {
     "ModelId": 283,
-    "SpecificModel": "Fender 1957 Tweed Deluxe 5E3",
+    "SpecificModel": "Fender 1957 Tweed Deluxe 5E3 - Bright channel",
     "Relationship": "physical-amp",
-    "Notes": "",
-    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete"
+    "Notes": "Official FM9 12.00 release notes rename Deluxe Tweed to Deluxe Tweed Bright; numeric ID 283 is unchanged.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete; https://www.fractalaudio.com/downloads/firmware-presets/fm9/12p0/fm9_dsp_rel_12p00.zip"
   },
   {
     "ModelId": 284,
@@ -1790,6 +2000,27 @@
     "Relationship": "physical-amp",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 286,
+    "SpecificModel": "BE-100 later revision",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 287,
+    "SpecificModel": "Friedman Marsha / early BE-100 - Brown Eye mode, circa 2010",
+    "Relationship": "physical-amp",
+    "Notes": "FractalAudio distinguishes the original Marsha from the later Mark Day BE-100 V1/V2 references. The historical announcement describes Marsha HB/HBE development with Dave Friedman; supplied research associates the 2010 models with this early platform.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://forum.fractalaudio.com/threads/which-are-the-new-be-hbe-models.114510/latest; https://www.premierguitar.com/fractal-audio-systems-releases-firmware-10-0"
+  },
+  {
+    "ModelId": 288,
+    "SpecificModel": "Friedman Marsha / early BE-100 - Hairy Brown Eye mode, circa 2010",
+    "Relationship": "physical-amp",
+    "Notes": "Same early Marsha platform, higher-gain HBE voicing. FractalAudio distinguishes original Marsha from later BE-100 V1/V2 references; supplied research associates this with the 2010 model.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://forum.fractalaudio.com/threads/which-are-the-new-be-hbe-models.114510/latest; https://www.premierguitar.com/fractal-audio-systems-releases-firmware-10-0"
   },
   {
     "ModelId": 289,
@@ -1827,11 +2058,39 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
-    "ModelId": 298,
-    "SpecificModel": "Peavey 5150 Block Letter or 6505; sources disagree",
+    "ModelId": 294,
+    "SpecificModel": "JMP-1 preamp",
     "Relationship": "physical-amp",
-    "Notes": "Wiki groups this under Block Letter 5150; Ampdex explicitly says 6505. Peavey confirmed; exact model is unresolved and kept separate from the verified 5150 family.",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 295,
+    "SpecificModel": "JMP-1 preamp",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 296,
+    "SpecificModel": "JMP-1 preamp",
+    "Relationship": "physical-amp",
+    "Notes": "CSV/Ampdex repeat Clean 1 text. The model name and Wiki list say Clean 2 Bass Shift; no claim of two-source channel-setting verification.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 297,
+    "SpecificModel": "Del Fuego 22W",
+    "Relationship": "physical-amp",
+    "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 298,
+    "SpecificModel": "Peavey 5150 Block Letter - Rhythm channel, Crunch engaged",
+    "Relationship": "physical-amp",
+    "Notes": "Fractal's official Axe-Fx II manual identifies the PVH 6160 Block family as Peavey EVH 5150. That manufacturer attribution takes precedence over Ampdex's conflicting 6505 attribution. The current Wiki identifies Block Crunch as the rhythm channel with Crunch engaged. The historical manual covers Block Lead, so the Crunch channel detail is supported by the Wiki rather than that manual. The numeric ID/name was confirmed separately from the FM9 12.00 device table.",
+    "MappingEvidence": "https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json"
   },
   {
     "ModelId": 299,
@@ -1839,6 +2098,27 @@
     "Relationship": "physical-amp",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 300,
+    "SpecificModel": "Plexi 50W with 6CA7 power tubes",
+    "Relationship": "physical-amp",
+    "Notes": "Power-tube designation is 6CA7, not the CSV description's 6AC7.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 301,
+    "SpecificModel": "Herbert MkIII",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 302,
+    "SpecificModel": "'59 Bassman LTD reissue",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://shop.fractalaudio.com/products/icons-fullerton-complete"
   },
   {
     "ModelId": 303,
@@ -1855,11 +2135,60 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
   },
   {
+    "ModelId": 305,
+    "SpecificModel": "Generator 120 MkIII revision A",
+    "Relationship": "physical-amp",
+    "Notes": "One Generator 120 MkIII revision A reference amp; Green/Purple/Red and 1/2/3 distinguish channel and drive/aggression settings.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 306,
+    "SpecificModel": "Generator 120 MkIII revision A",
+    "Relationship": "physical-amp",
+    "Notes": "One Generator 120 MkIII revision A reference amp; Green/Purple/Red and 1/2/3 distinguish channel and drive/aggression settings.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
     "ModelId": 307,
     "SpecificModel": "Revv Generator 120 MkIII revision A",
     "Relationship": "physical-amp",
     "Notes": "One Generator 120 MkIII revision A reference amp; Green/Purple/Red and 1/2/3 distinguish channel and drive/aggression settings.",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 308,
+    "SpecificModel": "Generator 120 MkIII revision A",
+    "Relationship": "physical-amp",
+    "Notes": "One Generator 120 MkIII revision A reference amp; Green/Purple/Red and 1/2/3 distinguish channel and drive/aggression settings.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 309,
+    "SpecificModel": "Generator 120 MkIII revision A",
+    "Relationship": "physical-amp",
+    "Notes": "One Generator 120 MkIII revision A reference amp; Green/Purple/Red and 1/2/3 distinguish channel and drive/aggression settings.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 310,
+    "SpecificModel": "Generator 120 MkIII revision A",
+    "Relationship": "physical-amp",
+    "Notes": "One Generator 120 MkIII revision A reference amp; Green/Purple/Red and 1/2/3 distinguish channel and drive/aggression settings.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 311,
+    "SpecificModel": "Generator 120 MkIII revision A",
+    "Relationship": "physical-amp",
+    "Notes": "One Generator 120 MkIII revision A reference amp; Green/Purple/Red and 1/2/3 distinguish channel and drive/aggression settings.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 312,
+    "SpecificModel": "JVM410HJS Joe Satriani signature",
+    "Relationship": "physical-amp",
+    "Notes": "JVM410HJS identity follows the JS410 family in Wiki and official manual p167. CSV/Ampdex omit JS on this row. Exact Green setting is not independently verified.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
   },
   {
     "ModelId": 313,
@@ -1870,9 +2199,16 @@
   },
   {
     "ModelId": 314,
-    "SpecificModel": "Marshall 2203 100W (Brit 800)",
+    "SpecificModel": "Marshall JCM800 Model 2203, 100W - High input",
     "Relationship": "physical-amp",
-    "Notes": "Both contemporary guides mix JCM800 and JMP terminology. 2203 100W is corroborated; exact series badge is not resolved.",
+    "Notes": "High-sensitivity input of the 100W 2203 reference. Fractal descriptions mix JMP/JCM800 terminology; exact badge and production year are not established.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://wiki.fractalaudio.com/wiki/index.php?title=User%3AGreg_Ferguson"
+  },
+  {
+    "ModelId": 315,
+    "SpecificModel": "5150 III 100S Stealth 100W",
+    "Relationship": "physical-amp",
+    "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
   },
   {
@@ -1890,15 +2226,29 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
   },
   {
-    "ModelId": 319,
-    "SpecificModel": "Marshall 2203 100W (Brit 800)",
+    "ModelId": 318,
+    "SpecificModel": "JCM800 2204 50W",
     "Relationship": "physical-amp",
-    "Notes": "Both contemporary guides mix JCM800 and JMP terminology. 2203 100W is corroborated; exact series badge is not resolved.",
-    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+  },
+  {
+    "ModelId": 319,
+    "SpecificModel": "Marshall JCM800 Model 2203, 100W - Low input",
+    "Relationship": "physical-amp",
+    "Notes": "Low-sensitivity input of the same 100W 2203 reference. Fractal descriptions mix JMP/JCM800 terminology; exact badge and production year are not established.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://wiki.fractalaudio.com/wiki/index.php?title=User%3AGreg_Ferguson"
   },
   {
     "ModelId": 320,
     "SpecificModel": "Mesa/Boogie Mark V",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
+    "ModelId": 321,
+    "SpecificModel": "Mark V",
     "Relationship": "physical-amp",
     "Notes": "",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
@@ -1911,6 +2261,13 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
   },
   {
+    "ModelId": 323,
+    "SpecificModel": "Mark V",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
     "ModelId": 324,
     "SpecificModel": "Mesa/Boogie Mark V",
     "Relationship": "physical-amp",
@@ -1918,10 +2275,17 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
   },
   {
+    "ModelId": 325,
+    "SpecificModel": "Mark V",
+    "Relationship": "physical-amp",
+    "Notes": "",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
+  },
+  {
     "ModelId": 326,
-    "SpecificModel": "Vox AC30 basis with alternate Matchless DC-30 tone stack",
+    "SpecificModel": "Vox AC30 - Brilliant/Top-Boost style, Matchless DC-30 tone stack",
     "Relationship": "virtual-modification",
-    "Notes": "AC30 basis is corroborated. Wiki describes Top Boost with a DC-30 tone stack; CSV/Ampdex call it Normal. Exact channel statement remains disputed.",
+    "Notes": "Supplied current model-reference research describes Class-A 30W TB architecture with the Matchless DC-30 tone stack. This derived model supersedes the older Normal-channel description for display; no exact AC30 reference year/revision is asserted.",
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models"
   },
   {
@@ -1953,10 +2317,38 @@
     "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://shop.fractalaudio.com/products/icons-fullerton-complete"
   },
   {
-    "ModelId": 271,
-    "SpecificModel": "Matchless DC-30",
+    "ModelId": 331,
+    "SpecificModel": "Fender Tweed Deluxe 5E3 - Normal channel",
     "Relationship": "physical-amp",
-    "Notes": "EF86 is the second preamp channel of the same Matchless DC-30, not another amplifier.",
-    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf"
+    "Notes": "FM9 12.00 release notes introduce Deluxe Tweed Normal and rename the existing model Bright. Shares the reviewed Tweed Deluxe 5E3 reference family.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://shop.fractalaudio.com/products/icons-fullerton-complete; https://www.fractalaudio.com/downloads/firmware-presets/fm9/12p0/fm9_dsp_rel_12p00.zip"
+  },
+  {
+    "ModelId": 332,
+    "SpecificModel": "Peavey 5150 Block Letter - Clean channel",
+    "Relationship": "physical-amp",
+    "Notes": "FM9 12.00 release notes introduce PVH 6160 Block Clean. Shares the official Block family attribution; no different production revision is asserted.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://www.fractalaudio.com/downloads/firmware-presets/fm9/12p0/fm9_dsp_rel_12p00.zip"
+  },
+  {
+    "ModelId": 333,
+    "SpecificModel": "Marshall JVM410H - Crunch channel, Green mode",
+    "Relationship": "physical-amp",
+    "Notes": "Official FM9 12.00 release notes identify the Crunch channel of JVM410 for the Green/Orange/Red models.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://www.fractalaudio.com/downloads/firmware-presets/fm9/12p0/fm9_dsp_rel_12p00.zip"
+  },
+  {
+    "ModelId": 334,
+    "SpecificModel": "Marshall JVM410H - Crunch channel, Orange mode",
+    "Relationship": "physical-amp",
+    "Notes": "Official FM9 12.00 release notes identify the Crunch channel of JVM410 for the Green/Orange/Red models.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://www.fractalaudio.com/downloads/firmware-presets/fm9/12p0/fm9_dsp_rel_12p00.zip"
+  },
+  {
+    "ModelId": 335,
+    "SpecificModel": "Marshall JVM410H - Crunch channel, Red mode",
+    "Relationship": "physical-amp",
+    "Notes": "Official FM9 12.00 release notes identify the Crunch channel of JVM410 for the Green/Orange/Red models.",
+    "MappingEvidence": "https://github.com/rinkashimikito/ampdex/blob/1210a8c2110bfdd14d567b6262383a602657d310/src/data/amps.json; https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models; https://www.fractalaudio.com/downloads/manuals/axe-fx-2/Axe-Fx-II-Owners-Manual.pdf; https://www.fractalaudio.com/downloads/firmware-presets/fm9/12p0/fm9_dsp_rel_12p00.zip"
   }
 ]

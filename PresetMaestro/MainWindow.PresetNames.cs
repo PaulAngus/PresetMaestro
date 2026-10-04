@@ -82,106 +82,112 @@ public partial class MainWindow
         _presetNamesProgress.Maximum = 512;
         _presetNamesStatus.Text = "Synchronizing slots 0-511...";
         UpdatePresetSyncButtons();
-        var names = new Dictionary<int, string>(_settings.PresetNameCache);
-        var refreshedSlots = new HashSet<int>();
-        int failures = 0;
-        int checkedSlots = 0;
-        int responseCount = 0;
+        var read = new PresetNameReadState(_settings.PresetNameCache);
         CancellationToken token = _presetNamesCts.Token;
-        // Device replies can arrive much faster than the UI can render. Keep the
-        // request loop identical for Config and the dialog; repaint only on a timer.
-        var progressTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-        progressTimer.Tick += (_, _) =>
-        {
-            int displayedSlots = Volatile.Read(ref checkedSlots);
-            _presetNamesProgress.Value = displayedSlots;
-            _presetNamesStatus.Text = $"Synchronized {displayedSlots} of 512 ({Volatile.Read(ref responseCount)} responses)";
-            if (_connectionSyncDialog is not null)
-            {
-                _connectionSyncProgress!.Value = displayedSlots;
-                _connectionSyncStatus!.Text = $"{displayedSlots} of 512 preset slots checked.";
-            }
-        };
-        progressTimer.Start();
+        var progressTimer = StartPresetNameReadProgress(read);
 
         try
         {
-            // Neither the next MIDI request nor response processing may wait for
-            // the UI dispatcher. Only the timer and completion update controls.
-            await Task.Run(async () =>
-            {
-                for (int slot = 0; slot <= 511; slot++)
-                {
-                    token.ThrowIfCancellationRequested();
-                    try
-                    {
-                        PresetNameResult result = await _queryPresetNameAsync(slot, TimeSpan.FromSeconds(1.5), token).ConfigureAwait(false);
-                        token.ThrowIfCancellationRequested();
-                        names[result.Slot] = result.PresetName;
-                        refreshedSlots.Add(result.Slot);
-                        Volatile.Write(ref responseCount, refreshedSlots.Count);
-                        failures = 0;
-                    }
-                    catch (TimeoutException)
-                    {
-                        AppendLog($"PRESET NAMES: slot {slot} timed out");
-                        if (++failures >= 3)
-                        {
-                            throw new IOException("Preset sync stopped after three unanswered requests.");
-                        }
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        AppendLog($"PRESET NAMES: slot {slot} failed — {ex.Message}");
-                        throw;
-                    }
-
-                    Volatile.Write(ref checkedSlots, slot + 1);
-                }
-            }, token);
-
-            _settings.PresetNameCache = names;
-            _saveSettings(_settings);
-            UpdateFavoritePresetDisplay();
-            string? warning = CurrentFavoritePresetWarning(refreshedSlots, names);
-            bool incomplete = refreshedSlots.Count < 512 || warning is not null;
+            await ReadPresetNamesAsync(read, token);
+            SavePresetNameRead(read);
+            string? warning = CurrentFavoritePresetWarning(read.RefreshedSlots, read.Names);
+            bool incomplete = read.RefreshedSlots.Count < 512 || warning is not null;
             _presetNamesStatus.Text = warning ?? (incomplete
-                ? $"Incomplete: {refreshedSlots.Count} of 512 preset names synchronized. {512 - refreshedSlots.Count} names were not returned; existing cached names were kept."
+                ? $"Incomplete: {read.RefreshedSlots.Count} of 512 preset names synchronized. {512 - read.RefreshedSlots.Count} names were not returned; existing cached names were kept."
                 : "Complete: 512 of 512 preset names synchronized.");
             SetConnectionSyncOutcome(incomplete ? "Preset-name sync needs attention" : "Preset names synced",
-                $"{refreshedSlots.Count} of 512 preset names refreshed in profile “{_settings.ActiveProfile}”. Only the name list was refreshed." + (warning is null ? "" : " " + warning),
+                $"{read.RefreshedSlots.Count} of 512 preset names refreshed in profile “{_settings.ActiveProfile}”. Only the name list was refreshed." + (warning is null ? "" : " " + warning),
                 incomplete ? "Next: Choose Sync names to retry missing names, or Done to use the saved list."
-                    : "Next: Choose Done to continue. Other sync options are optional.", needsAttention: incomplete);
+                    : "Next: Choose Done to continue. Use Sync library if you also changed preset content or scenes.", needsAttention: incomplete);
             AppendLog(warning is null
-                ? $"PRESET NAMES: synchronized {refreshedSlots.Count} of 512 preset names"
+                ? $"PRESET NAMES: synchronized {read.RefreshedSlots.Count} of 512 preset names"
                 : $"PRESET NAMES: {warning}");
         }
         catch (OperationCanceledException)
         {
-            _presetNamesStatus.Text = $"Cancelled at {checkedSlots} of 512. No preset was selected.";
-            SetConnectionSyncOutcome("Preset-name sync cancelled", $"{refreshedSlots.Count} of 512 names refreshed. Completed reads were saved; other cached names were kept.",
+            _presetNamesStatus.Text = $"Cancelled at {read.CheckedSlots} of 512. No preset was selected.";
+            SetConnectionSyncOutcome("Preset-name sync cancelled", $"{read.RefreshedSlots.Count} of 512 names refreshed. Completed reads were saved; other cached names were kept.",
                 "Next: Choose Sync names to retry, or Done to use the saved list.", needsAttention: true);
         }
         catch (Exception ex)
         {
             _presetNamesStatus.Text = ex.Message;
             AppendLog($"PRESET NAMES: sync failed — {ex.Message}");
-            SetConnectionSyncOutcome("Preset-name sync stopped", $"{refreshedSlots.Count} of 512 names refreshed. Completed reads were saved. {ex.Message}",
+            SetConnectionSyncOutcome("Preset-name sync stopped", $"{read.RefreshedSlots.Count} of 512 names refreshed. Completed reads were saved. {ex.Message}",
                 "Next: Check the MIDI connection, then choose Sync names to retry.", needsAttention: true);
         }
         finally
         {
             progressTimer.Stop();
-            _presetNamesProgress.Value = checkedSlots;
-            _settings.PresetNameCache = names;
-            _saveSettings(_settings);
-            UpdateFavoritePresetDisplay();
+            _presetNamesProgress.Value = read.CheckedSlots;
+            SavePresetNameRead(read);
             _presetNamesCts.Dispose();
             _presetNamesCts = null;
             _syncingPresetNames = false;
             _cancelPresetNamesButton.IsEnabled = false;
             UpdatePresetSyncButtons();
         }
+    }
+
+    private sealed class PresetNameReadState(Dictionary<int, string> cachedNames)
+    {
+        public Dictionary<int, string> Names { get; } = new(cachedNames);
+        public HashSet<int> RefreshedSlots { get; } = [];
+        public int CheckedSlots;
+        public int ResponseCount;
+    }
+
+    // Config sync, dialog sync and the library precheck all use this request loop.
+    // MIDI processing never waits for a dispatcher repaint between replies.
+    private Task ReadPresetNamesAsync(PresetNameReadState read, CancellationToken token) => Task.Run(async () =>
+    {
+        int failures = 0;
+        for (int slot = 0; slot < 512; slot++)
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                var result = await _queryPresetNameAsync(slot, TimeSpan.FromSeconds(1.5), token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                if (result.Slot != slot) { throw new InvalidDataException($"Expected preset name {slot}, received {result.Slot}."); }
+                read.Names[slot] = result.PresetName;
+                read.RefreshedSlots.Add(slot);
+                Volatile.Write(ref read.ResponseCount, read.RefreshedSlots.Count);
+                failures = 0;
+            }
+            catch (TimeoutException)
+            {
+                AppendLog($"PRESET NAMES: slot {slot} timed out");
+                if (++failures >= 3) { throw new IOException("Preset sync stopped after three unanswered requests."); }
+            }
+            Volatile.Write(ref read.CheckedSlots, slot + 1);
+        }
+    }, token);
+
+    private DispatcherTimer StartPresetNameReadProgress(PresetNameReadState read)
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        timer.Tick += (_, _) =>
+        {
+            int slots = Volatile.Read(ref read.CheckedSlots);
+            _presetNamesProgress.Value = slots;
+            _presetNamesStatus.Text = $"Read {slots} of 512 ({Volatile.Read(ref read.ResponseCount)} responses)";
+            if (_connectionSyncDialog is not null)
+            {
+                _connectionSyncProgress!.Value = slots;
+                _connectionSyncStatus!.Text = $"{slots} of 512 preset names read.";
+            }
+        };
+        timer.Start();
+        return timer;
+    }
+
+    private void SavePresetNameRead(PresetNameReadState read)
+    {
+        _settings.PresetNameCache = read.Names;
+        _saveSettings(_settings);
+        UpdateFavoritePresetDisplay();
+        UpdateDisplay();
     }
 
     private string? CurrentFavoritePresetWarning(ISet<int> refreshedSlots, IReadOnlyDictionary<int, string> names)

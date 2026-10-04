@@ -35,9 +35,9 @@ public sealed class AmpBrowserTests : IDisposable
     public void DirectoryIncludesUnusedModelsCountsDistinctPresetsAndKeepsUnknownIds()
     {
         var directory = AmpBrowserCatalog.Build(Cache());
-        Assert.False(directory.IsComplete);
-        Assert.Contains("incomplete", directory.Coverage);
-        Assert.True(directory.Families.Sum(f => f.Variants.Length) >= 285);
+        Assert.True(directory.IsComplete);
+        Assert.Contains("336 device-confirmed amp names", directory.Coverage);
+        Assert.Equal(337, directory.Families.Sum(f => f.Variants.Length)); // 336 names plus the fixture's unknown ID.
         var bassman = directory.Families.Single(f => f.Family.Id == "fender-bassman-59");
         Assert.Equal(3, bassman.Variants.Length);
         Assert.Equal(2, bassman.MatchingPresets);
@@ -68,17 +68,65 @@ public sealed class AmpBrowserTests : IDisposable
         Assert.NotEqual(For(81).Family.Id, For(313).Family.Id); // Stealth reference.
         Assert.NotEqual(For(76).Family.Id, For(249).Family.Id); // Legacy VL100 vs Legacy 3.
         Assert.NotEqual(For(153).Family.Id, For(258).Family.Id); // Champ vs EC Vibro-Champ.
-        Assert.NotEqual(For(39).Family.Id, For(298).Family.Id); // Disputed Crunch reference.
-        Assert.Equal("partially resolved; see evidence", For(298).Family.Confidence);
-        Assert.Contains("unresolved", For(263).Family.Name);
+        Assert.Equal(For(39).Family.Id, For(298).Family.Id); // Official Block family attribution takes precedence.
+        Assert.Equal("5150 Block Letter", For(298).Family.Name);
+        Assert.Contains("Rhythm channel", For(298).Variants.Single(v => v.ModelId == 298).SpecificModel);
+        Assert.Contains("Axe-Fx-II-Owners-Manual.pdf", For(298).Variants.Single(v => v.ModelId == 298).MappingEvidence);
+        Assert.True(For(298).Variants.Single(v => v.ModelId == 298).IdentityVerified);
+        Assert.Equal("B-15 Portaflex", For(263).Family.Name);
+        var portaflex = For(263).Variants.Single();
+        Assert.Equal("Ampeg B-15R Portaflex reissue (inferred)", portaflex.SpecificModel);
+        Assert.True(For(263).Matches("B15"));
+        Assert.True(For(263).Matches("B-15"));
+        Assert.True(For(263).Matches("B-15R"));
+        Assert.Contains("not explicitly named by Fractal", portaflex.MappingEvidence);
+        Assert.Contains("Ares12.05.pdf", portaflex.MappingEvidence);
+        Assert.True(portaflex.IdentityVerified); // Device confirms the name; B-15R reference remains inferred.
         Assert.Equal(For(166).Family.Id, For(271).Family.Id); // DC-30 preamp channels.
         Assert.Equal(For(303).Family.Id, For(307).Family.Id); // REVV channels, one reference amp.
         Assert.Equal("Fender", For(111).Family.Manufacturer); // Physical custom reference.
         Assert.Equal("Fractal originals", For(136).Family.Manufacturer); // Virtual Thordendal.
         Assert.All(families.SelectMany(f => f.Variants).Where(v => v.MappingEvidence.Contains("Manufacturer/model sources")),
             v => { Assert.Contains("ampdex", v.MappingEvidence); Assert.Contains("wiki.fractalaudio.com", v.MappingEvidence); });
-        Assert.False(For(303).Variants.Single(v => v.ModelId == 303).IdentityVerified);
-        Assert.Equal("Unmapped", For(118).Family.Manufacturer); // Mid vs Deep rename not guessed.
+        Assert.True(For(303).Variants.Single(v => v.ModelId == 303).IdentityVerified);
+        Assert.Equal("mesa-markiv", For(23).Family.Id);
+        Assert.Contains("Lead channel", For(23).Variants.Single(v => v.ModelId == 23).SpecificModel);
+        Assert.Contains("probably Rev B", For(23).Variants.Single(v => v.ModelId == 23).MappingEvidence);
+        Assert.Equal("matchless-chieftain", For(61).Family.Id);
+        Assert.Equal(For(61).Family.Id, For(62).Family.Id);
+        Assert.Contains("normal/unboosted", For(61).Variants.Single(v => v.ModelId == 61).SpecificModel);
+        Assert.Contains("Chieftain - boosted", For(62).Variants.Single(v => v.ModelId == 62).SpecificModel);
+        Assert.Equal("fuchs-ods", For(118).Family.Id);
+        Assert.Contains("Mid-boost", For(118).Variants.Single(v => v.ModelId == 118).SpecificModel);
+        Assert.Contains("Mid is not treated as an alias for Deep", For(118).Variants.Single(v => v.ModelId == 118).MappingEvidence);
+        Assert.Equal("fender-vibroverb-custom", For(219).Family.Id);
+        Assert.NotEqual(For(181).Family.Id, For(219).Family.Id);
+        Assert.NotEqual(For(182).Family.Id, For(219).Family.Id);
+        Assert.Contains("normal-channel preamp triode removed", For(219).Variants.Single().MappingEvidence);
+        var princetone = For(130).Variants.Single();
+        Assert.Contains("AA1164-family circuit (inferred)", princetone.SpecificModel);
+        Assert.Contains("Wiki instead says AA964", princetone.MappingEvidence);
+        Assert.Contains("#102", For(52).Variants.Single().MappingEvidence);
+        Assert.Contains("HRM serial 0213", For(52).Variants.Single().MappingEvidence);
+        Assert.Contains("High input", For(314).Variants.Single(v => v.ModelId == 314).SpecificModel);
+        Assert.Contains("Low input", For(319).Variants.Single(v => v.ModelId == 319).SpecificModel);
+        Assert.Contains("2555, 100W", For(103).Variants.Single().SpecificModel);
+        Assert.Contains("1963 brownface Vibrolux", For(121).Variants.Single().SpecificModel);
+        Assert.All(new[] { 23, 61, 62, 118, 219, 233, 287, 288, 335 }, id =>
+            Assert.True(For(id).Variants.Single(v => v.ModelId == id).IdentityVerified));
+        Assert.Equal("vox-ac30", For(233).Family.Id);
+        Assert.Contains("non-Top-Boost", For(233).Variants.Single(v => v.ModelId == 233).SpecificModel);
+        Assert.Equal("friedman-be-2010", For(287).Family.Id);
+        Assert.Equal(For(287).Family.Id, For(288).Family.Id);
+        Assert.NotEqual(For(37).Family.Id, For(287).Family.Id); // Later BE-100 stays separate from Marsha.
+        Assert.NotEqual(For(0).Family.Id, For(302).Family.Id); // Original Bassman stays separate from reissue.
+        Assert.Equal("fender-bassman-59-ri", For(302).Family.Id);
+        Assert.Equal("Deluxe Tweed Bright", For(283).Variants.Single(v => v.ModelId == 283).Name);
+        Assert.Equal(For(283).Family.Id, For(331).Family.Id);
+        Assert.Equal(For(39).Family.Id, For(332).Family.Id);
+        Assert.Equal(For(119).Family.Id, For(335).Family.Id);
+        Assert.NotEqual(For(248).Family.Id, For(21).Family.Id); // IIC+ and custom IIC++ are distinct.
+        Assert.DoesNotContain(families, f => f.Family.Manufacturer == "Unmapped" && f.Variants.Any(v => v.ModelId != 9999));
     }
 
     [Fact]
@@ -86,7 +134,11 @@ public sealed class AmpBrowserTests : IDisposable
     {
         var cache = Cache();
         Assert.True(AmpBrowserCatalog.Build(cache).HasUsageData);
+        Assert.True(AmpBrowserCatalog.Build(cache).HasCompleteUsageData);
+        Assert.True(AmpBrowserCatalog.Build(cache).CanListUnusedAmps);
         Assert.True(AmpBrowserCatalog.Build(Cache(false)).HasUsageData);
+        Assert.False(AmpBrowserCatalog.Build(Cache(false)).HasCompleteUsageData);
+        Assert.False(AmpBrowserCatalog.Build(Cache(false)).CanListUnusedAmps);
         cache.Committed = null;
         Assert.False(AmpBrowserCatalog.Build(cache).HasUsageData);
         Assert.NotEmpty(AmpBrowserCatalog.Build(cache).Families);
@@ -96,6 +148,133 @@ public sealed class AmpBrowserTests : IDisposable
         cache.Committed.Firmware = "12.00";
         cache.Committed.Presets.Clear();
         Assert.False(AmpBrowserCatalog.Build(cache).HasUsageData);
+    }
+
+    [Fact]
+    public void ObservedModelsAloneCannotSupplyAnUnusedAmpCatalogueForOtherDevices()
+    {
+        var cache = Cache();
+        cache.Device = cache.Device with { Variant = FractalDeviceVariant.AxeFxIIIOriginal };
+        foreach (int slot in cache.Committed!.Presets.Keys.ToArray())
+        { cache.Committed.Presets[slot] = cache.Committed.Presets[slot] with { Variant = FractalDeviceVariant.AxeFxIIIOriginal }; }
+        IndexJson.Validate(cache);
+        var directory = AmpBrowserCatalog.Build(cache);
+        Assert.True(directory.HasCompleteUsageData);
+        Assert.False(directory.HasCatalogueRoster);
+        Assert.False(directory.CanListUnusedAmps);
+        Assert.All(directory.Families, f => Assert.True(f.MatchingPresets > 0));
+    }
+
+    [Fact]
+    public void LegacyScanConfirmationSurvivesExportAndDoesNotAllowUsageAfterSoftwareChanges()
+    {
+        var cache = Cache();
+        cache.Committed!.Firmware = null;
+        Assert.False(AmpBrowserCatalog.Build(cache).HasUsageData);
+        cache.Committed.FirmwareConfirmation = new("12.00", DateTimeOffset.UtcNow, true, 16, 16, 99);
+        new IndexLibrary(_directory).Save(cache);
+        var reopened = new IndexLibrary(_directory).Load(cache.Device.Id)!;
+        var portable = IndexJson.Clone(reopened);
+        IndexJson.Validate(portable);
+        Assert.Null(portable.Committed!.Firmware);
+        Assert.Equal("12.00", portable.Committed.EffectiveFirmware);
+        Assert.True(AmpBrowserCatalog.Build(portable).HasUsageData);
+        var filter = new AmpContainsFilter(cache.Device.Id, cache.Device.Variant, "12.00", "Plexi", [141]);
+        Assert.True(filter.AppliesTo(portable));
+        portable.Device = portable.Device with { Firmware = "13.00" };
+        Assert.False(AmpBrowserCatalog.Build(portable).HasUsageData);
+        Assert.False(filter.AppliesTo(portable));
+    }
+
+    [Theory]
+    [InlineData("not a version", 16, 16, 99)]
+    [InlineData("12.00", 15, 16, 99)]
+    [InlineData("12.00", 17, 16, 99)]
+    [InlineData("12.00", 0, 0, 99)]
+    [InlineData("12.00", 16, 16, 101)]
+    [InlineData("13.00", 16, 16, 99)]
+    public void InvalidCompatibilityConfirmationCannotBeLoaded(string firmware, int matched, int compared, int threshold)
+    {
+        var cache = Cache();
+        cache.Committed!.FirmwareConfirmation = new(firmware, DateTimeOffset.UtcNow, true, matched, compared, threshold);
+        Assert.Throws<InvalidDataException>(() => IndexJson.Validate(cache));
+    }
+
+    [AvaloniaTheory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
+    public void UnusedFilterShowsUnrepresentedFamiliesAndCombinesWithSearchAndManufacturer(string theme)
+    {
+        var cache = Cache();
+        Assert.False(cache.Committed!.Presets[0].Uses(0, 141)); // Saved Amp 1/D is not selected by any scene.
+        var store = new ProfileStore(_directory); var settings = store.LoadSettings(); settings.Theme = theme;
+        new IndexLibrary(Path.Combine(_directory, "FractalIndex")).Save(cache);
+        settings.FractalIndex = IndexJson.ToElement(new IndexProfile { Devices = [cache.Device], SelectedDeviceId = cache.Device.Id }); store.SaveSettings(settings);
+        var midi = new DeviceMidi(); var window = new MainWindow(settings, [], midi, profileStore: store) { Width = 1200, Height = 850 };
+        window.Show();
+        try
+        {
+            Click(Find<Button>(window, "NavAmps"));
+            var usage = Find<ComboBox>(window, "AmpsPresetUsage");
+            Assert.Equal(new[] { "All amps", "Used in my presets", "Not used in my presets" }, usage.Items.OfType<ComboBoxItem>().Select(i => (string)i.Content!));
+            Assert.True(UsageOption(window, 2).IsEnabled);
+            var list = Find<ListBox>(window, "AmpsDirectory");
+            int allCount = list.ItemCount;
+            usage.SelectedIndex = 2; Dispatcher.UIThread.RunJobs();
+            var unused = list.Items.OfType<ListBoxItem>().Select(i => (BrowserAmpFamily)i.Tag!).ToArray();
+            Assert.Equal(allCount - 3, unused.Length); // Bassman, Plexi and unknown #9999 occur in saved channels.
+            Assert.DoesNotContain(unused, f => f.Family.Id == "fender-bassman-59" || f.Variants.Any(v => v.ModelId is 141 or 9999));
+            Assert.Contains(unused, f => f.Family.Id == "marshall-jcm800");
+            Assert.Contains("Not used in my presets", Find<TextBlock>(window, "AmpsCount").Text);
+            Capture(window, "amps-unused-" + theme.ToLowerInvariant());
+            Find<ComboBox>(window, "AmpsManufacturer").SelectedItem = "Marshall"; Dispatcher.UIThread.RunJobs();
+            Assert.All(list.Items.OfType<ListBoxItem>(), i => Assert.Equal("Marshall", ((BrowserAmpFamily)i.Tag!).Family.Manufacturer));
+            int manufacturerCount = list.ItemCount;
+            Find<TextBox>(window, "AmpsSearch").Text = "JCM800"; Dispatcher.UIThread.RunJobs();
+            Assert.InRange(list.ItemCount, 1, manufacturerCount - 1);
+            Assert.Contains(list.Items.OfType<ListBoxItem>(), i => ((BrowserAmpFamily)i.Tag!).Family.Id == "marshall-jcm800");
+            SelectFamily(list, "marshall-jcm800");
+            Click(Find<Button>(window, "AmpsFindPresets"));
+            Assert.Empty(Find<ListBox>(window, "IndexPresetList").Items);
+            Click(Find<Button>(window, "IndexBackToAmps"));
+            Assert.Equal(2, Find<ComboBox>(window, "AmpsPresetUsage").SelectedIndex);
+            Assert.Equal("JCM800", Find<TextBox>(window, "AmpsSearch").Text);
+            Find<TextBox>(window, "AmpsSearch").Text = "No such amplifier"; Dispatcher.UIThread.RunJobs();
+            Assert.Empty(list.Items);
+            Assert.Contains("No unused amps match", Find<TextBlock>(window, "AmpsEmpty").Text);
+            Click(Find<Button>(window, "AmpsClearSearch"));
+            usage.SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
+            Assert.Single(list.Items); // The Plexi family used on a saved channel still appears.
+            usage.SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
+            Find<ComboBox>(window, "AmpsManufacturer").SelectedItem = "All manufacturers"; Dispatcher.UIThread.RunJobs();
+            Assert.Equal(allCount, list.ItemCount);
+            Assert.Empty(midi.Sent);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void PartialLibraryAllowsUsedAmpsButExplainsWhyUnusedAmpsNeedACompleteSync()
+    {
+        var cache = Cache(false);
+        var store = new ProfileStore(_directory); var settings = store.LoadSettings();
+        new IndexLibrary(Path.Combine(_directory, "FractalIndex")).Save(cache);
+        settings.FractalIndex = IndexJson.ToElement(new IndexProfile { Devices = [cache.Device], SelectedDeviceId = cache.Device.Id }); store.SaveSettings(settings);
+        var midi = new DeviceMidi(); var window = new MainWindow(settings, [], midi, profileStore: store) { Width = 1000, Height = 800 };
+        window.Show();
+        try
+        {
+            Click(Find<Button>(window, "NavAmps"));
+            Assert.True(UsageOption(window, 1).IsEnabled);
+            Assert.False(UsageOption(window, 2).IsEnabled);
+            var notice = Find<TextBlock>(window, "AmpsUnusedNotice");
+            Assert.True(notice.IsEffectivelyVisible);
+            Assert.Contains("complete a library sync in Preset Index", notice.Text);
+            Find<ComboBox>(window, "AmpsPresetUsage").SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
+            Assert.Equal(3, Find<ListBox>(window, "AmpsDirectory").ItemCount);
+            Assert.Empty(midi.Sent);
+        }
+        finally { window.Close(); }
     }
 
     [AvaloniaTheory]
@@ -114,8 +293,9 @@ public sealed class AmpBrowserTests : IDisposable
         try
         {
             Click(Find<Button>(window, "NavAmps"));
-            var used = Find<CheckBox>(window, "AmpsUsedOnly");
-            Assert.False(used.IsEnabled); Assert.False(used.IsChecked);
+            Assert.False(UsageOption(window, 1).IsEnabled);
+            Assert.False(UsageOption(window, 2).IsEnabled);
+            Assert.Equal(0, Find<ComboBox>(window, "AmpsPresetUsage").SelectedIndex);
             Assert.True(Find<ListBox>(window, "AmpsDirectory").ItemCount > 80);
             Assert.True(Find<StackPanel>(window, "AmpsFirmwareNotice").IsVisible);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains(staleFirmware ? "refresh the saved amp data" : "Preset-name sync updates names only") == true);
@@ -167,7 +347,8 @@ public sealed class AmpBrowserTests : IDisposable
         {
             Click(Find<Button>(window, "NavAmps"));
             Assert.True(Find<StackPanel>(window, "AmpsFirmwareNotice").IsVisible);
-            Assert.False(Find<CheckBox>(window, "AmpsUsedOnly").IsEnabled);
+            Assert.False(UsageOption(window, 1).IsEnabled);
+            Assert.False(UsageOption(window, 2).IsEnabled);
             Assert.Contains("Reference catalog", Find<TextBlock>(window, "AmpsCount").Text);
             Capture(window, "amps-missing-firmware");
             SelectFamily(Find<ListBox>(window, "AmpsDirectory"), "fender-bassman-59");
@@ -342,7 +523,7 @@ public sealed class AmpBrowserTests : IDisposable
             Click(Find<Button>(window, "AmpsBackToDirectory"));
             Assert.Equal(offset, scroll.Offset.Y);
             Assert.Equal("fender-bassman-59", ((BrowserAmpFamily)((ListBoxItem)list.SelectedItem!).Tag!).Family.Id);
-            Find<CheckBox>(window, "AmpsUsedOnly").IsChecked = true; Dispatcher.UIThread.RunJobs();
+            Find<ComboBox>(window, "AmpsPresetUsage").SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
             Assert.Equal(3, list.ItemCount); // Bassman, Plexi and the unmapped ID.
             Assert.Empty(midi.Sent);
         }
@@ -365,6 +546,8 @@ public sealed class AmpBrowserTests : IDisposable
         Assert.Equal("59 Bassguy Bright", resolved.Amps[0].Channels[0].Model.DisplayName);
         Assert.Same(preset, AmpBrowserCatalog.ResolveForDisplay(preset, "13.00"));
     }
+
+    private static ComboBoxItem UsageOption(Window window, int index) => Find<ComboBox>(window, "AmpsPresetUsage").Items.OfType<ComboBoxItem>().ElementAt(index);
 
     private static void SelectFamily(ListBox list, string id)
     {

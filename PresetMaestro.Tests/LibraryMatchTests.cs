@@ -5,12 +5,45 @@ namespace PresetMaestro.Tests;
 
 public sealed class LibraryMatchTests
 {
+    [Fact]
+    public void NamePrecheckCountsRenamesNewAndClearedSlotsWithoutEmptyInflation()
+    {
+        var baseline = Baseline(100);
+        var names = Enumerable.Range(0, 512).ToDictionary(i => i, i => i < 100 ? baseline.Presets[i].Name : "<EMPTY>");
+        Assert.Equal((100, 100), LibraryMatch.CompareNames(baseline, names));
+        names[99] = "Renamed";
+        Assert.Equal((99, 100), LibraryMatch.CompareNames(baseline, names));
+        names[0] = "<EMPTY>";
+        names[511] = "New preset";
+        Assert.Equal((98, 101), LibraryMatch.CompareNames(baseline, names));
+        names[510] = ""; // A blank name is not proof of an empty preset.
+        Assert.Equal((98, 102), LibraryMatch.CompareNames(baseline, names));
+    }
+
     private static IndexScan Baseline(int count) => new()
     {
         ConnectedDeviceName = "Stage",
         Firmware = "12.00",
         Presets = Enumerable.Range(0, count).ToDictionary(i => i, i => FractalIndexWorkflowTests.Preset(i)),
     };
+
+    [Theory]
+    [InlineData("12.00", true)]
+    [InlineData("13.00", false)]
+    [InlineData(null, false)]
+    public void RepairedLegacyScanStillChecksForLaterSoftwareChanges(string? firmware, bool accepted)
+    {
+        var baseline = Baseline(16);
+        baseline.Firmware = null;
+        baseline.FirmwareConfirmation = new("12.00", DateTimeOffset.UtcNow, true, 16, 16, 99);
+
+        var result = LibraryMatch.Compare(baseline, baseline.Presets, true, "Stage", firmware,
+            baseline.Presets.Keys.ToArray());
+
+        Assert.Equal(16, result.Matched);
+        Assert.Equal(accepted, result.MeetsThreshold(99));
+        Assert.Equal(!accepted, result.Caution is not null);
+    }
 
     [Fact]
     public void ExactThresholdUsesPopulatedUnionAndNeverRoundsUp()

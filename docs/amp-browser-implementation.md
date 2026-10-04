@@ -39,12 +39,13 @@ edits remain unknown. Browsing and keyboard navigation send no MIDI messages.
 
 ## Catalogue evidence and remaining gate
 
-The first shipped catalogue has 284 Apache-licensed open-roster candidates plus
-the separately observed FM9 ID 271. Candidate eligibility is deliberately scoped
-to FM9 12.00, the version checked in the protocol research. It is **not a complete
-validated firmware roster**. The UI labels coverage incomplete and distinguishes
-the ten device-verified names from candidates. Other devices/firmware display
-their own observed scan identities without borrowing FM9 names.
+Catalogue 2026-10-03.4 contains **336 amp ID/name pairs read directly from the
+connected FM9 running firmware 12.00**. Both the index name lookup and browser
+use this device-confirmed table. All 336 names have explicit family mappings,
+and FM9 12.00 catalogue coverage is complete. Other device families and firmware
+versions remain separately scoped and do not inherit these IDs. The original
+284-entry open roster is superseded by this observation; its licence notices
+remain preserved. See [raw query/reply evidence](catalog/fm9-12-device-roster.json).
 
 An FM9 library with no firmware recorded now opens the FM9 12.00 reference
 catalogue as a clearly labelled preview, instead of filling the directory with
@@ -66,20 +67,39 @@ claims and distinguishes physical amps, modified references, schematic bases and
 virtual originals. See [the complete review](catalog/fm9-12-amp-review.md) and
 [row-by-row evidence](catalog/fm9-12-amp-identities.json).
 
-Of the supplied entries, 280 join existing numeric candidates in 146 family/original
-groups; 51 have no accepted numeric join. Five existing numeric candidates remain
-Unmapped because their names do not safely join the supplied list. List positions
-are never treated as DSP IDs. Real model details, relationship type, qualifications
-and source URLs appear in expandable evidence. Attribution research does not
-promote a numeric candidate to a device-verified name. The underlying saved scan
-is not rewritten when catalogue names or mappings change.
+Catalogue 2026-10-03.1 updates Porta-Bass to Ampeg B-15 Portaflex using the
+archived Axe-Fx III Ares 12.05 model table. Exact B-15 revision/year remain
+unconfirmed in the evidence notes. The historical attribution does not change
+the candidate numeric ID or establish FM9 firmware availability.
 
-The known missing '59 Bassguy RI Jumped requires an independently evidenced
-firmware-specific ID before it can participate in Contains queries. Do not invent
-one or treat the reissue as the original 5F6-A. Complete FM9 coverage and separate
-FM3/Axe-Fx III rosters remain data-validation work; the catalogue must remain
-labelled incomplete until that work is done. See `Catalog/NOTICE.txt` for pinned
-source provenance, license and modifications.
+Catalogue 2026-10-03.2 gives official Fractal product attributions precedence over
+conflicting third-party guides. PVH 6160 Block Crunch shares the 5150 Block Letter
+family with Block Lead. Channel detail is attributed to the current Wiki; the
+official historical manual establishes the family, not the later Crunch channel.
+
+Catalogue 2026-10-03.3 applies the user's supplied follow-up research with source
+scope and inferences retained in the inspector. Chiefman 1/2 share Chieftain;
+Vibrato Verb Custom stays separate from stock Vibroverbs. USA MK IV Lead and
+Fox ODS Mid have separate follow-up mappings, preserving the CSV heading and
+Deep row. B-15R and Princeton AA1164 are explicitly inferred. Friedman 2010 and
+AC30 Bright findings initially remained in the review pending device-confirmed joins.
+See [follow-up findings](catalog/amp-attribution-followup.md).
+
+The direct device read confirmed all earlier observed IDs and resolved the missing
+Class-A 30W Bright (233), Friedman BE 2010 (287) and Friedman HBE 2010 (288).
+It added 52 names omitted by the old table and confirmed the firmware-12 rename
+of ID 283 to Deluxe Tweed Bright. The complete table maps to 162 family/original
+groups. Of the 331 supplied entries, 329 now have confirmed numeric joins. The
+combined USA MK IV LEAD/RHYTHM heading and Fox ODS Deep row remain distinct from
+the selectable Lead and Mid entries. No CSV positions are treated as DSP IDs.
+Real amplifier details retain their attribution qualifications independently of
+numeric confirmation. Catalogue updates do not rewrite saved preset snapshots.
+
+The device confirms '59 Bassguy RI Jumped as ID 302. It is grouped separately
+from the original 5F6-A reference. Fractal's official FM9 12.00 release notes
+support the five new selectable names at IDs 331-335 and the Deluxe Tweed rename.
+Separate FM3, Axe-Fx III and other firmware rosters still require direct evidence.
+See `Catalog/NOTICE.txt` for provenance, licences and modifications.
 
 Usage counts deduplicate by saved preset, across all blocks/channels. A number
 including zero is definitive only for a complete committed scan of the matching
@@ -111,5 +131,7 @@ Wiki URL validation, deduplication and profile export/import. Headless UI captur
 exercise Light/Dark themes at 1000 and 1440 pixels. Firmware tests cover read-only
 library metadata, malformed and fragmented replies, stale-version rejection,
 changed-version resume and preservation of the previous committed scan. The
-firmware query is source-verified; a live FM9 reconnection and fresh scan remain
-necessary to verify the complete path on the user's hardware.
+firmware and amp-name table queries were also read directly from the FM9 on
+2026-10-03. The active preset, scene, current type reply and full current Amp
+block data matched before and after the roster read. The 91 targeted browser,
+index-core and index-workflow tests passed after the catalogue update.

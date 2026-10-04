@@ -219,7 +219,7 @@ public sealed class ConnectionSyncOptionsTests
             Assert.False(Find<Button>(dialog, "ConnectionSyncLibrary").IsEnabled);
             Assert.False(Find<Button>(dialog, "ConnectionSyncCheck").IsEnabled);
             Assert.False(Find<Button>(dialog, "ConnectionSyncFullCheck").IsEnabled);
-            Assert.DoesNotContain(dialog.GetVisualDescendants().OfType<Border>(), b => b.IsEffectivelyVisible && b.GetVisualDescendants().OfType<Button>().Any(c => c.Name == "ConnectionSyncResume"));
+            Assert.False(Find<Button>(dialog, "ConnectionSyncResume").IsEffectivelyVisible);
             string? output = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
             if (output is not null)
             {

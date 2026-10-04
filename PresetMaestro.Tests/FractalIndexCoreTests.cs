@@ -133,6 +133,19 @@ public sealed class FractalIndexCoreTests
         var fm3 = FractalDeviceDefinition.For(FractalDeviceVariant.FM3);
 
         Assert.Equal("Matchbox D-30 EF86", registry.Resolve(fm9, new Version(12, 0), 271).DisplayName);
+        Assert.Equal("Class-A 30W Bright", registry.Resolve(fm9, new Version(12, 0), 233).DisplayName);
+        Assert.Equal("Friedman BE 2010", registry.Resolve(fm9, new Version(12, 0), 287).DisplayName);
+        Assert.Equal("Friedman HBE 2010", registry.Resolve(fm9, new Version(12, 0), 288).DisplayName);
+        Assert.Equal("Deluxe Tweed Bright", registry.Resolve(fm9, new Version(12, 0), 283).DisplayName);
+        Assert.Equal("Brit JVM Crunch Red", registry.Resolve(fm9, new Version(12, 0), 335).DisplayName);
+        Assert.False(registry.Resolve(fm9, new Version(12, 0), 336).IsKnown);
+        foreach (int model in new[] { 233, 287, 288, 335 })
+        {
+            Assert.True(registry.Resolve(fm9, new Version(12, 0), model).IsKnown);
+            Assert.False(registry.Resolve(fm9, new Version(13, 0), model).IsKnown);
+            Assert.False(registry.Resolve(axe, new Version(12, 0), model).IsKnown);
+            Assert.False(registry.Resolve(fm3, new Version(12, 0), model).IsKnown);
+        }
         Assert.False(registry.Resolve(fm9, new Version(11, 0), 271).IsKnown);
         Assert.False(registry.Resolve(axe, new Version(12, 0), 271).IsKnown);
         Assert.False(registry.Resolve(fm3, new Version(12, 0), 271).IsKnown);

@@ -27,6 +27,17 @@ public static class LibraryMatch
     public static bool IsPopulated(IndexedPreset preset) => !preset.NameOnlyEmpty &&
         preset.Name.Trim() != "<EMPTY>" && !string.IsNullOrEmpty(preset.ContentSha256);
 
+    // Names can rule out an obvious mismatch, but cannot prove that contents match.
+    // Only freshly read names belong here; a cached fallback is not evidence.
+    public static (int Matched, int Compared) CompareNames(IndexScan baseline, IReadOnlyDictionary<int, string> names)
+    {
+        var slots = baseline.Presets.Values.Where(IsPopulated).Select(p => p.Slot)
+            .Union(names.Where(p => p.Value.Trim() != "<EMPTY>").Select(p => p.Key)).ToArray();
+        int matched = slots.Count(slot => baseline.Presets.TryGetValue(slot, out var previous) && IsPopulated(previous) &&
+            names.TryGetValue(slot, out var name) && string.Equals(previous.Name.Trim(), name.Trim(), StringComparison.Ordinal));
+        return (matched, slots.Length);
+    }
+
     public static int[] SampleSlots(IndexScan baseline, int maximum = QuickMatchPresetCount, Random? random = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maximum, 1);
@@ -55,10 +66,10 @@ public static class LibraryMatch
         if (!string.IsNullOrWhiteSpace(baseline.ConnectedDeviceName) &&
             !string.Equals(baseline.ConnectedDeviceName.Trim(), connectedDeviceName?.Trim(), StringComparison.OrdinalIgnoreCase))
         { caution = "The device name differs or is unavailable."; }
-        if (baseline.Firmware is not null && firmware is not null &&
-            Version.TryParse(baseline.Firmware, out var oldVersion) && Version.TryParse(firmware, out var newVersion) && oldVersion != newVersion)
+        if (baseline.EffectiveFirmware is not null && firmware is not null &&
+            Version.TryParse(baseline.EffectiveFirmware, out var oldVersion) && Version.TryParse(firmware, out var newVersion) && oldVersion != newVersion)
         { caution = "Firmware differs; saved preset fingerprints may have changed."; }
-        if (baseline.Firmware is not null && firmware is null)
+        if (baseline.EffectiveFirmware is not null && firmware is null)
         { caution = "Connected firmware is unavailable; the saved version has not been assumed."; }
         return new(sample, matched, slots.Length, failed, caution);
     }

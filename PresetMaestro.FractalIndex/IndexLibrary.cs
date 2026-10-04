@@ -13,11 +13,17 @@ public sealed class IndexScan
     public DateTimeOffset StartedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? FinishedAt { get; set; }
     public string? Firmware { get; set; }
+    public ScanFirmwareConfirmation? FirmwareConfirmation { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? EffectiveFirmware => Firmware ?? FirmwareConfirmation?.Firmware;
     public string? ConnectedDeviceName { get; set; }
     public string Status { get; set; } = "Scanning";
     public Dictionary<int, IndexedPreset> Presets { get; set; } = [];
     public Dictionary<int, string> Errors { get; set; } = [];
 }
+
+public sealed record ScanFirmwareConfirmation(string Firmware, DateTimeOffset CheckedAt, bool IsSample,
+    int Matched, int Compared, int ThresholdPercent);
 
 public sealed class DeviceIndex
 {
@@ -186,6 +192,14 @@ public static class IndexJson
         var definition = FractalDeviceDefinition.For(cache.Device.Variant);
         foreach (var scan in new[] { cache.Committed, cache.LastAttempt }.OfType<IndexScan>())
         {
+            if (scan.FirmwareConfirmation is { } confirmation &&
+                (!Version.TryParse(confirmation.Firmware, out _) || confirmation.CheckedAt == default ||
+                confirmation.Compared < 1 || confirmation.Compared > definition.PresetSlots ||
+                confirmation.Matched < 0 || confirmation.Matched > confirmation.Compared ||
+                confirmation.ThresholdPercent is < 1 or > 100 ||
+                confirmation.Matched * 100L < confirmation.Compared * (long)confirmation.ThresholdPercent ||
+                scan.Firmware is not null && !AmpBrowserCatalog.SameFirmware(scan.Firmware, confirmation.Firmware)))
+            { throw new InvalidDataException("Invalid saved scan firmware confirmation."); }
             if (scan.Presets is null || scan.Errors is null || scan.Presets.Count > definition.PresetSlots ||
                 scan.Status is not ("Complete" or "Scanning" or "Partial" or "Cancelled" or "Failed") ||
                 scan.Presets.Any(p => p.Key < 0 || p.Key >= definition.PresetSlots || p.Value is null || p.Value.Slot != p.Key ||

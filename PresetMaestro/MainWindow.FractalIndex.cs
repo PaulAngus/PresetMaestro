@@ -214,6 +214,7 @@ public partial class MainWindow
         if (_indexCheckButton is not null) { _indexCheckButton.IsEnabled = ready && _indexCache?.Committed is not null; }
         if (_indexMatchThreshold is not null) { _indexMatchThreshold.IsEnabled = !_indexScanning && !_indexChecking && !_changingProfile; }
         RefreshLibraryMatchStatus();
+        RefreshIndexConnectionSyncCompletion();
         UpdateLibraryManagementButtons();
         if (_indexDeviceLabel is not null) { _indexDeviceLabel.IsVisible = _currentPage is AppPage.PresetIndex or AppPage.Amps; }
         if (_headerStatusLabel is not null) { _headerStatusLabel.IsVisible = _currentPage is not (AppPage.PresetIndex or AppPage.Amps); }
@@ -244,6 +245,7 @@ public partial class MainWindow
         RenderIndexResults();
         string outcome = "";
         bool libraryUpdated = false;
+        bool profileNamesUpdated = false;
         try
         {
             if (baseline is null && !await ConfirmProfileAsync("Establish device library",
@@ -290,8 +292,13 @@ public partial class MainWindow
             cache.Imported = false;
             _indexLibrary.Save(cache);
             libraryUpdated = true;
+            CacheLibraryNames(candidate);
+            profileNamesUpdated = true;
+            _connectionSyncCheckedContext = ConnectionSyncContext;
+            _connectionSyncMatchedContext = ConnectionSyncContext;
+            _showConnectionSyncChecks = false;
             RememberLibraryMatch(cache, match, "Confirmed sync established this library's baseline. Choose Quick match or Full match on future connections to compare it.");
-            outcome = $"Device index synchronized. {candidate.Presets.Values.Count(p => p.NameOnlyEmpty)} empty slots skipped.";
+            outcome = $"Presets, scenes and amps refreshed in “{cache.Device.Name}”. This profile’s preset and scene names were also refreshed automatically. {candidate.Presets.Values.Count(p => p.NameOnlyEmpty)} empty slots skipped.";
         }
         catch (OperationCanceledException)
         {
@@ -306,13 +313,40 @@ public partial class MainWindow
             _presetNamesCts = null;
             RefreshIndexContext();
             SetIndexMessage(outcome);
-            SetConnectionSyncOutcome(libraryUpdated ? "Device library synced" : "Library sync needs attention",
+            SetConnectionSyncOutcome(libraryUpdated && profileNamesUpdated ? "Device library synced" : "Library sync needs attention",
                 outcome,
-                libraryUpdated ? "Next: Choose Done to continue. Preset Index and Amps now use the refreshed library."
+                libraryUpdated && profileNamesUpdated ? "Choose Use saved library to continue. Preset Index, Amps and Favorites now use the refreshed data."
                     : cache.LastAttempt is { Status: not "Complete" } ? "Next: Choose Resume to retry missing presets, or Done to use the data already saved."
-                        : "Next: Choose Sync library to review an update, or Done to keep the previous library.", needsAttention: !libraryUpdated);
+                        : "Choose Sync library to retry or review an update, or Done to continue with saved data.", needsAttention: !libraryUpdated || !profileNamesUpdated);
             UpdatePresetSyncButtons();
+            CompleteInitialConnectionSync();
         }
+    }
+
+    private void CacheLibraryNames(IndexScan scan)
+    {
+        // The full scan already returned these names. Reuse them rather than
+        // issuing a second set of MIDI reads after an accepted library update.
+        _settings.PresetNameCache = scan.Presets.ToDictionary(p => p.Key, p => p.Value.Name);
+        var cache = SceneCache;
+        foreach (var preset in scan.Presets.Values)
+        {
+            if (preset.Slot == _sceneSlot && cache.TryGetValue(preset.Slot, out var live) && live.Source == "live") { continue; }
+            cache[preset.Slot] = new Core.SceneCacheEntry
+            {
+                Names = preset.NameOnlyEmpty ? Enumerable.Repeat("", 8).ToArray() : preset.SceneNames.ToArray(),
+                Source = "stored",
+                RetrievedAt = DateTimeOffset.UtcNow,
+            };
+        }
+        _saveSettings(_settings);
+        _presetNamesProgress.Maximum = scan.Presets.Count;
+        _presetNamesProgress.Value = scan.Presets.Count;
+        _presetNamesStatus.Text = $"Complete: {scan.Presets.Count} preset names synchronized with the device library.";
+        UpdateFavoritePresetDisplay();
+        PopulateFavoriteScenes();
+        RefreshFavoritesList();
+        UpdateDisplay();
     }
 
     /// <summary>Feature registration seam. Only called for an explicitly selected, connected device.</summary>

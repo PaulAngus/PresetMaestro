@@ -32,6 +32,8 @@ public partial class MainWindow
     private readonly List<SearchChip> _indexSearchChips = [];
     private bool _indexAllTags = true, _indexRendering;
     private int? _indexSelectedSlot;
+    private Border? _indexConnectionSyncBanner;
+    private TextBlock? _indexConnectionSyncTitle, _indexConnectionSyncSummary;
 
     private static Button IndexButton(string text, string? name = null) => new()
     {
@@ -84,6 +86,15 @@ public partial class MainWindow
         actions.Children.Add(_indexResumeButton); actions.Children.Add(_indexCancelButton);
         Grid.SetColumn(actions, 1); title.Children.Add(actions); content.Children.Add(title);
         var syncInfo = new StackPanel { Spacing = 7, Margin = new Thickness(0, 0, 0, 10) };
+        _indexConnectionSyncTitle = new TextBlock { Name = "IndexConnectionSyncTitle", FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = ThemeBrush("SendSuccessForegroundBrush"), TextWrapping = TextWrapping.Wrap };
+        _indexConnectionSyncSummary = new TextBlock { Name = "IndexConnectionSyncSummary", FontSize = 14, Foreground = TextBrush, TextWrapping = TextWrapping.Wrap };
+        var completion = new Grid { ColumnDefinitions = new("*,12,Auto") };
+        completion.Children.Add(new StackPanel { Spacing = 4, Children = { _indexConnectionSyncTitle, _indexConnectionSyncSummary } });
+        var dismiss = IndexButton("Dismiss", "IndexConnectionSyncDismiss");
+        dismiss.Click += (_, _) => { _indexConnectionSyncCompletion = null; RefreshIndexConnectionSyncCompletion(); };
+        Grid.SetColumn(dismiss, 2); completion.Children.Add(dismiss);
+        _indexConnectionSyncBanner = new Border { Name = "IndexConnectionSyncBanner", Child = completion, Padding = new(12), CornerRadius = new(6), Background = ThemeBrush("SendSuccessBackgroundBrush"), BorderBrush = ThemeBrush("SendSuccessForegroundBrush"), BorderThickness = new(4, 0, 0, 0), IsVisible = false };
+        syncInfo.Children.Add(_indexConnectionSyncBanner);
         syncInfo.Children.Add(new TextBlock { Name = "IndexSyncNotice", Text = "Sync can take several minutes, or longer over slower MIDI connections. You can cancel and resume.", FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap });
         _indexMatchStatus = new TextBlock { Name = "IndexMatchStatus", FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap };
         syncInfo.Children.Add(_indexMatchStatus);
@@ -121,6 +132,17 @@ public partial class MainWindow
         card.Child = content; page.Children.Add(card);
         RenderIndexResults(); UpdateIndexButtons();
         return page;
+    }
+
+    private void RefreshIndexConnectionSyncCompletion()
+    {
+        if (_indexConnectionSyncBanner is null) { return; }
+        bool visible = _indexConnectionSyncCompletion is { } completion && completion.Context == ConnectionSyncContext &&
+            !_indexScanning && !_indexChecking && _indexError is null;
+        _indexConnectionSyncBanner.IsVisible = visible;
+        if (!visible) { return; }
+        _indexConnectionSyncTitle!.Text = _indexConnectionSyncCompletion!.Title;
+        _indexConnectionSyncSummary!.Text = _indexConnectionSyncCompletion.Detail + " " + _indexConnectionSyncCompletion.Next;
     }
 
     private string[] IndexAvailableTags() => _indexProfile.Annotations.Where(a => a.HasTags)
@@ -233,7 +255,7 @@ public partial class MainWindow
         var scan = _indexCache?.Browsable;
         var chips = _indexSearchChips.ToList();
         if (!string.IsNullOrWhiteSpace(_indexSearchBox?.Text)) { chips.Add(IndexPreviewChip(_indexSearchBox.Text.Trim())); }
-        var saved = scan?.Presets.Values.OrderBy(p => p.Slot).Select(p => AmpBrowserCatalog.ResolveForDisplay(p, scan.Firmware)).ToArray() ?? [];
+        var saved = scan?.Presets.Values.OrderBy(p => p.Slot).Select(p => AmpBrowserCatalog.ResolveForDisplay(p, scan.EffectiveFirmware)).ToArray() ?? [];
         if (_ampContains is not null && (_indexCache is null || _ampContains.DeviceId != _indexCache.Device.Id ||
             _ampContains.Variant != _indexCache.Device.Variant || !AmpBrowserCatalog.SameFirmware(_ampContains.Firmware, _indexCache.Device.Firmware))) { _ampContains = null; }
         if (_ampFilterRow is not null)
@@ -302,7 +324,7 @@ public partial class MainWindow
         if (_ampContains is not null && filtered.Length == 0)
         {
             _indexEmpty.Text = scan is null ? "No saved scan is available. Sync this device to find presets containing this amp."
-                : !_ampContains.AppliesTo(_indexCache) ? "The saved scan uses different firmware. Sync again to check this amp."
+                : !_ampContains.AppliesTo(_indexCache) ? "Check this library with your device, or sync it again, to find presets using this amp."
                 : "No presets in this saved index match the Contains filter and current search. The amp remains in the Amps directory.";
         }
         int pending = _indexCache is null ? 0 : _indexProfile.Pending(_indexCache).Count();
@@ -346,7 +368,7 @@ public partial class MainWindow
         _indexInspector.Children.Clear();
         _indexInspectorFrame!.IsVisible = false;
         if (_indexSelectedSlot is not int slot || _indexCache?.Browsable is not { } scan || !scan.Presets.TryGetValue(slot, out var preset)) { return; }
-        preset = AmpBrowserCatalog.ResolveForDisplay(preset, scan.Firmware);
+        preset = AmpBrowserCatalog.ResolveForDisplay(preset, scan.EffectiveFirmware);
         _indexInspectorFrame.IsVisible = true;
         if (preset.NameOnlyEmpty)
         {
