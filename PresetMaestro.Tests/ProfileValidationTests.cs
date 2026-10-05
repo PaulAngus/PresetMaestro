@@ -54,7 +54,7 @@ public partial class FavoriteEditorTests
         public void Connect(DeviceModel model = DeviceModel.FM9, string? name = "Studio")
         {
             Midi.InputOpen = Midi.OutputOpen = true;
-            SetField(Window, "_detectedDevice", new FractalDeviceInformation(model, name));
+            Window.ConnectionState.Device = new FractalDeviceInformation(model, name);
         }
 
         public Task Switch(string action = "select", string name = "Target") =>

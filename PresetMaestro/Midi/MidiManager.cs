@@ -1,5 +1,6 @@
 using NAudio;
 using NAudio.Midi;
+using System.Collections.Concurrent;
 
 namespace PresetMaestro.Midi;
 
@@ -7,14 +8,31 @@ public sealed class MidiManager : IMidiManager
 {
     private IMidiInput? _midiIn;
     private string? _mainInputPortName;
-    private MidiOut? _midiOut;
+    private IMidiOutput? _midiOut;
     private string? _outputPortName;
     private bool _disposed;
 
     // Extra input ports whose raw messages are forwarded straight to _midiOut (MIDI thru/merge).
-    private readonly Dictionary<string, IMidiInput> _thruInputs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, IMidiInput> _thruInputs = new(StringComparer.OrdinalIgnoreCase);
     // Guards all writes to _midiOut, since preset sends and thru forwarding can happen from different threads.
     private readonly object _outLock = new();
+    private readonly Func<IReadOnlyList<(string Id, string Name)>> _inputDevices;
+    private readonly Func<string, IMidiInput> _createInput;
+    private readonly Func<IReadOnlyList<(int Index, string Name)>> _outputDevices;
+    private readonly Func<int, IMidiOutput> _createOutput;
+
+    public MidiManager() : this(
+        () => GetWinRtInputDevices().Select(device => (device.Id, device.Name)).ToArray(), CreateWinRtInput,
+        () => GetOutputPorts(MidiOut.NumberOfDevices, index => MidiOut.DeviceInfo(index).ProductName), index => new MidiOut(index))
+    { }
+
+    // Keep the actual routing and lifecycle testable independently of Windows drivers.
+    internal MidiManager(Func<IReadOnlyList<(string Id, string Name)>> inputDevices, Func<string, IMidiInput> createInput,
+        Func<IReadOnlyList<(int Index, string Name)>> outputDevices, Func<int, IMidiOutput> createOutput)
+    {
+        _inputDevices = inputDevices; _createInput = createInput;
+        _outputDevices = outputDevices; _createOutput = createOutput;
+    }
 
     // Events may fire on a background thread — subscribers must marshal to UI if needed.
     public event EventHandler<string>? LogMessage;
@@ -23,8 +41,8 @@ public sealed class MidiManager : IMidiManager
     public event EventHandler<int>? PresetChangeReceived;
 
     public bool InputOpen => _midiIn != null;
-    public bool OutputOpen => _midiOut != null;
-    public IReadOnlyCollection<string> ThruInputPorts => _thruInputs.Keys;
+    public bool OutputOpen { get { lock (_outLock) { return _midiOut != null; } } }
+    public IReadOnlyCollection<string> ThruInputPorts => _thruInputs.Keys.ToArray();
 
     public static IReadOnlyList<string> GetInputPortNames()
     {
@@ -51,14 +69,18 @@ public sealed class MidiManager : IMidiManager
     }
 
     // Instance wrappers so callers can depend on IMidiManager instead of the static members directly.
-    IReadOnlyList<string> IMidiManager.GetInputPortNames() => GetInputPortNames();
-    IReadOnlyList<string> IMidiManager.GetOutputPortNames() => GetOutputPortNames();
+    IReadOnlyList<string> IMidiManager.GetInputPortNames() => _inputDevices().Select(device => device.Name).ToArray();
+    IReadOnlyList<string> IMidiManager.GetOutputPortNames() => _outputDevices().Select(device => device.Name).ToArray();
+
+    public Task<MidiPorts> DiscoverPortsAsync() => Task.Run(() => new MidiPorts(
+        _inputDevices().Select(device => device.Name).ToArray(), _outputDevices().Select(device => device.Name).ToArray()));
 
     public bool OpenInput(string portName, out string? errorMessage)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         errorMessage = null;
         CloseInput();
-        foreach (var device in GetWinRtInputDevices())
+        foreach (var device in _inputDevices())
         {
             if (!string.Equals(device.Name, portName, StringComparison.OrdinalIgnoreCase))
             {
@@ -67,18 +89,16 @@ public sealed class MidiManager : IMidiManager
 
             try
             {
-                _midiIn = CreateWinRtInput(device.Id);
+                _midiIn = _createInput(device.Id);
+                _mainInputPortName = portName;
                 _midiIn.MessageReceived += OnMidiMessage;
                 _midiIn.SysexMessageReceived += OnSysexMessageReceived;
                 _midiIn.Start();
-                _mainInputPortName = portName;
                 return true;
             }
             catch (Exception ex)
             {
-                _midiIn?.Dispose();
-                _midiIn = null;
-                _mainInputPortName = null;
+                CloseInput();
                 // WinMM returns MMSYSERR_ALLOCATED when another app holds the port.
                 errorMessage = ex.Message.Contains("allocated", StringComparison.OrdinalIgnoreCase)
                         || ex.HResult == unchecked((int)0x80004005)
@@ -92,9 +112,10 @@ public sealed class MidiManager : IMidiManager
 
     public bool OpenOutput(string portName, out string? errorMessage)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         errorMessage = null;
         CloseOutput();
-        foreach (var port in GetOutputPorts(MidiOut.NumberOfDevices, index => MidiOut.DeviceInfo(index).ProductName))
+        foreach (var port in _outputDevices())
         {
             if (!string.Equals(port.Name, portName, StringComparison.OrdinalIgnoreCase))
             {
@@ -103,14 +124,16 @@ public sealed class MidiManager : IMidiManager
 
             try
             {
-                _midiOut = new MidiOut(port.Index);
-                _outputPortName = portName;
+                lock (_outLock)
+                {
+                    _midiOut = _createOutput(port.Index);
+                    _outputPortName = portName;
+                }
                 return true;
             }
             catch (Exception ex)
             {
-                _midiOut?.Dispose();
-                _midiOut = null;
+                CloseOutput();
                 errorMessage = ex.Message;
             }
         }
@@ -120,36 +143,41 @@ public sealed class MidiManager : IMidiManager
 
     public void CloseInput()
     {
-        if (_midiIn == null)
+        var input = Interlocked.Exchange(ref _midiIn, null);
+        _mainInputPortName = null;
+        if (input == null)
         {
             return;
         }
 
-        _midiIn.MessageReceived -= OnMidiMessage;
-        _midiIn.SysexMessageReceived -= OnSysexMessageReceived;
-        try { _midiIn.Stop(); } catch { }
-        try { _midiIn.Dispose(); } catch { }
-        _midiIn = null;
-        _mainInputPortName = null;
+        input.MessageReceived -= OnMidiMessage;
+        input.SysexMessageReceived -= OnSysexMessageReceived;
+        try { input.Stop(); } catch { }
+        try { input.Dispose(); } catch { }
     }
 
     public void CloseOutput()
     {
-        try { _midiOut?.Dispose(); } catch { }
-        _midiOut = null;
-        _outputPortName = null;
+        lock (_outLock)
+        {
+            var output = _midiOut;
+            _midiOut = null;
+            _outputPortName = null;
+            try { output?.Dispose(); } catch { }
+        }
     }
 
     // Opens an additional input port whose messages are forwarded as-is to the shared MIDI out.
     public bool OpenThruInput(string portName, out string? errorMessage)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         errorMessage = null;
         if (_thruInputs.ContainsKey(portName))
         {
             return true; // already open
         }
 
-        foreach (var device in GetWinRtInputDevices())
+        foreach (var device in _inputDevices())
         {
             if (!string.Equals(device.Name, portName, StringComparison.OrdinalIgnoreCase))
             {
@@ -159,16 +187,17 @@ public sealed class MidiManager : IMidiManager
             IMidiInput? midiIn = null;
             try
             {
-                midiIn = CreateWinRtInput(device.Id);
+                midiIn = _createInput(device.Id);
                 midiIn.MessageReceived += OnThruMidiMessage;
-                midiIn.Start();
                 _thruInputs[portName] = midiIn;
+                midiIn.Start();
                 return true;
             }
             catch (Exception ex)
             {
                 if (midiIn is not null)
                 {
+                    _thruInputs.TryRemove(portName, out _);
                     midiIn.MessageReceived -= OnThruMidiMessage;
                     try { midiIn.Stop(); } catch { }
                     try { midiIn.Dispose(); } catch { }
@@ -184,7 +213,7 @@ public sealed class MidiManager : IMidiManager
 
     public void CloseThruInput(string portName)
     {
-        if (!_thruInputs.TryGetValue(portName, out var midiIn))
+        if (!_thruInputs.TryRemove(portName, out var midiIn))
         {
             return;
         }
@@ -192,7 +221,6 @@ public sealed class MidiManager : IMidiManager
         midiIn.MessageReceived -= OnThruMidiMessage;
         try { midiIn.Stop(); } catch { }
         try { midiIn.Dispose(); } catch { }
-        _thruInputs.Remove(portName);
     }
 
     public void CloseAllThruInputs()
@@ -206,7 +234,7 @@ public sealed class MidiManager : IMidiManager
     // Called from UI thread only.
     public bool SendBankAndPC(int bank, int pc, int midiChannel)
     {
-        if (_midiOut == null)
+        if (bank is < 0 or > 127 || pc is < 0 or > 127 || midiChannel is < 1 or > 16)
         {
             return false;
         }
@@ -215,6 +243,7 @@ public sealed class MidiManager : IMidiManager
         {
             lock (_outLock)
             {
+                if (_midiOut is null) { return false; }
                 // NAudio 3.x MidiMessage expects 1-indexed channel (unlike 2.x which was 0-indexed)
                 _midiOut.Send(MidiMessage.ChangeControl(0, bank, midiChannel).RawData);
                 LogMessage?.Invoke(this, $"OUTPUT: CC ch{midiChannel} CC#0 value={bank}");
@@ -233,7 +262,7 @@ public sealed class MidiManager : IMidiManager
     // Sends Bank Select + Program Change to reach the preset, then a Scene Select CC (scene 1-8 -> value 0-7).
     public bool SendFavorite(int bank, int pc, int scene, int sceneCc, int midiChannel)
     {
-        if (_midiOut == null || scene is < 1 or > 8 || sceneCc is < 0 or > 127 || midiChannel is < 1 or > 16)
+        if (bank is < 0 or > 127 || pc is < 0 or > 127 || scene is < 1 or > 8 || sceneCc is < 0 or > 127 || midiChannel is < 1 or > 16)
         {
             return false;
         }
@@ -242,6 +271,7 @@ public sealed class MidiManager : IMidiManager
         {
             lock (_outLock)
             {
+                if (_midiOut is null) { return false; }
                 _midiOut.Send(MidiMessage.ChangeControl(0, bank, midiChannel).RawData);
                 LogMessage?.Invoke(this, $"OUTPUT: CC ch{midiChannel} CC#0 value={bank}");
                 _midiOut.Send(MidiMessage.ChangePatch(pc, midiChannel).RawData);
@@ -261,15 +291,11 @@ public sealed class MidiManager : IMidiManager
 
     public bool SendSysEx(byte[] frame)
     {
-        if (_midiOut == null)
-        {
-            return false;
-        }
-
         try
         {
             lock (_outLock)
             {
+                if (_midiOut is null) { return false; }
                 _midiOut.SendBuffer(frame);
             }
 
@@ -312,6 +338,7 @@ public sealed class MidiManager : IMidiManager
 
     private void OnMidiMessage(object? sender, MidiInMessageEventArgs e)
     {
+        if (!ReferenceEquals(sender, _midiIn)) { return; }
         // Decode the raw WinMM short message directly — avoids NAudio parse exceptions
         // on real-time bytes (Active Sensing 0xFE, Clock 0xF8, etc.).
         byte status = (byte)(e.RawMessage & 0xFF);
@@ -353,6 +380,7 @@ public sealed class MidiManager : IMidiManager
         }
 
         string? sourcePort = _thruInputs.FirstOrDefault(kv => ReferenceEquals(kv.Value, sender)).Key;
+        if (sourcePort is null) { return; } // Ignore callbacks queued before a port was closed.
         string? outputPort;
         lock (_outLock)
         {

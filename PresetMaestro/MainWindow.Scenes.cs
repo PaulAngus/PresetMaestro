@@ -221,7 +221,10 @@ public partial class MainWindow
         int slot = (int)(_favPresetSpinner.Value ?? _settings.DisplayOffset) - _settings.DisplayOffset;
         SceneCache.TryGetValue(slot, out var entry);
         int currentScene = Math.Clamp((int)(_favSceneSpinner.Value ?? 1), 1, 8);
-        var dialog = new SceneSelectionWindow(entry?.Names, currentScene) { Icon = Icon };
+        var model = PickerDeviceModel;
+        var dialog = new SceneSelectionWindow(entry?.Names, currentScene,
+            scene => GoToDevice(slot, scene, model), () => DeviceNavigationUnavailable(model))
+        { Icon = Icon };
         int? scene = _scenePickerOverride is not null
             ? await _scenePickerOverride(dialog)
             : await dialog.ShowDialog<int?>(this);

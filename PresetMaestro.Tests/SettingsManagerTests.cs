@@ -5,6 +5,25 @@ namespace PresetMaestro.Tests;
 public sealed class SettingsManagerTests
 {
     [Fact]
+    public void ReadingLegacyNoteMapDoesNotRewriteOriginalBeforeProfileBackup()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-note-map-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, "settings.json");
+        const string original = "{\"NoteMap\":{\"60\":\"SEND\"}}";
+        try
+        {
+            File.WriteAllText(path, original);
+            Assert.Equal("SEND", SettingsManager.Load(path).MidiNoteMap[60]);
+            Assert.Equal(original, File.ReadAllText(path));
+            var settings = new ProfileStore(directory).LoadSettings();
+            Assert.Equal("SEND", settings.MidiNoteMap[60]);
+            Assert.Equal(original, File.ReadAllText(path + ".pre-profiles.bak"));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public void MissingSettingsFileReturnsDefaults()
     {
         string path = Path.Combine(Path.GetTempPath(), $"device-missing-{Guid.NewGuid():N}", "settings.json");

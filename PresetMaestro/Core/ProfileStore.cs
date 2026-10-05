@@ -9,6 +9,7 @@ public sealed partial class ProfileStore(string directory)
     static partial void PrepareIndexCopy(ProfileSettings settings);
     partial void PrepareIndexExport(ProfileSettings settings);
     static partial void PrepareIndexImport(ProfileSettings settings);
+    partial void ApplyLibraryMapping(ProfileSettings settings);
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private List<string>? _profiles;
     public string DirectoryPath => Path.GetFullPath(directory);
@@ -152,8 +153,12 @@ public sealed partial class ProfileStore(string directory)
         return settings;
     }
 
-    public ProfileSettings LoadProfile(string name) =>
-        ReadProfileSettings(File.ReadAllText(SettingsPath(name)));
+    public ProfileSettings LoadProfile(string name)
+    {
+        var settings = ReadProfileSettings(File.ReadAllText(SettingsPath(name)));
+        ApplyLibraryMapping(settings);
+        return settings;
+    }
 
     public List<Favorite> LoadFavorites(string name)
     {
@@ -168,8 +173,21 @@ public sealed partial class ProfileStore(string directory)
 
     public void SaveSettings(AppSettings settings)
     {
-        WriteJson(SettingsPath(settings.ActiveProfile), ProfileSettings.From(settings));
-        SaveMachine(settings);
+        string path = SettingsPath(settings.ActiveProfile);
+        string? previous = File.Exists(path) ? File.ReadAllText(path) : null;
+        WriteJson(path, ProfileSettings.From(settings));
+        try { SaveMachine(settings); }
+        catch (Exception error)
+        {
+            try
+            {
+                if (previous is null) { File.Delete(path); }
+                else { WriteText(path, previous); }
+            }
+            catch (Exception recovery)
+            { throw new IOException("Settings could not be saved and the previous profile could not be restored.", new AggregateException(error, recovery)); }
+            throw;
+        }
     }
 
     public void SaveFavorites(string name, List<Favorite> favorites) => WriteJson(FavoritesPath(name), favorites);
@@ -335,10 +353,8 @@ public sealed partial class ProfileStore(string directory)
                 throw new InvalidDataException("The profile files are too large.");
             }
 
-            using var settingsReader = new StreamReader(settingsEntry.Open());
-            using var favoritesReader = new StreamReader(favoritesEntry.Open());
-            settingsJson = settingsReader.ReadToEnd();
-            favoritesJson = favoritesReader.ReadToEnd();
+            settingsJson = ReadImportJson(settingsEntry.Open());
+            favoritesJson = ReadImportJson(favoritesEntry.Open());
         }
         else
         {
@@ -352,8 +368,8 @@ public sealed partial class ProfileStore(string directory)
             sourceName = filename[..^suffix.Length];
             ValidateName(sourceName);
             string folder = Path.GetDirectoryName(Path.GetFullPath(path))!;
-            settingsJson = File.ReadAllText(Path.Combine(folder, sourceName + "-settings.json"));
-            favoritesJson = File.ReadAllText(Path.Combine(folder, sourceName + "-favorites.json"));
+            settingsJson = ReadImportJson(File.OpenRead(Path.Combine(folder, sourceName + "-settings.json")));
+            favoritesJson = ReadImportJson(File.OpenRead(Path.Combine(folder, sourceName + "-favorites.json")));
         }
         var settings = ReadProfileSettings(settingsJson);
         var favorites = ValidateFavorites(favoritesJson);
@@ -361,6 +377,23 @@ public sealed partial class ProfileStore(string directory)
         string name = AvailableName(string.IsNullOrWhiteSpace(preferredName) ? sourceName : preferredName);
         Create(name, settings, favorites);
         return name;
+    }
+
+    private static string ReadImportJson(Stream stream)
+    {
+        using var reader = new StreamReader(stream);
+        const int limit = 32 * 1024 * 1024;
+        if (stream.CanSeek && stream.Length > limit) { throw new InvalidDataException("The profile files are too large."); }
+        // Bound actual decompressed text too, rather than trusting ZIP metadata alone.
+        var text = new System.Text.StringBuilder();
+        char[] buffer = new char[8192];
+        int read;
+        while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            if (text.Length > limit - read) { throw new InvalidDataException("The profile files are too large."); }
+            text.Append(buffer, 0, read);
+        }
+        return text.ToString();
     }
 
     private static ProfileSettings ReadProfileSettings(string json)
@@ -395,13 +428,15 @@ public sealed partial class ProfileStore(string directory)
         return favorites;
     }
 
-    private static void WriteJson<T>(string path, T value)
+    private static void WriteJson<T>(string path, T value) => WriteText(path, JsonSerializer.Serialize(value, JsonOptions));
+
+    private static void WriteText(string path, string contents)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            File.WriteAllText(temporary, JsonSerializer.Serialize(value, JsonOptions));
+            File.WriteAllText(temporary, contents);
             LegacyFavoritesStorage.PreserveOriginal(path);
             File.Move(temporary, path, true);
         }

@@ -31,14 +31,16 @@ public partial class MainWindow : Window
     private string? _currentFavoriteName;
     private int? _currentFavoriteScene;
     private EntryMode _mode = EntryMode.Preset;
-    private AppPage _currentPage = AppPage.PresetSender;
+    private AppPage _currentPage = AppPage.Config;
     private string _statusText = "Not connected";
     private StatusKind _statusKind = StatusKind.NotConnected;
     private bool _isApplyingTheme;
 
     private readonly AppSettings _settings;
     private readonly List<Favorite> _favorites;
+    private readonly FavoriteCommands _favoriteCommands;
     private readonly IMidiManager _midi;
+    private readonly MidiPortDiscovery _portDiscovery;
     private readonly PresetNameClient _presetNameClient;
     private readonly Func<int, TimeSpan, CancellationToken, Task<PresetNameResult>> _queryPresetNameAsync;
     private readonly Func<int, CancellationToken, Task<PresetScenes>> _queryStoredScenesAsync;
@@ -83,11 +85,13 @@ public partial class MainWindow : Window
 
         _saveSettings = saveSettings ?? (profileStore is null ? SettingsManager.Save : profileStore.SaveSettings);
         _saveFavorites = saveFavorites ?? (profileStore is null ? FavoritesManager.Save : values => profileStore.SaveFavorites(_settings.ActiveProfile, values));
+        _favoriteCommands = new(_favorites, _saveFavorites);
         _confirmOverride = confirm;
         _presetPickerOverride = presetPicker;
         _scenePickerOverride = scenePicker;
 
         _midi = midi;
+        _portDiscovery = new(midi);
         _midi.LogMessage += OnMidiLogMessage;
         _midi.NoteOnReceived += OnNoteOnReceived;
         _presetNameClient = new PresetNameClient(_midi);
@@ -100,10 +104,11 @@ public partial class MainWindow : Window
 
         _autoSendTimer = new DispatcherTimer();
         _autoSendTimer.Tick += (_, _) => { _autoSendTimer.Stop(); ExecuteSend(); };
-        _sendFeedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
+        _sendFeedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
         _sendFeedbackTimer.Tick += (_, _) => HideSendFeedback();
 
         InitializeComponent();
+        Width = MinWidth;
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         AddHandler(PointerPressedEvent, OnFavoriteSearchOutsidePointerPressed, RoutingStrategies.Tunnel);
         Application.Current!.RequestedThemeVariant = string.Equals(_settings.Theme, "Light", StringComparison.OrdinalIgnoreCase)
@@ -120,7 +125,6 @@ public partial class MainWindow : Window
         UpdateDisplay();
 
         SizeChanged += (_, _) => QueueFavoriteViewportLayout();
-        Closing += (_, _) => OnClosing();
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);

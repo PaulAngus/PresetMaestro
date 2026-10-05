@@ -1,0 +1,99 @@
+{
+  "Variant": 0,
+  "Slot": 0,
+  "Name": "59 Bassman Tweed 5F6-A",
+  "SceneNames": [
+    "Crunch Bright",
+    "Cranked Bright",
+    "Jumped",
+    "Lead",
+    "Rotary",
+    "Dry Bright",
+    "Dry Normal",
+    "Dry Jumped"
+  ],
+  "Amps": [
+    {
+      "BlockNumber": 1,
+      "Channels": [
+        {
+          "Channel": 0,
+          "Model": {
+            "Id": 0,
+            "DisplayName": "59 Bassguy Bright",
+            "RealAmpFamily": null,
+            "Evidence": "FM9 12.00 device amp-name table, read directly over USB MIDI on 2026-10-03; docs/catalog/fm9-12-device-roster.json",
+            "IsKnown": true
+          }
+        },
+        {
+          "Channel": 1,
+          "Model": {
+            "Id": 0,
+            "DisplayName": "59 Bassguy Bright",
+            "RealAmpFamily": null,
+            "Evidence": "FM9 12.00 device amp-name table, read directly over USB MIDI on 2026-10-03; docs/catalog/fm9-12-device-roster.json",
+            "IsKnown": true
+          }
+        },
+        {
+          "Channel": 2,
+          "Model": {
+            "Id": 282,
+            "DisplayName": "59 Bassguy Jumped",
+            "RealAmpFamily": null,
+            "Evidence": "FM9 12.00 device amp-name table, read directly over USB MIDI on 2026-10-03; docs/catalog/fm9-12-device-roster.json",
+            "IsKnown": true
+          }
+        },
+        {
+          "Channel": 3,
+          "Model": {
+            "Id": 290,
+            "DisplayName": "59 Bassguy Normal",
+            "RealAmpFamily": null,
+            "Evidence": "FM9 12.00 device amp-name table, read directly over USB MIDI on 2026-10-03; docs/catalog/fm9-12-device-roster.json",
+            "IsKnown": true
+          }
+        }
+      ],
+      "Scenes": [
+        {
+          "Channel": 0,
+          "Bypassed": false
+        },
+        {
+          "Channel": 1,
+          "Bypassed": false
+        },
+        {
+          "Channel": 2,
+          "Bypassed": false
+        },
+        {
+          "Channel": 2,
+          "Bypassed": false
+        },
+        {
+          "Channel": 0,
+          "Bypassed": false
+        },
+        {
+          "Channel": 0,
+          "Bypassed": false
+        },
+        {
+          "Channel": 3,
+          "Bypassed": false
+        },
+        {
+          "Channel": 2,
+          "Bypassed": false
+        }
+      ]
+    }
+  ],
+  "ContentSha256": "A7549DB5BAE8D36DC0F12497917DED5971C6A6B4574D3D4E9DA3CBC57DF18056",
+  "NameOnlyEmpty": false,
+  "BypassIgnoredSha256": "gen3-no-bypass-v1:3E062F5B74DC78F06E9091BB4256EAEDEAB13A780DD9311B41967A428B0B533C"
+}

@@ -1,4 +1,5 @@
 #if FRACTAL_INDEX
+using Avalonia.Automation;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -15,6 +16,7 @@ public partial class MainWindow
     private PresetIndexReader _fractalIndexReader = null!;
 
     private IndexLibrary _indexLibrary = null!;
+    private ProfileLibraryCoordinator _libraryProfiles = null!;
     private IndexProfile _indexProfile = new();
     private DeviceIndex? _indexCache;
     private string? _indexError;
@@ -30,6 +32,7 @@ public partial class MainWindow
     {
         _fractalIndexReader = new(_presetNameClient, AmpModelCatalogRegistry.CreateStarter());
         _indexLibrary = new(Path.Combine(_profileStore?.DirectoryPath ?? Path.GetTempPath(), "FractalIndex"));
+        _libraryProfiles = new(_settings, _indexLibrary, _saveSettings);
         LoadIndexContext();
     }
 
@@ -37,17 +40,18 @@ public partial class MainWindow
     {
         try
         {
-            _indexProfile = IndexJson.ReadProfile(_settings.FractalIndex);
-            if (_profileStore is not null)
+            (_indexProfile, _indexCache) = _libraryProfiles.Load(_profileStore is not null);
+            if (_connectionLibraryCandidate is { } candidate)
+            { _indexCache = _connectionLibraryStaging?.Load(candidate.Device.Id) ?? candidate; }
+            if (_indexCache is not null)
             {
-                foreach (var snapshot in _indexProfile.PortableSnapshots)
+                if (_indexCache.PresetMapping is { } mapping)
                 {
-                    if (_indexLibrary.Load(snapshot.Device.Id) is null) { _indexLibrary.Save(snapshot); }
+                    _settings.MidiChannel = mapping.MidiChannel;
+                    _settings.DisplayOffset = mapping.DisplayOffset;
+                    _settings.SceneCc = mapping.SceneCc;
                 }
             }
-            _indexCache = _indexProfile.SelectedDeviceId is Guid id
-                ? _indexLibrary.Load(id) ?? _indexProfile.PortableSnapshots.FirstOrDefault(c => c.Device.Id == id)
-                    ?? new DeviceIndex { Device = _indexProfile.Devices.Single(d => d.Id == id), Imported = true } : null;
             _indexError = null;
             if (_profileStore is not null && _indexProfile.PortableAmpReferences.Count > 0)
             {
@@ -61,7 +65,14 @@ public partial class MainWindow
     partial void RefreshIndexContext()
     {
         if (_indexLibrary is null) { return; }
+        var previousMapping = new DevicePresetMapping(_settings.MidiChannel, _settings.DisplayOffset, _settings.SceneCc);
         LoadIndexContext();
+        if (_favPresetSpinner is not null && previousMapping != new DevicePresetMapping(_settings.MidiChannel, _settings.DisplayOffset, _settings.SceneCc))
+        {
+            UpdatePresetCapacityUI();
+            RefreshFavoritesList();
+            UpdateDisplay();
+        }
         _refreshingIndex = true;
         try
         {
@@ -91,19 +102,13 @@ public partial class MainWindow
     private bool SaveIndexProfile(Action<IndexProfile> change)
     {
         if (_indexError is not null || _profileStore is null) { return false; }
-        var priorJson = _settings.FractalIndex;
         try
         {
-            var updated = IndexJson.Clone(_indexProfile);
-            change(updated);
-            _settings.FractalIndex = IndexJson.ToElement(updated);
-            _saveSettings(_settings);
-            _indexProfile = updated;
+            _indexProfile = _libraryProfiles.Update(_indexProfile, change);
             return true;
         }
         catch (Exception ex)
         {
-            _settings.FractalIndex = priorJson;
             SetIndexMessage("Could not save tags or device settings: " + ex.Message);
             return false;
         }
@@ -123,7 +128,19 @@ public partial class MainWindow
 
     partial void AddIndexConfiguration(StackPanel panel)
     {
-        var card = ApprovedCard("Device library for this profile", "One library per profile. Several profiles can share its saved device data.", compact: true);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Device library for this profile",
+            FontWeight = Avalonia.Media.FontWeight.SemiBold,
+            Foreground = TextBrush,
+            Margin = new Thickness(0, 12, 0, 0)
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = "One library per profile. Several profiles can share its saved device data.",
+            Foreground = SecondaryBrush,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap
+        });
         var content = new StackPanel { Spacing = 8, IsEnabled = _profileStore is not null };
         _indexAssignmentLabel = new TextBlock { Name = "IndexAssignment", FontSize = 12, Foreground = TextBrush, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         content.Children.Add(_indexAssignmentLabel);
@@ -142,7 +159,7 @@ public partial class MainWindow
         var manage = IndexButton("Manage library", "ManageLibraries");
         manage.Click += (_, _) => _showManageLibraries?.Invoke();
         content.Children.Add(manage);
-        _indexMatchThreshold = new NumericUpDown
+        _indexMatchThreshold = new CompactNumericUpDown
         {
             Name = "IndexMatchThreshold",
             Minimum = 1,
@@ -152,6 +169,7 @@ public partial class MainWindow
             Value = _indexProfile.PresetMatchThresholdPercent,
             Width = 100
         };
+        AutomationProperties.SetName(_indexMatchThreshold, "Preset match threshold percent");
         _indexMatchThreshold.ValueChanged += (_, _) =>
         {
             if (_refreshingIndex || _indexScanning || _indexChecking || _changingProfile || _indexMatchThreshold.Value is not decimal value) { return; }
@@ -183,8 +201,7 @@ public partial class MainWindow
         });
         _indexConfigStatus = new TextBlock { Name = "IndexDeviceStatus", FontSize = 12, Foreground = SecondaryBrush, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         content.Children.Add(_indexConfigStatus);
-        SetApprovedCardContent(card, content);
-        panel.Children.Add(card);
+        panel.Children.Add(content);
     }
 
     private void SetIndexMessage(string message)
@@ -205,13 +222,14 @@ public partial class MainWindow
     {
         if (_indexSyncButton is null) { return; }
         bool ready = !_changingProfile && _connectionCts is null && _presetNamesCts is null && _indexError is null &&
+            !_connectionLibraryChoiceBusy && (!_connectionLibrarySetupRequired || _connectionLibraryVariant is not null && (_connectionDefaultLibrary is null || _connectionLibraryCandidate is not null)) &&
             _indexCache is not null && _settings.DeviceModel == _indexCache.Device.Variant.ToDeviceModel() && _detectedDevice?.Model == _indexCache.Device.Variant.ToDeviceModel() && _midi.InputOpen && _midi.OutputOpen;
         _indexSyncButton.IsEnabled = ready;
         _indexResumeButton!.IsEnabled = ready && _indexCache?.LastAttempt is { Status: not "Complete" };
         _indexResumeButton.IsVisible = _indexCache?.LastAttempt is { Status: not "Complete" };
         _indexCancelButton!.IsVisible = _indexScanning || _indexChecking;
         _indexProgressPanel!.IsVisible = _indexScanning || _indexChecking;
-        if (_indexCheckButton is not null) { _indexCheckButton.IsEnabled = ready && _indexCache?.Committed is not null; }
+        if (_indexCheckButton is not null) { _indexCheckButton.IsEnabled = ready && !_connectionLibrarySetupRequired && _indexCache?.Committed is not null; }
         if (_indexMatchThreshold is not null) { _indexMatchThreshold.IsEnabled = !_indexScanning && !_indexChecking && !_changingProfile; }
         RefreshLibraryMatchStatus();
         RefreshIndexConnectionSyncCompletion();
@@ -248,7 +266,7 @@ public partial class MainWindow
         bool profileNamesUpdated = false;
         try
         {
-            if (baseline is null && !await ConfirmProfileAsync("Establish device library",
+            if (baseline is null && !_connectionLibrarySetupRequired && !await ConfirmProfileAsync("Establish device library",
                 $"Use the connected {_detectedDevice.ModelLabel} as the baseline for “{cache.Device.Name}”? The saved-preset read can take several minutes. Cancel keeps completed reads.", "Sync device"))
             { outcome = "Sync cancelled. The library was not changed."; return; }
             cancellation.Token.ThrowIfCancellationRequested();
@@ -264,7 +282,7 @@ public partial class MainWindow
                     _indexProgressText.Text = "Previous reads could not be confirmed. Starting a fresh scan…";
                 }
             }
-            await new IndexScanner(_fractalIndexReader, _indexLibrary).ScanAsync(cache, resume, progress => Dispatcher.UIThread.Post(() =>
+            await new IndexScanner(_fractalIndexReader, _connectionLibraryStaging ?? _indexLibrary).ScanAsync(cache, resume, progress => Dispatcher.UIThread.Post(() =>
             {
                 if (!_indexScanning) { return; }
                 int checkedSlots = Math.Min(progress.Total, progress.Read + progress.Failed);
@@ -282,18 +300,18 @@ public partial class MainWindow
             if (match is not null)
             {
                 RememberLibraryMatch(cache, match);
-                if ((!match.MeetsThreshold(threshold) || cache.Imported) && !await ConfirmProfileAsync("Confirm library update",
-                    match.Describe(threshold) + $"\n\nUse these reads to update “{cache.Device.Name}”? Preset edits, moves or firmware changes can reduce the match. Identical backups can also match on different units. Cancel keeps the previous library.", "Update library"))
+                if ((!match.MeetsThreshold(threshold) || cache.Imported) && !await ConfirmLibraryUpdateAsync(cache, match))
                 { outcome = "Previous library kept. New reads were saved separately; they have not replaced its baseline."; return; }
             }
             cancellation.Token.ThrowIfCancellationRequested();
             if (generation != _profileGeneration || connection != _connectionGeneration) { return; }
             cache.Committed = IndexJson.Clone(candidate);
             cache.Imported = false;
-            _indexLibrary.Save(cache);
+            PublishConnectionLibrary(cache);
             libraryUpdated = true;
             CacheLibraryNames(candidate);
             profileNamesUpdated = true;
+            _connectionLibrarySetupRequired = false;
             _connectionSyncCheckedContext = ConnectionSyncContext;
             _connectionSyncMatchedContext = ConnectionSyncContext;
             _showConnectionSyncChecks = false;
@@ -320,6 +338,7 @@ public partial class MainWindow
                         : "Choose Sync library to retry or review an update, or Done to continue with saved data.", needsAttention: !libraryUpdated || !profileNamesUpdated);
             UpdatePresetSyncButtons();
             CompleteInitialConnectionSync();
+            if (!_connectionLibrarySetupRequired && _detectedDevice is not null) { StartSceneTracking(); }
         }
     }
 
@@ -340,9 +359,6 @@ public partial class MainWindow
             };
         }
         _saveSettings(_settings);
-        _presetNamesProgress.Maximum = scan.Presets.Count;
-        _presetNamesProgress.Value = scan.Presets.Count;
-        _presetNamesStatus.Text = $"Complete: {scan.Presets.Count} preset names synchronized with the device library.";
         UpdateFavoritePresetDisplay();
         PopulateFavoriteScenes();
         RefreshFavoritesList();

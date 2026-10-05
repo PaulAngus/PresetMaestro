@@ -240,6 +240,8 @@ public class FractalDeviceInformationTests
 
 internal sealed class DeviceMidi : IMidiManager
 {
+    public Func<Task<MidiPorts>>? Discover { get; set; }
+    public Task<MidiPorts> DiscoverPortsAsync() => Discover?.Invoke() ?? Task.FromResult(new MidiPorts(GetInputPortNames(), GetOutputPortNames()));
     public event EventHandler<byte[]>? SysexMessageReceived;
     public event EventHandler<string>? LogMessage;
     public event EventHandler<int>? PresetChangeReceived { add { } remove { } }
@@ -256,6 +258,9 @@ internal sealed class DeviceMidi : IMidiManager
     public List<string> ClosedThruPorts { get; } = [];
     public List<byte[]> Sent { get; } = [];
     public Action<byte[]>? Send { get; set; }
+    public bool AllowWrites { get; set; }
+    public bool FailWrites { get; set; }
+    public List<(string Kind, int Bank, int Program, int Scene, int Cc, int Channel)> Writes { get; } = [];
     public void Reply(byte[] frame) => SysexMessageReceived?.Invoke(this, frame);
     public void FailTransport() => LogMessage?.Invoke(this, "OUTPUT ERROR: removed");
     public EventHandler<byte[]>? SnapshotListener() => SysexMessageReceived;
@@ -275,8 +280,13 @@ internal sealed class DeviceMidi : IMidiManager
     public void CloseThruInput(string name) => ClosedThruPorts.Add(name);
     public void CloseAllThruInputs() { }
     public bool SendSysEx(byte[] frame) { Sent.Add(frame); Send?.Invoke(frame); return true; }
-    public bool SendBankAndPC(int bank, int pc, int channel) => throw new InvalidOperationException("Unexpected write");
-    public bool SendFavorite(int bank, int pc, int scene, int cc, int channel) => throw new InvalidOperationException("Unexpected write");
-    public bool SendScene(int scene, int cc, int channel) => throw new InvalidOperationException("Unexpected write");
+    public bool SendBankAndPC(int bank, int pc, int channel) => RecordWrite("Preset", bank, pc, 0, 0, channel);
+    public bool SendFavorite(int bank, int pc, int scene, int cc, int channel) => RecordWrite("PresetScene", bank, pc, scene, cc, channel);
+    public bool SendScene(int scene, int cc, int channel) => RecordWrite("Scene", 0, 0, scene, cc, channel);
+    private bool RecordWrite(string kind, int bank, int program, int scene, int cc, int channel)
+    {
+        if (!AllowWrites) { throw new InvalidOperationException("Unexpected write"); }
+        Writes.Add((kind, bank, program, scene, cc, channel)); return !FailWrites;
+    }
     public void Dispose() { CloseInput(); CloseOutput(); }
 }

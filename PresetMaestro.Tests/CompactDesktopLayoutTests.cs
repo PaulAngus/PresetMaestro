@@ -58,8 +58,8 @@ public partial class FavoriteEditorTests
             foreach (string name in new[]
             {
                 "MidiInput", "MidiOutput", "Connect", "Disconnect", "RefreshDevices", "OpenDiagnostics",
-                "ConfigPresetSync", "AutoSendDelay", "ProfileSelector", "ProfileRescan", "ManageProfiles",
-                "MidiChannel", "DisplayOffset", "OpenMidiMapping",
+                "ConfigSyncOptions", "AutoSendDelay", "ProfileSelector", "ProfileRescan", "ManageProfiles",
+                "OpenMidiMapping",
             })
             {
                 var control = Find<Control>(window, name);
@@ -72,7 +72,7 @@ public partial class FavoriteEditorTests
             {
                 AssertContainedHorizontally(control, connection);
             }
-            foreach (string name in new[] { "ProfileSelector", "ProfileRescan", "ManageProfiles", "DisplayOffset", "OpenMidiMapping" })
+            foreach (string name in new[] { "ProfileSelector", "ProfileRescan", "ManageProfiles", "OpenMidiMapping" })
             {
                 AssertContainedHorizontally(Find<Control>(window, name), window);
             }

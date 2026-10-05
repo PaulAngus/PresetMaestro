@@ -183,9 +183,6 @@ public partial class MainWindow
     {
         if (name != _settings.ActiveProfile) { return _profileStore!.LoadProfile(name); }
         var profile = ProfileSettings.From(_settings);
-        // Inspect the live controls without saving or mutating active settings.
-        profile.MidiChannel = _channelCombo.SelectedIndex;
-        profile.DisplayOffset = _offsetCombo.SelectedIndex;
         profile.MaxDisplayedPreset = EffectiveMaximum;
         return profile;
     }

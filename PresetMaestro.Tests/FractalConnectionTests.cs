@@ -10,6 +10,29 @@ namespace PresetMaestro.Tests;
 
 public class FractalConnectionTests
 {
+    [AvaloniaFact]
+    public async Task SlowDiscoveryLeavesDispatcherResponsiveAndOldResultCannotDisconnectNewSession()
+    {
+        var midi = new DeviceMidi();
+        midi.Send = request => { if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9")); } };
+        var window = Create(midi, []); window.ThruInputRetryDelay = TimeSpan.Zero;
+        var pending = new TaskCompletionSource<PresetMaestro.Midi.MidiPorts>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            await window.ConnectAsync();
+            midi.Discover = () => pending.Task;
+            var check = window.CheckConnectedDevicesAsync("FM9", "FM9");
+            bool dispatched = false; Dispatcher.UIThread.Post(() => dispatched = true); Dispatcher.UIThread.RunJobs();
+            Assert.True(dispatched); Assert.False(check.IsCompleted);
+            Invoke(window, "Disconnect");
+            await window.ConnectAsync();
+            pending.SetResult(new([], []));
+            await check;
+            Assert.True(midi.InputOpen && midi.OutputOpen); Assert.Equal("FM9", Header(window).Text);
+        }
+        finally { pending.TrySetResult(new([], [])); window.Close(); }
+    }
+
     private static MainWindow Create(DeviceMidi midi, List<string> errors)
     {
         var window = new MainWindow(new AppSettings { Theme = "Light", MidiInputPort = "FM9", MidiOutputPort = "FM9" }, [], midi,
@@ -146,16 +169,20 @@ public class FractalConnectionTests
             window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "NavConfig")
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
-            var sync = window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ConfigPresetSync");
-            Assert.False(sync.IsEnabled);
+            var sync = window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ConfigSyncOptions");
+            Assert.True(sync.IsEnabled);
+            var dialog = Assert.Single(window.OwnedWindows);
+            var names = dialog.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ConnectionSyncNames");
+            Assert.False(names.IsEnabled);
+            Assert.Contains("FM9 only", ToolTip.GetTip(names)?.ToString());
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(),
                 button => Equals(button.Content, "Sync all stored scene names"));
             await (Task)typeof(MainWindow).GetMethod("ReadFavoriteScenesAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!;
             await window.SyncPresetNamesAsync();
-            Assert.Contains("FM9 only", window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "PresetSyncStatus").Text);
+            Assert.Contains("FM9 only", dialog.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "ConnectionSyncStatus").Text);
             window.GetVisualDescendants().OfType<RadioButton>().Single(radio => Equals(radio.Content, "Dark")).IsChecked = true;
             Dispatcher.UIThread.RunJobs();
-            Assert.Contains("FM9 only", window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "PresetSyncStatus").Text);
+            Assert.Contains("FM9 only", dialog.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "ConnectionSyncStatus").Text);
             Assert.Equal(new byte[] { 0, 8 }, midi.Sent.Select(frame => frame[5]));
             Assert.True(midi.InputOpen && midi.OutputOpen);
         }
@@ -207,15 +234,14 @@ public class FractalConnectionTests
             Assert.Equal("Not connected", Header(window).Text);
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "NavConfig").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
-            var sync = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ConfigPresetSync");
+            var sync = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ConfigSyncOptions");
             Assert.False(sync.IsEnabled);
-            Assert.Equal("Connecting…", sync.Content);
-            Assert.Contains("reading device information", window.GetVisualDescendants().OfType<TextBlock>().Single(b => b.Name == "PresetSyncStatus").Text);
+            Assert.Equal("Sync options…", sync.Content);
             midi.Send = request => { if (request[5] == 1) { midi.Reply(FractalDeviceInformationTests.Capture("name-pm-test")); } };
             midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9"));
             await pending;
             Assert.True(sync.IsEnabled);
-            Assert.Contains("Ready to sync", window.GetVisualDescendants().OfType<TextBlock>().Single(b => b.Name == "PresetSyncStatus").Text);
+            Assert.True(Assert.Single(window.OwnedWindows).GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ConnectionSyncNames").IsEnabled);
             var header = Header(window);
             foreach (string page in new[] { "PresetSender", "Favorites", "Config" })
             {
@@ -343,17 +369,17 @@ public class FractalConnectionTests
         {
             await window.ConnectAsync();
             midi.OutputEnumerationError = new NAudio.MmException(NAudio.MmResult.NoDriver, "midiOutGetDevCaps");
-            window.CheckConnectedDevices("FM9", "FM9");
-            window.CheckConnectedDevices("FM9", "FM9");
+            await window.CheckConnectedDevicesAsync("FM9", "FM9");
+            await window.CheckConnectedDevicesAsync("FM9", "FM9");
             Assert.True(midi.InputOpen && midi.OutputOpen);
             Assert.Equal("FM9", Header(window).Text);
 
             midi.OutputEnumerationError = null;
-            window.CheckConnectedDevices("FM9", "FM9");
+            await window.CheckConnectedDevicesAsync("FM9", "FM9");
             Assert.Equal("FM9", Header(window).Text);
 
             midi.OutputRemoved = true;
-            window.CheckConnectedDevices("FM9", "FM9");
+            await window.CheckConnectedDevicesAsync("FM9", "FM9");
             Assert.False(midi.InputOpen || midi.OutputOpen);
             Assert.Equal("Not connected", Header(window).Text);
         }

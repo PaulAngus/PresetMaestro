@@ -124,7 +124,8 @@ public partial class FavoriteEditorTests
             var clicked = list.Items.Cast<ListBoxItem>().Last();
             var clickedFavorite = (Favorite)clicked.Tag!;
             var menu = clicked.ContextMenu!;
-            ClickMenu((MenuItem)menu.Items[2]!);
+            Assert.Contains(menu.Items.OfType<MenuItem>(), item => Equals(item.Header, "Go to preset & scene"));
+            ClickMenu(menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, "Clear Slot")));
             Assert.True(clickedFavorite.IsEmpty);
             Assert.Equal(2, saves);
         }

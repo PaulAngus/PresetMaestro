@@ -49,9 +49,13 @@ public partial class FavoriteEditorTests
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<CheckBox>(), check => check.Name == "DebugMode");
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "MAX PRESET");
             Assert.DoesNotContain(Find<Grid>(window, "ConfigLayout").GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "Scenes");
+            Assert.DoesNotContain(Find<Grid>(window, "ConfigLayout").GetVisualDescendants().OfType<Control>(), control => control.Name is "MidiChannel" or "DisplayOffset" or "LibraryPresetMapping");
+            Assert.Contains(Find<Border>(window, "EntryOptionsCard").GetVisualDescendants().OfType<Button>(), button => button.Name == "OpenMidiMapping");
 
             var actions = Find<StackPanel>(window, "ConnectionActions");
-            Assert.Equal(new[] { "Connect", "Disconnect", "RefreshDevices", "OpenDiagnostics" },
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Control>(), control => control.Name is "ConfigPresetSync" or "PresetSyncStatus" or "PresetSyncProgress");
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "Preset Name Sync");
+            Assert.Equal(new[] { "Connect", "Disconnect", "RefreshDevices", "OpenDiagnostics", "ConfigSyncOptions" },
                 actions.Children.OfType<Button>().Select(button => button.Name!).ToArray());
             double inputTop = Find<ComboBox>(window, "MidiInput").TranslatePoint(default, window)!.Value.Y;
             double connectTop = Find<Button>(window, "Connect").TranslatePoint(default, window)!.Value.Y;

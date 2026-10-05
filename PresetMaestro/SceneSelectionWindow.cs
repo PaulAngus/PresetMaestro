@@ -12,7 +12,7 @@ using Avalonia.VisualTree;
 
 namespace PresetMaestro;
 
-/// <summary>Selects one of the eight scenes without sending MIDI.</summary>
+/// <summary>Selects a scene, with an explicit optional action to load it on the device.</summary>
 public sealed class SceneSelectionWindow : Window
 {
     private readonly ListBox _scenes;
@@ -20,13 +20,13 @@ public sealed class SceneSelectionWindow : Window
     private readonly Border[] _sceneTiles = new Border[8];
     private readonly string[] _sceneNames = new string[8];
 
-    public SceneSelectionWindow(IReadOnlyList<string>? names, int currentScene)
+    public SceneSelectionWindow(IReadOnlyList<string>? names, int currentScene, Func<int, bool>? goTo = null, Func<string?>? navigationUnavailable = null)
     {
         Title = "Select Scene";
-        Width = 720;
-        Height = 455;
-        MinWidth = 560;
-        MinHeight = 390;
+        Width = 800;
+        Height = 520;
+        MinWidth = 640;
+        MinHeight = 440;
         CanResize = true;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = Palette("AppBrush");
@@ -150,19 +150,21 @@ public sealed class SceneSelectionWindow : Window
             AutomationProperties.SetName(item, $"Scene {scene}: {displayName}");
             _scenes.Items.Add(item);
         }
+        _goTo = new DeviceGoToButton("Go to scene", "GoToSceneSelection", () => (_scenes.SelectedItem as ListBoxItem)?.Tag as int?, goTo, navigationUnavailable) { MinHeight = 44 };
         _scenes.SelectedIndex = Math.Clamp(currentScene, 1, 8) - 1;
         _scenes.SelectionChanged += (_, _) => UpdateSelectionDisplay();
         _scenes.DoubleTapped += (_, e) =>
         {
             if (e.Source is Visual visual && IsWithinSceneItem(visual))
             {
-                ConfirmSelection();
+                if (goTo is null) { ConfirmSelection(); } else { _goTo.Go(); }
+                e.Handled = true;
             }
         };
         Grid.SetRow(_scenes, 4);
         root.Children.Add(_scenes);
 
-        var footer = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        var footer = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), RowDefinitions = new("Auto,12,Auto") };
         var help = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -172,12 +174,14 @@ public sealed class SceneSelectionWindow : Window
             {
                 new TextBlock { Text = "8 scenes", FontSize = 12, Foreground = Palette("SecondaryBrush") },
                 new Border { Width = 1, Height = 18, Background = Palette("UiBorderBrush") },
-                new TextBlock { Text = "Use ← → ↑ ↓ to change, Enter to select", FontSize = 12, Foreground = Palette("SecondaryBrush") },
+                new TextBlock { Text = goTo is null ? "Use ← → ↑ ↓ to change, Enter to select" : "Double-click to go to a scene. Select Scene uses it in the favorite.", FontSize = 13, Foreground = Palette("SecondaryBrush"), TextWrapping = TextWrapping.Wrap },
             },
         };
         footer.Children.Add(help);
+        Grid.SetColumnSpan(help, 2);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        actions.Children.Add(_goTo);
         var cancel = new Button { Name = "CancelSceneSelection", Content = "Cancel", MinWidth = 92, MinHeight = 44 };
         var select = new Button
         {
@@ -193,6 +197,7 @@ public sealed class SceneSelectionWindow : Window
         actions.Children.Add(cancel);
         actions.Children.Add(select);
         Grid.SetColumn(actions, 1);
+        Grid.SetRow(actions, 2);
         footer.Children.Add(actions);
         Grid.SetRow(footer, 6);
         root.Children.Add(footer);
@@ -204,11 +209,13 @@ public sealed class SceneSelectionWindow : Window
     }
 
     private static IBrush Palette(string key) => (IBrush)Application.Current!.Resources[key]!;
+    private readonly DeviceGoToButton _goTo;
 
     private void UpdateSelectionDisplay()
     {
         int selectedScene = (_scenes.SelectedItem as ListBoxItem)?.Tag as int? ?? 1;
         string selectedName = _sceneNames[selectedScene - 1];
+        _goTo?.Refresh();
         _selectedSummary.Text = selectedName == $"Scene {selectedScene}"
             ? $"Selected: Scene {selectedScene}"
             : $"Selected: Scene {selectedScene} — {selectedName}";
@@ -239,7 +246,7 @@ public sealed class SceneSelectionWindow : Window
         }
         else if (e.Key == Key.Enter)
         {
-            ConfirmSelection();
+            if (_goTo.IsKeyboardFocusWithin) { _goTo.Go(); } else { ConfirmSelection(); }
             e.Handled = true;
         }
     }

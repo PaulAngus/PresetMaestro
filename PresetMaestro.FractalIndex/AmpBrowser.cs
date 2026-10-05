@@ -6,7 +6,7 @@ public sealed record RealAmpFamily(string Id, string Manufacturer, string Name, 
     string Source, string Confidence, int[] ModelIds);
 
 public sealed record BrowserAmpVariant(string Id, int ModelId, string Name, string SpecificModel,
-    string IdentityEvidence, bool IdentityVerified, string MappingEvidence = "");
+    string IdentityEvidence, bool IdentityVerified, string MappingEvidence = "", string? WikiUrl = null);
 
 public sealed record BrowserAmpFamily(RealAmpFamily Family, BrowserAmpVariant[] Variants, int MatchingPresets,
     bool UsageComplete)
@@ -37,6 +37,7 @@ public static class AmpBrowserCatalog
     private static readonly RosterEntry[] Roster = Read<RosterEntry[]>("fm9-12-candidates.json");
     private static readonly RealAmpFamily[] Mappings = Read<RealAmpFamily[]>("real-amp-families.json");
     private static readonly Dictionary<int, AmpDetail> Details = Read<AmpDetail[]>("real-amp-details.json").ToDictionary(d => d.ModelId);
+    private static readonly Dictionary<string, string> WikiSections = Read<Dictionary<string, string>>("amp-wiki-sections.json");
     private static readonly AmpModelCatalogRegistry VerifiedNames = AmpModelCatalogRegistry.CreateStarter();
     private static readonly Lazy<Dictionary<int, (RealAmpFamily Family, BrowserAmpVariant Variant)>> DisplayModels = new(() =>
         Build(new DeviceIndex { Device = new(Guid.Empty, "", FractalDeviceVariant.FM9, "12.00") }).Families
@@ -69,10 +70,18 @@ public static class AmpBrowserCatalog
             committed.Errors.Count == 0 && committed.Presets.Count == device.PresetSlots &&
             Enumerable.Range(0, device.PresetSlots).All(committed.Presets.ContainsKey);
         var names = candidates ? Roster.ToDictionary(e => e.Id, e => e.Name) : new Dictionary<int, string>();
-        foreach (var channel in presets.SelectMany(p => p.Amps).SelectMany(a => a.Channels))
+        // Index usage once; counting each family must not rescan every saved channel.
+        var usageByModel = new Dictionary<int, HashSet<int>>();
+        foreach (var preset in presets)
         {
-            if (!names.ContainsKey(channel.Model.Id))
-            { names[channel.Model.Id] = channel.Model.IsKnown ? channel.Model.DisplayName : $"Unknown Amp model #{channel.Model.Id}"; }
+            foreach (var channel in preset.Amps.SelectMany(a => a.Channels))
+            {
+                int id = channel.Model.Id;
+                if (!names.ContainsKey(id))
+                { names[id] = channel.Model.IsKnown ? channel.Model.DisplayName : $"Unknown Amp model #{id}"; }
+                if (!usageByModel.TryGetValue(id, out var slots)) { usageByModel[id] = slots = []; }
+                slots.Add(preset.Slot);
+            }
         }
         var families = new List<BrowserAmpFamily>();
         var assigned = new HashSet<int>();
@@ -114,10 +123,12 @@ public static class AmpBrowserCatalog
                 preview ? "FM9 12.00 reference only; not matched to this library's unknown firmware. " + RosterSource :
                 verified.IsKnown ? verified.Evidence : candidates ? "FM9 12.00 reference identity; this library's firmware has not been confirmed. " + RosterSource : "Saved scan identity; mapping needs review.", !preview && verified.IsKnown,
                 detail is null ? "Real amplifier attribution has not been joined to this identity." :
-                    $"{detail.Relationship}. {detail.Notes}\nManufacturer/model sources (shared lineage): {detail.MappingEvidence}");
+                    $"{detail.Relationship}. {detail.Notes}\nManufacturer/model sources (shared lineage): {detail.MappingEvidence}",
+                candidates && WikiSections.TryGetValue(name, out var section) ? Wiki + "#" + Uri.EscapeDataString(section) : null);
         }
         BrowserAmpFamily Family(RealAmpFamily family, BrowserAmpVariant[] variants) => new(family, variants,
-            presets.Count(p => p.Amps.Any(a => a.Channels.Any(c => variants.Any(v => v.ModelId == c.Model.Id)))), complete);
+            variants.SelectMany(v => usageByModel.TryGetValue(v.ModelId, out var slots) ? (IEnumerable<int>)slots : [])
+                .Distinct().Count(), complete);
     }
 
     public static bool SameFirmware(string? a, string? b) => Version.TryParse(a, out var av) && Version.TryParse(b, out var bv)
@@ -150,4 +161,14 @@ public sealed record AmpContainsFilter(Guid DeviceId, FractalDeviceVariant Varia
     public bool Matches(IndexedPreset preset) => preset.Variant == Variant && ModelIds.Any(preset.Contains);
     public string[] MatchingChannels(IndexedPreset preset) => preset.Amps.SelectMany(a => a.Channels
         .Where(c => ModelIds.Contains(c.Model.Id)).Select(c => $"Amp {a.BlockNumber} / {(char)('A' + c.Channel)} · {c.Model.DisplayName}")).ToArray();
+
+    public string[] MatchingChannelSummary(IndexedPreset preset) => preset.Amps.SelectMany(amp => amp.Channels
+        .Where(channel => ModelIds.Contains(channel.Model.Id)).GroupBy(channel => channel.Model.Id).Select(group =>
+        {
+            var channels = group.Select(channel => channel.Channel).Distinct().Order().ToArray();
+            string letters = channels.SequenceEqual(new[] { 0, 1, 2, 3 }) ? "A–D"
+                : string.Join(", ", channels.Select(channel => (char)('A' + channel)));
+            string model = ModelIds.Distinct().Count() > 1 ? " · " + group.First().Model.DisplayName : "";
+            return $"Amp {amp.BlockNumber}{model} · {(channels.Length == 1 ? "channel" : "channels")} {letters}";
+        })).ToArray();
 }

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <None Update="Fixtures\Fractal\*.hex" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures\Fractal\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\docs\catalog\fm9-12-device-roster.json" Link="Fixtures\Fractal\fm9-12-device-roster.json" CopyToOutputDirectory="PreserveNewest" />
     <Using Include="Xunit" />
   </ItemGroup>
 

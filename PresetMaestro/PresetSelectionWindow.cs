@@ -23,11 +23,13 @@ public sealed class PresetSelectionWindow : Window
     private readonly ListBox _presets;
     private readonly TextBlock _count, _empty;
     private readonly Button _select, _cancel;
+    private readonly DeviceGoToButton _goTo;
     private readonly UniformGrid _grid = new() { Columns = 5, VerticalAlignment = VerticalAlignment.Top };
     private int _preferredSlot;
     private bool _filtering;
 
-    public PresetSelectionWindow(IReadOnlyDictionary<int, string> names, int currentSlot, int displayOffset = 0, DeviceModel deviceModel = DeviceModel.FM9)
+    public PresetSelectionWindow(IReadOnlyDictionary<int, string> names, int currentSlot, int displayOffset = 0, DeviceModel deviceModel = DeviceModel.FM9,
+        Func<int, bool>? goTo = null, Func<string?>? navigationUnavailable = null)
     {
         _catalog = PresetSelection.TrimExplicitEmptyEdges(PresetSelection.CreateCatalog(names, displayOffset, deviceModel));
         _preferredSlot = Math.Clamp(currentSlot, 0, DevicePresets.Capacity(deviceModel) - 1);
@@ -63,16 +65,18 @@ public sealed class PresetSelectionWindow : Window
         var host = new Grid(); host.Children.Add(_presets); host.Children.Add(_empty);
         var frame = new Border { Child = host, Background = Palette("SurfaceBrush"), BorderBrush = Palette("UiBorderBrush"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), ClipToBounds = true };
         Grid.SetRow(frame, 4); root.Children.Add(frame);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,12,Auto"), RowDefinitions = new("Auto,Auto") };
-        footer.Children.Add(new TextBlock { Text = "← ↑ ↓ →  Navigate     Enter  Select     Esc  Cancel", FontSize = 12, Foreground = Palette("SecondaryBrush"), TextWrapping = TextWrapping.Wrap });
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,12,Auto,12,Auto"), RowDefinitions = new("Auto,Auto") };
+        footer.Children.Add(new TextBlock { Text = goTo is null ? "← ↑ ↓ →  Navigate     Enter  Select     Esc  Cancel" : "Double-click to go to the preset on your device. Select Preset uses it in the favorite.", FontSize = 13, Foreground = Palette("SecondaryBrush"), TextWrapping = TextWrapping.Wrap, Margin = new(0, 0, 12, 0) });
         _count = new TextBlock { Name = "PresetCount", Foreground = Palette("SecondaryBrush"), FontSize = 12 };
         Grid.SetRow(_count, 1); footer.Children.Add(_count);
         _cancel = new Button { Name = "CancelPresetSelection", Content = "Cancel", MinWidth = 92, MinHeight = 44 };
         _select = new Button { Name = "ConfirmPresetSelection", Content = "Select Preset", MinWidth = 130, MinHeight = 44, Background = Palette("AccentBrush"), Foreground = Brushes.White };
+        _goTo = new DeviceGoToButton("Go to preset", "GoToPresetSelection", () => SelectedChoice?.Slot, goTo, navigationUnavailable) { MinHeight = 44 };
+        Grid.SetColumn(_goTo, 1); Grid.SetRowSpan(_goTo, 2); footer.Children.Add(_goTo);
         _cancel.Click += (_, _) => Close(null);
         _select.Click += (_, _) => ConfirmSelection();
-        Grid.SetColumn(_cancel, 1); Grid.SetRowSpan(_cancel, 2); footer.Children.Add(_cancel);
-        Grid.SetColumn(_select, 3); Grid.SetRowSpan(_select, 2); footer.Children.Add(_select);
+        Grid.SetColumn(_cancel, 3); Grid.SetRowSpan(_cancel, 2); footer.Children.Add(_cancel);
+        Grid.SetColumn(_select, 5); Grid.SetRowSpan(_select, 2); footer.Children.Add(_select);
         Grid.SetRow(footer, 6); root.Children.Add(footer);
         Content = root;
         _search.TextChanged += (_, _) => ApplyFilter();
@@ -85,8 +89,9 @@ public sealed class PresetSelectionWindow : Window
 
             PaintRows();
             _select.IsEnabled = SelectedChoice != null;
+            _goTo.Refresh();
         };
-        _presets.DoubleTapped += (_, e) => { if (e.Source is Visual visual && IsWithinPresetItem(visual)) { ConfirmSelection(); } };
+        _presets.DoubleTapped += (_, e) => { if (e.Source is Visual visual && IsWithinPresetItem(visual)) { if (goTo is null) { ConfirmSelection(); } else { _goTo.Go(); } e.Handled = true; } };
         _presets.SizeChanged += (_, _) => Reflow();
         AddHandler(KeyDownEvent, OnDialogKeyDown, RoutingStrategies.Tunnel);
         Opened += (_, _) => { Reflow(); _search.Focus(); RevealSelection(); };
@@ -131,6 +136,7 @@ public sealed class PresetSelectionWindow : Window
         _empty.IsVisible = filtered.Count == 0;
         _empty.Text = _catalog.Count == 0 ? "No populated presets" : "No matching presets";
         _select.IsEnabled = filtered.Count != 0;
+        _goTo.Refresh();
         _count.Text = $"{filtered.Count} of {_catalog.Count} presets";
         PaintRows(); RevealSelection();
     }
@@ -200,7 +206,8 @@ public sealed class PresetSelectionWindow : Window
         if (e.Key == Key.Escape) { Close(null); e.Handled = true; return; }
         if (e.Key == Key.Enter)
         {
-            if (_cancel.IsKeyboardFocusWithin)
+            if (_goTo.IsKeyboardFocusWithin) { _goTo.Go(); }
+            else if (_cancel.IsKeyboardFocusWithin)
             {
                 Close(null);
             }

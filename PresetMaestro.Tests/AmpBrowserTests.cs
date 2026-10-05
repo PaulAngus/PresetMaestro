@@ -4,6 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PresetMaestro.Core;
@@ -29,6 +30,18 @@ public sealed class AmpBrowserTests : IDisposable
         presets[2] = Preset(2, 9999, 9999, 9999, 9999);
         var scan = new IndexScan { Firmware = "12.00", Status = complete ? "Complete" : "Cancelled", FinishedAt = DateTimeOffset.UtcNow, Presets = presets };
         return new() { Device = new(Guid.NewGuid(), "Stage FM9", FractalDeviceVariant.FM9, "12.00"), Committed = complete ? scan : null, LastAttempt = complete ? null : scan };
+    }
+
+    [Fact]
+    public void FamilyUsageCountsEachPresetOnceAcrossVariantsChannelsAndBlocks()
+    {
+        var cache = Cache(false);
+        var family = AmpBrowserCatalog.Build(cache).Families.Single(f => f.Family.Id == "fender-bassman-59");
+        int[] ids = family.Variants.Select(v => v.ModelId).ToArray();
+        var preset = Preset(20, ids[0], ids[1], ids[2], ids[0]);
+        preset = preset with { Amps = [preset.Amps[0], preset.Amps[0] with { BlockNumber = 2 }] };
+        cache.LastAttempt!.Presets = new() { [20] = preset, [21] = Preset(21, ids[1], ids[1], ids[1], ids[1]) };
+        Assert.Equal(2, AmpBrowserCatalog.Build(cache).Families.Single(f => f.Family.Id == family.Family.Id).MatchingPresets);
     }
 
     [Fact]
@@ -402,10 +415,14 @@ public sealed class AmpBrowserTests : IDisposable
 
     [AvaloniaTheory]
     [InlineData(1000, "Light")]
+    [InlineData(1000, "Dark")]
+    [InlineData(1440, "Light")]
     [InlineData(1440, "Dark")]
     public void BrowseFamilyVariantContainsBackAndZeroMatchesWithoutMidi(int width, string theme)
     {
         var store = new ProfileStore(_directory); var settings = store.LoadSettings(); settings.Theme = theme;
+        new AmpReferenceStore(Path.Combine(_directory, "amp-references.json")).Merge([
+            new("carolann-tucana", AmpBrowserCatalog.Wiki + "#CAROL-ANN_TUCANA_CLEAN_(Carol-Ann_Tucana_3)")]);
         var cache = Cache(); new IndexLibrary(Path.Combine(_directory, "FractalIndex")).Save(cache);
         settings.FractalIndex = IndexJson.ToElement(new IndexProfile { Devices = [cache.Device], SelectedDeviceId = cache.Device.Id }); store.SaveSettings(settings);
         var midi = new DeviceMidi(); var window = new MainWindow(settings, [], midi, profileStore: store) { Width = width, Height = 800 };
@@ -420,6 +437,16 @@ public sealed class AmpBrowserTests : IDisposable
             Assert.Equal(items.Select(i => ((BrowserAmpFamily)i.Tag!).Family.Manufacturer).Distinct().Count(), headings.Length);
             Assert.All(headings, heading => Assert.Equal(16, heading.FontSize));
             Assert.All(list.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Name == "AmpFamilyName"), text => Assert.Equal(window.FontSize, text.FontSize));
+            var bassmanRow = items.Single(i => ((BrowserAmpFamily)i.Tag!).Family.Id == "fender-bassman-59");
+            var bassmanLabels = bassmanRow.GetVisualDescendants().OfType<TextBlock>().ToArray();
+            var realFamily = bassmanLabels.Single(t => t.Name == "AmpFamilyName");
+            var fractalModels = bassmanLabels.Single(t => t.Name == "AmpFamilyFractalModels");
+            Assert.Equal("'59 Bassman", realFamily.Text);
+            Assert.Contains("59 Bassguy Bright", fractalModels.Text);
+            Assert.Contains("59 Bassguy Jumped", fractalModels.Text);
+            Assert.Contains("59 Bassguy Normal", fractalModels.Text);
+            Assert.True(realFamily.FontSize > fractalModels.FontSize);
+            Assert.Equal(TextWrapping.Wrap, fractalModels.TextWrapping);
             foreach (var group in items.GroupBy(i => ((BrowserAmpFamily)i.Tag!).Family.Manufacturer))
             {
                 Assert.Single(group.Select(i => i.Bounds.X).Distinct());
@@ -437,29 +464,67 @@ public sealed class AmpBrowserTests : IDisposable
             SelectFamily(list, "cameron-atomica");
             Capture(window, $"amps-inspector-{width}-{theme}");
             Click(Find<Button>(window, "AmpsBackToDirectory"));
+            SelectFamily(list, "carolann-tucana");
+            Assert.Equal("Wiki", Find<TextBlock>(window, "AmpsWikiTitle").Text);
+            var wikiLinks = Find<StackPanel>(window, "AmpsWikiLinks").Children.OfType<HyperlinkButton>().Where(b => b.Name == "AmpsWikiLink").ToArray();
+            Assert.Equal(new[]
+            {
+                AmpBrowserCatalog.Wiki + "#CAROL-ANN_TUCANA_CLEAN_(Carol-Ann_Tucana_3)",
+                AmpBrowserCatalog.Wiki + "#CAROL-ANN_TUCANA_LEAD",
+            }, wikiLinks.Select(b => Uri.UnescapeDataString(((AmpReference)b.Tag!).Url)));
+            Assert.All(wikiLinks, link => Assert.True(link.IsEffectivelyVisible));
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Control>(), c => c.Name is "AmpsEvidence" or "AmpsCatalogueStatus" or "AmpsReferences");
+            Assert.False(Find<TextBlock>(window, "AmpsCoverage").IsEffectivelyVisible);
+            Capture(window, $"amps-tucana-{width}-{theme}");
+            Click(Find<Button>(window, "AmpsBackToDirectory"));
             var first = Find<Button>(window, "NavPresetSender"); var last = Find<Button>(window, "NavConfig");
             Assert.True(first.TranslatePoint(default, window)!.Value.X > 150);
             Assert.True(last.TranslatePoint(default, window)!.Value.X + last.Bounds.Width < Find<TextBlock>(window, "IndexAssignedDevice").TranslatePoint(default, window)!.Value.X);
             Find<TextBox>(window, "AmpsSearch").Text = "Bassguy"; Dispatcher.UIThread.RunJobs();
             SelectFamily(list, "fender-bassman-59");
             Assert.All(VariantChecks(window), check => Assert.True(check.IsChecked));
+            foreach (var check in VariantChecks(window))
+            {
+                var variant = ((BrowserAmpFamily)bassmanRow.Tag!).Variants.Single(v => v.Id == (string)check.Tag!);
+                var labels = check.GetVisualDescendants().OfType<TextBlock>().ToArray();
+                var realAmp = labels.Single(t => t.Name == "AmpsVariantRealAmp");
+                var fractalModel = labels.Single(t => t.Name == "AmpsVariantFractalModel");
+                Assert.Equal(variant.SpecificModel, realAmp.Text);
+                Assert.Equal("Fractal: " + variant.Name, fractalModel.Text);
+                Assert.True(realAmp.FontSize > fractalModel.FontSize);
+                Assert.Equal(TextWrapping.Wrap, fractalModel.TextWrapping);
+            }
             Assert.True(list.IsEffectivelyVisible);
             Assert.True(Find<StackPanel>(window, "AmpsDetail").TranslatePoint(default, window)!.Value.Y >= list.TranslatePoint(default, window)!.Value.Y + list.Bounds.Height);
             Capture(window, $"amps-family-{width}-{theme}");
+            Click(Find<Button>(window, "NavPresetIndex"));
+            Find<TextBox>(window, "IndexSearchInput").Text = "no matching preset";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Empty(Find<ListBox>(window, "IndexPresetList").Items);
+            Click(Find<Button>(window, "NavAmps"));
             Click(Find<Button>(window, "AmpsFindPresets"));
             Assert.Equal(2, Find<ListBox>(window, "IndexPresetList").ItemCount);
-            Assert.Contains("Contains: Fender", Find<TextBlock>(window, "IndexAmpFilterLabel").Text!);
+            Assert.Contains("Fender", Find<TextBlock>(window, "IndexPageTitle").Text!);
+            Assert.False(Find<TextBox>(window, "IndexSearchInput").IsEffectivelyVisible);
+            Assert.False(Find<Button>(window, "IndexClearSearch").IsEffectivelyVisible);
+            Assert.False(Find<Button>(window, "IndexSync").IsEffectivelyVisible);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Control>(), c => c.Name is "IndexAmpSceneUsage" or "IndexClearAmpFilter" or "IndexAmpFilterLabel");
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Name == "IndexAmpResultSummary" && t.Text == "Amp 1 · 59 Bassguy Bright · channels A–D");
+            Assert.True(Find<ListBox>(window, "IndexPresetList").IsKeyboardFocusWithin);
+            Capture(window, $"amps-selected-results-{width}-{theme}");
             Find<ListBox>(window, "IndexPresetList").SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
             Assert.Contains("Amp 1 / B", Find<TextBlock>(window, "IndexAmpMatches").Text!);
             Capture(window, $"amps-contains-{width}-{theme}");
-            Find<ComboBox>(window, "IndexAmpSceneUsage").SelectedIndex = 2; Dispatcher.UIThread.RunJobs();
-            Assert.Empty(Find<ListBox>(window, "IndexPresetList").Items);
-            Find<ComboBox>(window, "IndexAmpSceneUsage").SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
-            Assert.Equal(2, Find<ListBox>(window, "IndexPresetList").ItemCount);
-            Click(Find<Button>(window, "IndexClearSearch"));
-            Assert.Equal(2, Find<ListBox>(window, "IndexPresetList").ItemCount);
             Click(Find<Button>(window, "IndexBackToAmps"));
             Assert.Equal("Bassguy", Find<TextBox>(window, "AmpsSearch").Text);
+            Assert.True(Find<Button>(window, "AmpsFindPresets").IsFocused);
+            Click(Find<Button>(window, "NavPresetIndex"));
+            Assert.True(Find<TextBox>(window, "IndexSearchInput").IsEffectivelyVisible);
+            Assert.Equal("no matching preset", Find<TextBox>(window, "IndexSearchInput").Text);
+            Assert.Empty(Find<ListBox>(window, "IndexPresetList").Items);
+            Click(Find<Button>(window, "IndexClearSearch"));
+            Assert.Equal(512, Find<ListBox>(window, "IndexPresetList").ItemCount);
+            Click(Find<Button>(window, "NavAmps"));
             var variants = VariantChecks(window);
             foreach (var check in variants) { check.IsChecked = false; }
             Assert.False(Find<Button>(window, "AmpsFindPresets").IsEnabled);
@@ -475,7 +540,7 @@ public sealed class AmpBrowserTests : IDisposable
             Click(Find<Button>(window, "AmpsFindPresets"));
             Assert.Empty(Find<ListBox>(window, "IndexPresetList").Items);
             Assert.Contains("No presets", Find<TextBlock>(window, "IndexEmptyState").Text!);
-            Click(Find<Button>(window, "IndexClearAmpFilter"));
+            Click(Find<Button>(window, "NavPresetIndex"));
             Assert.Equal(512, Find<ListBox>(window, "IndexPresetList").ItemCount);
             Assert.Empty(midi.Sent);
         }
@@ -486,6 +551,8 @@ public sealed class AmpBrowserTests : IDisposable
     public void BrowserKeepsScrollAndReferencesAndDoesNotAcceptPresetSendShortcuts()
     {
         var store = new ProfileStore(_directory); var settings = store.LoadSettings(); settings.KeyboardEntryEnabled = true;
+        new AmpReferenceStore(Path.Combine(_directory, "amp-references.json")).Merge([
+            new("fender-bassman-59", AmpBrowserCatalog.Wiki + "#Bassguy")]);
         var cache = Cache(); new IndexLibrary(Path.Combine(_directory, "FractalIndex")).Save(cache);
         settings.FractalIndex = IndexJson.ToElement(new IndexProfile { Devices = [cache.Device], SelectedDeviceId = cache.Device.Id }); store.SaveSettings(settings);
         var midi = new DeviceMidi(); var window = new MainWindow(settings, [], midi, profileStore: store) { Width = 1000, Height = 800 };
@@ -511,15 +578,10 @@ public sealed class AmpBrowserTests : IDisposable
             SelectFamily(list, "fender-bassman-59");
             Click(Find<Button>(window, "AmpsFindPresets"));
             Click(Find<Button>(window, "IndexBackToAmps"));
-            var references = Find<Button>(window, "AmpsReferences"); Click(references);
-            var menu = references.ContextMenu!;
-            menu.Items.OfType<MenuItem>().Single(i => i.Name == "AmpsAddWikiLink").RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-            menu.Close(); Dispatcher.UIThread.RunJobs();
-            var dialog = Assert.Single(window.OwnedWindows);
-            Find<TextBox>(dialog, "AmpReferenceUrl").Text = "https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models#Bassguy";
-            Click(Find<Button>(dialog, "AmpReferenceSave"));
             Assert.Empty(window.OwnedWindows);
-            Assert.Equal("References (2)", Find<Button>(window, "AmpsReferences").Content);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Control>(), c => c.Name == "AmpsAddWikiLink");
+            Assert.Contains(Find<StackPanel>(window, "AmpsWikiLinks").Children.OfType<HyperlinkButton>(),
+                link => link.Tag is AmpReference { Url: "https://wiki.fractalaudio.com/wiki/index.php?title=Amp_models#Bassguy" });
             Click(Find<Button>(window, "AmpsBackToDirectory"));
             Assert.Equal(offset, scroll.Offset.Y);
             Assert.Equal("fender-bassman-59", ((BrowserAmpFamily)((ListBoxItem)list.SelectedItem!).Tag!).Family.Id);
@@ -547,6 +609,26 @@ public sealed class AmpBrowserTests : IDisposable
         Assert.Same(preset, AmpBrowserCatalog.ResolveForDisplay(preset, "13.00"));
     }
 
+    [Fact]
+    public void ChannelSummariesKeepBlocksModelsAndNoncontiguousChannelsDistinct()
+    {
+        var filter = new AmpContainsFilter(Guid.NewGuid(), FractalDeviceVariant.FM9, "12.00", "Selected amp", [0]);
+        Assert.Equal(new[] { "Amp 1 · channels A–D" }, filter.MatchingChannelSummary(Preset(0, 0, 0, 0, 0)));
+        Assert.Equal(new[] { "Amp 1 · channels A, C" }, filter.MatchingChannelSummary(Preset(0, 0, 141, 0, 141)));
+        Assert.Equal(new[] { "Amp 1 · channel B" }, filter.MatchingChannelSummary(Preset(0, 141, 0, 141, 141)));
+        var preset = Preset(0, 0, 141, 0, 141);
+        preset = preset with { Amps = [preset.Amps[0], preset.Amps[0] with { BlockNumber = 2 }] };
+        Assert.Equal(new[] { "Amp 1 · channels A, C", "Amp 2 · channels A, C" }, filter.MatchingChannelSummary(preset));
+        filter = filter with { ModelIds = [0, 141] };
+        Assert.Equal(new[]
+        {
+            "Amp 1 · Unknown Amp model #0 · channels A, C",
+            "Amp 1 · Unknown Amp model #141 · channels B, D",
+            "Amp 2 · Unknown Amp model #0 · channels A, C",
+            "Amp 2 · Unknown Amp model #141 · channels B, D",
+        }, filter.MatchingChannelSummary(preset));
+    }
+
     private static ComboBoxItem UsageOption(Window window, int index) => Find<ComboBox>(window, "AmpsPresetUsage").Items.OfType<ComboBoxItem>().ElementAt(index);
 
     private static void SelectFamily(ListBox list, string id)
@@ -562,6 +644,7 @@ public sealed class AmpBrowserTests : IDisposable
     {
         string? output = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
         if (output is null) { return; }
-        Directory.CreateDirectory(output); using var image = window.CaptureRenderedFrame(); image!.Save(Path.Combine(output, name + ".png"));
+        Directory.CreateDirectory(output); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        using var image = window.CaptureRenderedFrame(); image!.Save(Path.Combine(output, name + ".png"));
     }
 }

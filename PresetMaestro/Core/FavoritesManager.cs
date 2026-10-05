@@ -10,24 +10,9 @@ public static class FavoritesManager
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
-    public static List<Favorite> Load()
-    {
-        try
-        {
-            return Load(FavoritesPath);
-        }
-        catch { }
-        return [];
-    }
+    public static List<Favorite> Load() => Load(FavoritesPath);
 
-    public static void Save(List<Favorite> favorites)
-    {
-        try
-        {
-            Save(favorites, FavoritesPath);
-        }
-        catch { }
-    }
+    public static void Save(List<Favorite> favorites) => Save(favorites, FavoritesPath);
 
     internal static List<Favorite> Load(string path)
     {
@@ -55,6 +40,25 @@ public static class FavoritesManager
 
     public static int NextId(IEnumerable<Favorite> favorites) =>
         favorites.Any() ? favorites.Max(f => f.Id) + 1 : 1;
+
+    internal static void MutateAndSave(List<Favorite> favorites, Action change, Action<List<Favorite>> save)
+    {
+        var before = favorites.Select(f => (Favorite: f, f.Id, f.Slot, f.Name, Tags: f.Tags.ToList(), f.Preset, f.Scene)).ToArray();
+        try { change(); save(favorites); }
+        catch
+        {
+            // Preserve object identities as well as values: editor and table rows hold these references.
+            favorites.Clear();
+            foreach (var entry in before)
+            {
+                var favorite = entry.Favorite;
+                favorite.Id = entry.Id; favorite.Slot = entry.Slot; favorite.Name = entry.Name;
+                favorite.Tags = entry.Tags; favorite.Preset = entry.Preset; favorite.Scene = entry.Scene;
+                favorites.Add(favorite);
+            }
+            throw;
+        }
+    }
 
     public static int NextFreeSlot(IEnumerable<Favorite> favorites)
     {

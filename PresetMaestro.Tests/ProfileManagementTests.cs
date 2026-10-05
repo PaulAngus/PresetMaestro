@@ -121,7 +121,7 @@ public partial class FavoriteEditorTests
         OpenProfileManagement(window);
         Assert.Equal("Default", Find<TextBlock>(window, "ManagedProfile").Text);
         Assert.False(Find<Button>(window, "ProfileUse").IsEnabled);
-        Field<ComboBox>(window, "_channelCombo").SelectedIndex = 10;
+        Field<AppSettings>(window, "_settings").MidiChannel = 10;
         fixture.Settings.PresetNameCache[12] = "Unsaved live preset";
         SetField(window, "_enteredDigits", "123");
         var originalFiles = Directory.GetFiles(fixture.DirectoryPath, "*.json").ToDictionary(path => path, File.ReadAllBytes);
@@ -134,7 +134,7 @@ public partial class FavoriteEditorTests
         Assert.Same(activeFavorites, Field<List<Favorite>>(window, "_favorites"));
         Assert.Same(favoriteSelection, favoriteList.SelectedItem);
         Assert.Equal("Unsaved live preset", fixture.Settings.PresetNameCache[12]);
-        Assert.Equal(10, Field<ComboBox>(window, "_channelCombo").SelectedIndex);
+        Assert.Equal(10, Field<AppSettings>(window, "_settings").MidiChannel);
         Assert.Equal("FM3", ManagedFact(window, "Device"));
         Assert.Equal("Rehearsal rig", ManagedFact(window, "Device name"));
         Assert.Equal("1", ManagedFact(window, "Favorites"));
@@ -159,7 +159,7 @@ public partial class FavoriteEditorTests
         using var fixture = new ManagedProfileFixture();
         var window = fixture.Window;
         OpenProfileManagement(window);
-        Field<ComboBox>(window, "_channelCombo").SelectedIndex = 10;
+        Field<AppSettings>(window, "_settings").MidiChannel = 10;
         var liveFavorite = Field<List<Favorite>>(window, "_favorites").Single();
         liveFavorite.Name = "Unsaved active favorite";
         fixture.Settings.PresetNameCache[12] = "Live cache";
@@ -188,7 +188,7 @@ public partial class FavoriteEditorTests
         Assert.Equal("Default", fixture.Settings.ActiveProfile);
         Assert.Same(liveFavorite, Field<List<Favorite>>(window, "_favorites").Single());
         Assert.Equal("Unsaved active favorite", liveFavorite.Name);
-        Assert.Equal(10, Field<ComboBox>(window, "_channelCombo").SelectedIndex);
+        Assert.Equal(10, Field<AppSettings>(window, "_settings").MidiChannel);
         Assert.Equal("Live cache", fixture.Settings.PresetNameCache[12]);
         Assert.Equal(activeBytes, File.ReadAllBytes(Path.Combine(fixture.DirectoryPath, "Default-settings.json")));
         Assert.Equal(2, Directory.GetFiles(Path.Combine(fixture.DirectoryPath, "DeletedProfiles"), "*.json", SearchOption.AllDirectories).Length);
@@ -201,10 +201,10 @@ public partial class FavoriteEditorTests
         using var fixture = new ManagedProfileFixture();
         var window = fixture.Window;
         OpenProfileManagement(window);
-        Field<ComboBox>(window, "_channelCombo").SelectedIndex = 12;
-        Field<ComboBox>(window, "_offsetCombo").SelectedIndex = 1;
+        Field<AppSettings>(window, "_settings").MidiChannel = 12;
+        Field<AppSettings>(window, "_settings").DisplayOffset = 1;
         Click(Find<Button>(window, "ProfilesBackToConfig")); Dispatcher.UIThread.RunJobs();
-        SetSceneCcThroughMapping(window, 61);
+        SetLegacySceneCc(window, 61);
         Click(Find<Button>(window, "ManageProfiles")); Dispatcher.UIThread.RunJobs();
         Field<List<Favorite>>(window, "_favorites").Single().Name = "Current favorite";
         fixture.Settings.PresetNameCache[4] = "Current preset";
@@ -284,7 +284,7 @@ public partial class FavoriteEditorTests
         var window = fixture.Window;
         OpenProfileManagement(window);
         Field<List<Favorite>>(window, "_favorites").Single().Name = "Live active favorite";
-        Field<ComboBox>(window, "_channelCombo").SelectedIndex = 9;
+        Field<AppSettings>(window, "_settings").MidiChannel = 9;
         SelectManagedProfile(window, "Session");
         fixture.NameResult = "Session copy";
         Click(Find<Button>(window, "ProfileCopy")); Dispatcher.UIThread.RunJobs();

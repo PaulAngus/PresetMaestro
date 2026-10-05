@@ -38,6 +38,8 @@ public sealed class ConnectionSyncOptionsTests
         string? output = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
         if (output is null) { return; }
         Directory.CreateDirectory(output);
+        dialog.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
         using var screenshot = dialog.CaptureRenderedFrame(); screenshot!.Save(Path.Combine(output, name + ".png"));
     }
 
@@ -74,7 +76,7 @@ public sealed class ConnectionSyncOptionsTests
     }
 
     [AvaloniaFact]
-    public async Task PartialNameSyncIsIncompleteInBothViewsEvenWithAFullCache()
+    public async Task PartialNameSyncKeepsItsOutcomeWhenReopenedEvenWithAFullCache()
     {
         var settings = new AppSettings { MidiInputPort = "FM9", MidiOutputPort = "FM9", PresetNameCache = Enumerable.Range(0, 512).ToDictionary(s => s, s => "Cached " + s) };
         var window = new MainWindow(settings, [], Midi(), saveSettings: _ => { }, saveFavorites: _ => { },
@@ -92,7 +94,11 @@ public sealed class ConnectionSyncOptionsTests
             Assert.Contains("509 of 512", Find<TextBlock>(dialog, "ConnectionSyncStatus").Text);
             Click(Find<Button>(dialog, "ConnectionSyncDone"));
             Click(Find<Button>(window, "NavConfig"));
-            Assert.StartsWith("Incomplete: 509 of 512", Find<TextBlock>(window, "PresetSyncStatus").Text);
+            Click(Find<Button>(window, "ConfigSyncOptions"));
+            dialog = Assert.Single(window.OwnedWindows);
+            Assert.Equal("Preset-name sync needs attention", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Contains("509 of 512", Find<TextBlock>(dialog, "ConnectionSyncStatus").Text);
+            Assert.False(Find<ProgressBar>(dialog, "ConnectionSyncProgress").IsVisible);
             Assert.Equal(512, settings.PresetNameCache.Count);
             Assert.Equal("Cached 220", settings.PresetNameCache[220]);
             Assert.Equal("Refreshed 221", settings.PresetNameCache[221]);
@@ -140,6 +146,17 @@ public sealed class ConnectionSyncOptionsTests
             Assert.Equal(2, progress.Value);
             Assert.False(Find<Button>(dialog, "ConnectionSyncNames").IsEnabled);
             Capture(dialog, "connection-sync-progress-" + theme.ToLowerInvariant());
+            Click(Find<Button>(dialog, "ConnectionSyncDone"));
+            Click(Find<Button>(window, "NavConfig"));
+            var configSync = Find<Button>(window, "ConfigSyncOptions");
+            Assert.True(configSync.IsEnabled);
+            Assert.Equal("Sync progress…", configSync.Content);
+            Click(configSync);
+            dialog = Assert.Single(window.OwnedWindows);
+            progress = Find<ProgressBar>(dialog, "ConnectionSyncProgress");
+            Assert.True(progress.IsEffectivelyVisible);
+            Assert.Equal(2, progress.Value);
+            Assert.Contains("2 of 512", Find<TextBlock>(dialog, "ConnectionSyncStatus").Text);
             if (outcome == "cancel") { Click(Find<Button>(dialog, "ConnectionSyncCancel")); }
             else { released.SetResult(); }
             await sync; Dispatcher.UIThread.RunJobs();
@@ -147,16 +164,17 @@ public sealed class ConnectionSyncOptionsTests
             Assert.Contains(outcome == "complete" ? "512 of 512" : "2 of 512", Find<TextBlock>(dialog, "ConnectionSyncStatus").Text);
             Assert.Contains(outcome == "complete" ? "Done to continue" : "Sync names to retry", Find<TextBlock>(dialog, "ConnectionSyncNext").Text);
             Assert.False(progress.IsVisible);
+            Assert.Equal("Sync options…", configSync.Content);
             Assert.True(Find<Button>(dialog, "ConnectionSyncNames").IsEnabled);
             Assert.Equal(outcome == "complete" ? 512 : 2, settings.PresetNameCache.Count);
             Capture(dialog, "connection-sync-" + outcome + "-" + theme.ToLowerInvariant());
-            if (outcome == "complete")
-            {
-                Click(Find<Button>(dialog, "ConnectionSyncDone"));
-                Click(Find<Button>(window, "NavConfig"));
-                Click(Find<Button>(window, "ConfigSyncOptions"));
-                Assert.Equal("Preset names synced", Find<TextBlock>(Assert.Single(window.OwnedWindows), "ConnectionSyncStatusTitle").Text);
-            }
+            string finalTitle = Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text!;
+            Click(Find<Button>(dialog, "ConnectionSyncDone"));
+            Click(Find<Button>(window, "NavConfig"));
+            Click(Find<Button>(window, "ConfigSyncOptions"));
+            var reopened = Assert.Single(window.OwnedWindows);
+            Assert.Equal(finalTitle, Find<TextBlock>(reopened, "ConnectionSyncStatusTitle").Text);
+            Assert.False(Find<ProgressBar>(reopened, "ConnectionSyncProgress").IsVisible);
         }
         finally { window.Close(); }
     }
@@ -164,7 +182,7 @@ public sealed class ConnectionSyncOptionsTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ConfigAndDialogReadAllNamesWithoutRefreshingUiPerReply(bool fromDialog)
+    public async Task InitialAndReopenedDialogReadAllNamesWithoutRefreshingUiPerReply(bool fromDialog)
     {
         var settings = new AppSettings { MidiInputPort = "FM9", MidiOutputPort = "FM9" };
         var requests = new List<int>();
@@ -190,7 +208,8 @@ public sealed class ConnectionSyncOptionsTests
             {
                 Click(Find<Button>(dialog, "ConnectionSyncDone"));
                 Click(Find<Button>(window, "NavConfig"));
-                Click(Find<Button>(window, "ConfigPresetSync"));
+                Click(Find<Button>(window, "ConfigSyncOptions"));
+                Click(Find<Button>(Assert.Single(window.OwnedWindows), "ConnectionSyncNames"));
             }
             await WaitFor(() => settings.PresetNameCache.Count == 512);
             Assert.Equal(Enumerable.Range(0, 512), requests);
@@ -198,6 +217,59 @@ public sealed class ConnectionSyncOptionsTests
             // Immediate replies need only a few UI updates, never one per name.
             Assert.InRange(statusUpdates, 0, 10);
             if (fromDialog) { Assert.Equal("Preset names synced", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text); }
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task FavoritesShortcutShowsSharedSyncProgressAndPreservesEditorDraft()
+    {
+        var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var favorite = new Favorite { Id = 1, Name = "Clean", Preset = 1, Scene = 2 };
+        var settings = new AppSettings { MidiInputPort = "FM9", MidiOutputPort = "FM9" };
+        var window = new MainWindow(settings, [favorite], Midi(), saveSettings: _ => { }, saveFavorites: _ => { },
+            queryPresetNameAsync: async (slot, _, token) =>
+            {
+                if (slot == 2) { await released.Task.WaitAsync(token); }
+                return new PresetNameResult(slot, "Preset " + slot);
+            })
+        { ThruInputRetryDelay = TimeSpan.Zero };
+        window.Show();
+        try
+        {
+            await window.ConnectAsync(); Dispatcher.UIThread.RunJobs();
+            Click(Find<Button>(Assert.Single(window.OwnedWindows), "ConnectionSyncDone"));
+            Click(Find<Button>(window, "NavFavorites"));
+            window.ShowFavoriteEditor(favorite, isNew: false);
+            Dispatcher.UIThread.RunJobs();
+            Find<TextBox>(window, "FavoriteName").Text = "Unsaved name";
+            var preset = (NumericUpDown)typeof(MainWindow).GetField("_favPresetSpinner", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(window)!;
+            var scene = (NumericUpDown)typeof(MainWindow).GetField("_favSceneSpinner", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(window)!;
+            preset.Value = 222;
+            scene.Value = 7;
+
+            var shortcut = Find<Button>(window, "FavoritePresetSync");
+            Click(shortcut);
+            var dialog = Assert.Single(window.OwnedWindows);
+            Assert.Equal("ConnectionSyncDialog", dialog.Name);
+            var progress = Find<ProgressBar>(dialog, "ConnectionSyncProgress");
+            await WaitFor(() => progress.Value == 2);
+            Assert.True(progress.IsEffectivelyVisible);
+            Assert.False(shortcut.IsEnabled);
+
+            released.SetResult();
+            await WaitFor(() => shortcut.IsEnabled);
+            Assert.Equal(512, settings.PresetNameCache.Count);
+            Assert.Equal("Preset names synced", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.False(progress.IsVisible);
+            Click(Find<Button>(dialog, "ConnectionSyncDone"));
+            Assert.True(Find<Border>(window, "FavoriteEditorCard").IsEffectivelyVisible);
+            Assert.Equal("Unsaved name", Find<TextBox>(window, "FavoriteName").Text);
+            Assert.Equal(222, preset.Value);
+            Assert.Equal(7, scene.Value);
+            Assert.Equal("Clean", favorite.Name);
+            Assert.Equal(1, favorite.Preset);
+            Assert.Equal(2, favorite.Scene);
         }
         finally { window.Close(); }
     }

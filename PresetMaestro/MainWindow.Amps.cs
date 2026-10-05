@@ -28,27 +28,23 @@ public partial class MainWindow
     private AmpUsageFilter SelectedAmpUsage => _ampsUsage?.SelectedItem is ComboBoxItem { Tag: AmpUsageFilter usage } ? usage : AmpUsageFilter.All;
     private ListBox? _ampsList;
     private TextBlock? _ampsCoverage, _ampsCount, _ampsEmpty;
-    private Button? _ampsCoverageDetails;
     private StackPanel? _ampsFirmwareNotice;
     private TextBlock? _ampsUsageNotice;
     private Grid? _ampsDirectory;
     private ScrollViewer? _ampsDetailScroll;
     private StackPanel? _ampsDetail;
     private string? _ampsSelectedFamily;
-    private string? _ampsSelectedVariant;
     private HashSet<string>? _ampsIncludedVariants;
     private Guid? _ampsDeviceId;
     private string? _ampsFirmware;
     private bool _renderingAmps;
     private bool _ampsDetailOpen;
     private Vector _ampsDirectoryOffset;
-    private int _ampSceneMode;
     private string? _ampReferenceError;
-    private static readonly string[] AmpSceneModes = ["Any saved channel", "Saved scene selects", "Saved scene engaged"];
     private AmpBrowserDirectory _ampsCatalog = new("", "", false, []);
     private AmpContainsFilter? _ampContains;
     private StackPanel? _ampFilterRow;
-    private TextBlock? _ampFilterLabel;
+    private bool _openingAmpPresets;
     private AmpReferenceStore AmpReferences => new(Path.Combine(_profileStore?.DirectoryPath ?? Path.GetDirectoryName(Core.SettingsManager.SettingsPath)!, "amp-references.json"));
 
     private Control BuildAmpsPage()
@@ -102,7 +98,7 @@ public partial class MainWindow
         {
             if (!_renderingAmps && _ampsList.SelectedItem is ListBoxItem { Tag: BrowserAmpFamily family })
             {
-                if (_ampsSelectedFamily != family.Family.Id) { _ampsSelectedVariant = null; _ampsIncludedVariants = null; }
+                if (_ampsSelectedFamily != family.Family.Id) { _ampsIncludedVariants = null; }
                 _ampsSelectedFamily = family.Family.Id;
                 foreach (var row in _ampsList.Items.OfType<ListBoxItem>()) { row.Background = row.IsSelected ? ThemeBrush("SelectedBrush") : SurfaceBrush; }
                 if (_ampsDetailOpen) { RenderAmpDetail(); }
@@ -124,11 +120,7 @@ public partial class MainWindow
         Grid.SetRow(frame, 4); body.Children.Add(frame);
         _ampsCoverage = new TextBlock { Name = "AmpsCoverage", Foreground = SecondaryBrush, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new(0, 8, 0, 0) };
         _ampsCoverage.IsVisible = false;
-        _ampsCoverageDetails = IndexButton("Catalogue status", "AmpsCatalogueStatus");
-        _ampsCoverageDetails.FontSize = 12;
-        _ampsCoverageDetails.Click += (_, _) => _ampsCoverage.IsVisible = !_ampsCoverage.IsVisible;
-        var coverage = new StackPanel { Margin = new(0, 8, 0, 0), Children = { _ampsCoverageDetails, _ampsCoverage } };
-        Grid.SetRow(coverage, 5); body.Children.Add(coverage);
+        Grid.SetRow(_ampsCoverage, 5); body.Children.Add(_ampsCoverage);
         var page = new Border { Name = "AmpsPage", Margin = new(20, 12, 20, 20), Padding = new(16, 11, 12, 12), Background = AppBrush, BorderBrush = UiBorderBrush, BorderThickness = new(1), CornerRadius = new(9), Child = body };
         RefreshAmpsContext();
         return page;
@@ -139,7 +131,7 @@ public partial class MainWindow
         if (_ampsList is null) { return; }
         bool changed = _ampsDeviceId != _indexCache?.Device.Id || !AmpBrowserCatalog.SameFirmware(_ampsFirmware, _indexCache?.Device.Firmware);
         _ampsDeviceId = _indexCache?.Device.Id; _ampsFirmware = _indexCache?.Device.Firmware;
-        if (changed) { _ampsSelectedFamily = null; _ampsSelectedVariant = null; _ampsIncludedVariants = null; _ampsDetailOpen = false; _ampContains = null; }
+        if (changed) { _ampsSelectedFamily = null; _ampsIncludedVariants = null; _ampsDetailOpen = false; _ampContains = null; }
         _ampsCatalog = AmpBrowserCatalog.Build(_indexCache);
         string selected = _ampsManufacturer?.SelectedItem as string ?? "All manufacturers";
         _renderingAmps = true;
@@ -164,12 +156,10 @@ public partial class MainWindow
             ? "The app does not yet include an amp catalogue for this device’s software, so it cannot list unused amps."
             : "To find amps not used in any preset, complete a library sync in Preset Index.";
         _renderingAmps = false;
-        _ampsCoverage!.Text = _ampsCatalog.Coverage + (_indexCache is null ? "" : $" · Catalogue {_ampsCatalog.Version}" +
-            (_indexCache.Browsable is { } scan ? $" · Saved scan {scan.StartedAt.LocalDateTime:g}" : " · No saved scan") +
-            (_detectedDevice is null || !_midi.InputOpen || _indexCache.Imported ? " · Offline" : "")) +
-            (_ampReferenceError is null ? "" : " · " + _ampReferenceError);
-        _ampsCoverageDetails!.Content = _ampsCatalog.IsReferencePreview ? "Reference catalogue · Firmware not detected · Details" :
-            !_ampsCatalog.IsComplete ? "Catalogue incomplete · Availability & sources" : "Catalogue status & sources";
+        // Catalogue coverage, identity evidence and mapping sources remain in the
+        // catalogue/cache for a future Config view. This footer only shows errors.
+        _ampsCoverage!.Text = _ampReferenceError ?? "";
+        _ampsCoverage.IsVisible = _ampReferenceError is not null;
         RenderAmpsDirectory(); RenderAmpDetail();
     }
 
@@ -189,10 +179,11 @@ public partial class MainWindow
             })).ToArray();
         _renderingAmps = true;
         _ampsList.Items.Clear();
+        var groups = families.GroupBy(f => f.Family.Manufacturer).ToDictionary(g => g.Key, g => g.ToArray());
         foreach (var family in families)
         {
             var content = new StackPanel();
-            var group = families.Where(f => f.Family.Manufacturer == family.Family.Manufacturer).ToArray();
+            var group = groups[family.Family.Manufacturer];
             if (ReferenceEquals(group[0], family))
             {
                 var heading = new Grid { ColumnDefinitions = new("*,Auto") };
@@ -201,15 +192,18 @@ public partial class MainWindow
                 Grid.SetColumn(count, 1); heading.Children.Add(count);
                 content.Children.Add(new Border { Child = heading, Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new(1), Padding = new(12, 10), CornerRadius = new(5, 5, 0, 0) });
             }
-            var row = new Grid { ColumnDefinitions = new("*,Auto") };
-            row.Children.Add(new TextBlock { Name = "AmpFamilyName", Text = family.Family.Name, FontSize = 14, Foreground = TextBrush, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center });
+            var row = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto") };
+            row.Children.Add(new TextBlock { Name = "AmpFamilyName", Text = family.Family.Name, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
             var variantCount = new TextBlock { Text = $"{family.Variants.Length} {(family.Variants.Length == 1 ? "variant" : "variants")} ›", FontSize = 12, Foreground = SecondaryBrush, Margin = new(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(variantCount, 1); row.Children.Add(variantCount);
+            string fractalNames = "Fractal: " + string.Join(" · ", family.Variants.Select(v => v.Name));
+            var modelNames = new TextBlock { Name = "AmpFamilyFractalModels", Text = fractalNames, FontSize = 13, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap, Margin = new(0, 4, 0, 0) };
+            Grid.SetRow(modelNames, 1); Grid.SetColumnSpan(modelNames, 2); row.Children.Add(modelNames);
             content.Children.Add(new Border { Child = row, BorderBrush = UiBorderBrush, BorderThickness = new(1, 0, 1, 1), Padding = new(12, 9), CornerRadius = ReferenceEquals(group[^1], family) ? new(0, 0, 5, 5) : new(0) });
             var item = new ListBoxItem { Content = content, Tag = family, Background = SurfaceBrush, Padding = new(0), HorizontalContentAlignment = HorizontalAlignment.Stretch };
             item.Tapped += (_, _) => OpenAmpFamily(family);
-            AutomationProperties.SetName(item, $"{family.Family.Manufacturer} {family.Family.Name}, {family.Variants.Length} Fractal model variants, {family.UsageLabel}");
-            ToolTip.SetTip(item, family.Family.Name + " · " + family.UsageLabel);
+            AutomationProperties.SetName(item, $"{family.Family.Manufacturer} {family.Family.Name}. {fractalNames}. {family.UsageLabel}");
+            ToolTip.SetTip(item, family.Family.Name + "\n" + fractalNames + "\n" + family.UsageLabel);
             _ampsList.Items.Add(item);
         }
         _ampsList.SelectedItem = _ampsList.Items.OfType<ListBoxItem>().FirstOrDefault(i => ((BrowserAmpFamily)i.Tag!).Family.Id == _ampsSelectedFamily);
@@ -233,14 +227,14 @@ public partial class MainWindow
     private void FilterAmps()
     {
         if (_renderingAmps) { return; }
-        _ampsSelectedFamily = null; _ampsSelectedVariant = null; _ampsIncludedVariants = null; _ampsDirectoryOffset = default; _ampsDetailOpen = false;
+        _ampsSelectedFamily = null; _ampsIncludedVariants = null; _ampsDirectoryOffset = default; _ampsDetailOpen = false;
         RenderAmpsDirectory(); RenderAmpDetail();
     }
 
     private void OpenAmpFamily(BrowserAmpFamily family)
     {
         _ampsDirectoryOffset = _ampsList!.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault()?.Offset ?? default;
-        if (_ampsSelectedFamily != family.Family.Id) { _ampsSelectedVariant = null; _ampsIncludedVariants = null; }
+        if (_ampsSelectedFamily != family.Family.Id) { _ampsIncludedVariants = null; }
         _ampsSelectedFamily = family.Family.Id; _ampsDetailOpen = true;
         RenderAmpDetail();
     }
@@ -270,7 +264,47 @@ public partial class MainWindow
         identity.Children.Add(AmpText(family.Family.Manufacturer, 12));
         identity.Children.Add(new TextBlock { Text = family.Family.Name, FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, TextWrapping = TextWrapping.Wrap });
         identity.Children.Add(AmpText(family.UsageLabel, 12));
-        models.Children.Add(AmpText("Fractal variants", 14));
+        var wikiLinks = new StackPanel { Name = "AmpsWikiLinks", Spacing = 0, Margin = new(0, 6, 0, 0) };
+        wikiLinks.Children.Add(new TextBlock { Name = "AmpsWikiTitle", Text = "Wiki", FontSize = 12, FontWeight = FontWeight.SemiBold, Foreground = SecondaryBrush });
+        var displayedWikiUrls = new HashSet<string>(StringComparer.Ordinal);
+        var curated = family.Variants.Where(v => v.WikiUrl is not null).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(v => new AmpReference(v.Id, v.WikiUrl!)).ToArray();
+        foreach (var reference in curated)
+        {
+            AddWikiLink(family.Variants.Single(v => v.Id == reference.CatalogId).Name, reference);
+        }
+        if (curated.Length == 0) { AddWikiLink("Amp models", new(family.Family.Id, AmpBrowserCatalog.Wiki)); }
+        try
+        {
+            var saved = AmpReferences.Load().Where(r => r.CatalogId == family.Family.Id || family.Variants.Any(v => v.Id == r.CatalogId));
+            foreach (var reference in saved)
+            {
+                AddWikiLink(AmpReferenceTitle(reference.Url), reference);
+            }
+        }
+        catch (Exception ex) { ShowAmpReferenceError("Could not read Wiki links: " + ex.Message); }
+        identity.Children.Add(wikiLinks);
+
+        void AddWikiLink(string title, AmpReference reference)
+        {
+            var uri = new Uri(AmpReferenceStore.NormalizeUrl(reference.Url));
+            if (!displayedWikiUrls.Add(uri.GetLeftPart(UriPartial.Query) + Uri.UnescapeDataString(uri.Fragment))) { return; }
+            var link = new HyperlinkButton
+            {
+                Name = "AmpsWikiLink",
+                Tag = reference,
+                Padding = new(0),
+                MinHeight = 24,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Content = new TextBlock { Text = title + " ↗", Foreground = AccentBrush, FontSize = 12, TextDecorations = TextDecorations.Underline, TextWrapping = TextWrapping.Wrap },
+            };
+            AutomationProperties.SetName(link, "Read " + title + " on the Fractal Audio Wiki");
+            ToolTip.SetTip(link, reference.Url);
+            link.Click += (_, _) => OpenAmpReference(reference.Url);
+            wikiLinks.Children.Add(link);
+        }
+        models.Children.Add(AmpText("Amp models & variants", 14));
         _ampsIncludedVariants ??= family.Variants.Select(v => v.Id).ToHashSet();
         var variantRows = new WrapPanel { Orientation = Orientation.Horizontal };
         models.Children.Add(variantRows);
@@ -283,66 +317,41 @@ public partial class MainWindow
             if (variants.Length == 0) { return; }
             _ampContains = new(_indexCache.Device.Id, _indexCache.Device.Variant, _indexCache.Device.Firmware,
                 variants.Length == 1 ? variants[0].Name : family.Family.Manufacturer + " " + family.Family.Name, variants.Select(v => v.ModelId).ToArray());
-            _ampSceneMode = 0;
-            if (_ampSceneChoice is not null) { _ampSceneChoice.SelectedIndex = 0; }
-            _indexSearchChips.Clear(); if (_indexSearchBox is not null) { _indexSearchBox.Text = ""; }
-            _indexSelectedSlot = null; RenderIndexSearchChips();
-            _presetIndexNavigation!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            _indexSelectedSlot = null;
+            _openingAmpPresets = true;
+            try
+            {
+                _presetIndexNavigation!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                _indexList?.Focus();
+            }
+            finally { _openingAmpPresets = false; }
         };
         actions.Children.Add(find);
         actions.Children.Add(AmpText("Searches saved amp channels.", 12));
-        ToolTip.SetTip(find, "Includes saved channels that no scene selects. Scene selection and bypass can be filtered in Preset Index.");
+        ToolTip.SetTip(find, "Find presets with this amp in their saved channels.");
         actions.Children.Add(back);
         foreach (var variant in family.Variants)
         {
-            var check = new CheckBox { Name = "AmpsVariant", Tag = variant.Id, Content = AmpText(variant.Name), IsChecked = _ampsIncludedVariants.Contains(variant.Id), MinHeight = 32, Width = 230, Margin = new(0, 0, 12, 0) };
-            AutomationProperties.SetName(check, "Include " + variant.Name);
+            string realAmp = family.Family.Confidence == "unmapped" ? "Real amp not mapped" : variant.SpecificModel;
+            var labels = new StackPanel
+            {
+                Spacing = 3,
+                Children =
+                {
+                    new TextBlock { Name = "AmpsVariantRealAmp", Text = realAmp, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Name = "AmpsVariantFractalModel", Text = "Fractal: " + variant.Name, FontSize = 13, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap },
+                },
+            };
+            var check = new CheckBox { Name = "AmpsVariant", Tag = variant.Id, Content = labels, IsChecked = _ampsIncludedVariants.Contains(variant.Id), MinHeight = 32, Width = 260, Margin = new(0, 6, 12, 6), HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Top };
+            AutomationProperties.SetName(check, $"Include {realAmp}. Fractal model: {variant.Name}");
             check.IsCheckedChanged += (_, _) =>
             {
                 if (check.IsChecked == true) { _ampsIncludedVariants.Add(variant.Id); }
                 else { _ampsIncludedVariants.Remove(variant.Id); }
-                _ampsSelectedVariant = _ampsIncludedVariants.Count == 1 ? _ampsIncludedVariants.Single() : null;
                 find.IsEnabled = _ampsCatalog.HasUsageData && _ampsIncludedVariants.Count > 0;
             };
             variantRows.Children.Add(check);
         }
-        var evidence = new StackPanel { Spacing = 6, Children = { AmpText("Mapping: " + family.Family.Confidence, 12), AmpText("Mapping source: " + family.Family.Source, 12) } };
-        foreach (var variant in family.Variants)
-        {
-            evidence.Children.Add(AmpText(variant.Name + ": " + variant.IdentityEvidence, 11));
-            evidence.Children.Add(AmpText(variant.MappingEvidence, 11));
-            evidence.Children.Add(AmpText($"{variant.Name} · #{variant.ModelId} · {variant.SpecificModel} · {(variant.IdentityVerified ? "Device-verified name" : "Identity needs review")}", 12));
-        }
-        evidence.IsVisible = false;
-        var showEvidence = IndexButton("Catalogue details & sources", "AmpsEvidence");
-        showEvidence.FontSize = 12;
-        showEvidence.Click += (_, _) => evidence.IsVisible = !evidence.IsVisible;
-        _ampsDetail.Children.Add(evidence);
-        var references = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        var wiki = IndexButton("Wiki ↗", "AmpsWiki"); wiki.Click += (_, _) => OpenAmpReference(AmpBrowserCatalog.Wiki); references.Children.Add(wiki);
-        var links = IndexButton("References", "AmpsReferences");
-        links.Click += (_, _) =>
-        {
-            try
-            {
-                var saved = AmpReferences.Load().Where(r => r.CatalogId == family.Family.Id || family.Variants.Any(v => v.Id == r.CatalogId)).ToArray();
-                var menu = new ContextMenu();
-                foreach (var reference in saved.Prepend(new AmpReference(family.Family.Id, AmpBrowserCatalog.Wiki)).DistinctBy(r => r.Url))
-                {
-                    var item = new MenuItem { Header = reference.Url, MaxWidth = 700 };
-                    item.Click += (_, _) => OpenAmpReference(reference.Url); menu.Items.Add(item);
-                }
-                menu.Items.Add(new Separator());
-                var add = new MenuItem { Header = "Add Wiki link…", Name = "AmpsAddWikiLink" };
-                add.Click += async (_, _) => await AddAmpReferenceAsync(_ampsSelectedVariant ?? family.Family.Id);
-                menu.Items.Add(add); links.ContextMenu = menu; menu.Open(links);
-            }
-            catch (Exception ex) { _ampsCoverage!.Text = "Could not read references: " + ex.Message; }
-        };
-        try { links.Content = $"References ({AmpReferences.Load().Where(r => r.CatalogId == family.Family.Id || family.Variants.Any(v => v.Id == r.CatalogId)).Select(r => r.Url).Append(AmpBrowserCatalog.Wiki).Distinct().Count()})"; }
-        catch (Exception ex) { _ampsCoverage!.Text = "Could not read references: " + ex.Message; }
-        references.Children.Add(links); identity.Children.Add(references);
-        identity.Children.Add(showEvidence);
         void ArrangeInspector(double width)
         {
             bool narrow = width < 780;
@@ -357,50 +366,39 @@ public partial class MainWindow
 
     private static TextBlock AmpText(string text, double size = 14) => new() { Text = text, FontSize = Math.Max(12, size), Foreground = size <= 12 ? SecondaryBrush : TextBrush, TextWrapping = TextWrapping.Wrap };
 
+    private static string AmpReferenceTitle(string url)
+    {
+        var uri = new Uri(url);
+        if (uri.Fragment.Length > 1) { return Uri.UnescapeDataString(uri.Fragment[1..]).Replace('_', ' '); }
+        var title = uri.Query.TrimStart('?').Split('&').FirstOrDefault(p => p.StartsWith("title=", StringComparison.Ordinal));
+        return title is null ? "Additional Wiki page" : Uri.UnescapeDataString(title[6..]).Replace('_', ' ');
+    }
+
+    private void ShowAmpReferenceError(string message)
+    {
+        _ampsCoverage!.Text = message;
+        _ampsCoverage.IsVisible = true;
+    }
+
     private void OpenAmpReference(string url)
     {
         try { Process.Start(new ProcessStartInfo(AmpReferenceStore.NormalizeUrl(url)) { UseShellExecute = true }); }
-        catch (Exception ex) { _ampsCoverage!.Text = "Could not open Wiki link: " + ex.Message; }
+        catch (Exception ex) { ShowAmpReferenceError("Could not open Wiki link: " + ex.Message); }
     }
 
-    private async Task AddAmpReferenceAsync(string catalogId)
+    private Control BuildAmpDetailsHeading()
     {
-        var input = new TextBox { Name = "AmpReferenceUrl", Watermark = "https://wiki.fractalaudio.com/wiki/index.php?title=…" };
-        var error = AmpText("The link is personal reading material and does not change the amp mapping.", 12);
-        var save = IndexButton("Add link", "AmpReferenceSave"); var cancel = IndexButton("Cancel");
-        var dialog = new Window { Title = "Add Wiki link", Width = 540, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = SurfaceBrush, RequestedThemeVariant = RequestedThemeVariant };
-        save.Click += (_, _) =>
-        {
-            try { AmpReferences.Merge([new(catalogId, input.Text ?? "")]); dialog.Close(); RenderAmpDetail(); }
-            catch (Exception ex) { error.Text = ex.Message; }
-        };
-        cancel.Click += (_, _) => dialog.Close();
-        dialog.KeyDown += (_, e) => { if (e.Key == Key.Escape) { dialog.Close(); } };
-        dialog.Content = new StackPanel { Margin = new(18), Spacing = 12, Children = { input, error, new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { save, cancel } } } };
-        await dialog.ShowDialog(this);
-    }
-
-    private ComboBox? _ampSceneChoice;
-    private Control BuildAmpFilterRow()
-    {
-        _ampFilterRow = new StackPanel { Name = "IndexAmpFilter", Spacing = 4, IsVisible = false };
-        var actions = new WrapPanel { Orientation = Orientation.Horizontal };
+        _ampFilterRow = new StackPanel { Name = "IndexAmpDetailsHeading", Spacing = 12, IsVisible = false };
         var back = IndexButton("← Back to Amps", "IndexBackToAmps");
-        back.Click += (_, _) => _ampsNavigation!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        _ampFilterLabel = new TextBlock { Name = "IndexAmpFilterLabel", Foreground = AccentBrush, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 420 };
-        var clear = IndexButton("Clear amp filter", "IndexClearAmpFilter");
-        clear.Click += (_, _) => { _ampContains = null; _ampSceneMode = 0; RenderIndexResults(); };
-        _ampSceneChoice = new ComboBox { Name = "IndexAmpSceneUsage", ItemsSource = AmpSceneModes, SelectedIndex = _ampSceneMode, MinHeight = 28, FontSize = 12, Margin = new(8, 0) };
-        AutomationProperties.SetName(_ampSceneChoice, "Narrow amp matches by saved scene state");
-        _ampSceneChoice.SelectionChanged += (_, _) => { _ampSceneMode = _ampSceneChoice.SelectedIndex; RenderIndexResults(); };
-        actions.Children.Add(back); actions.Children.Add(_ampFilterLabel); actions.Children.Add(clear); actions.Children.Add(_ampSceneChoice);
-        _ampFilterRow.Children.Add(actions);
-        _ampFilterRow.Children.Add(AmpText("Scene filters describe saved programmed settings. Effective live usage cannot be determined when Scene Ignore or unsaved edits apply.", 11));
+        back.Click += (_, _) =>
+        {
+            _ampsNavigation!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            _ampsPage?.GetVisualDescendants().OfType<Button>().FirstOrDefault(button => button.Name == "AmpsFindPresets")?.Focus();
+        };
+        _ampFilterRow.Children.Add(back);
+        _ampFilterRow.Children.Add(AmpText("Presets containing this amp", 14));
         return _ampFilterRow;
     }
-
-    private bool MatchesAmpScene(IndexedPreset preset) => _ampContains is null || _ampSceneMode == 0 ||
-        Enumerable.Range(0, 8).Any(scene => _ampContains.ModelIds.Any(id => _ampSceneMode == 1 ? preset.Selects(scene, id) : preset.Uses(scene, id)));
 }
 
 internal sealed class AmpDirectoryPanel : Panel, INavigableContainer

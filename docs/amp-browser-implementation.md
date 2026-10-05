@@ -23,19 +23,30 @@ button. Find presets is also disabled without compatible usage data. Partial
 compatible scans can supply observed matches while keeping usage labelled unknown.
 
 Select a family to open the bottom inspector while keeping the directory visible.
-Family rows show the family name and variant count; variant names appear in the
-inspector. All variants are checked initially, and any subset can be selected.
-With none checked, Find presets is disabled. Catalogue evidence and availability
-details remain accessible through compact disclosure buttons. Body text is 14,
-headings 16, and supporting text 12. **Find presets** opens Preset Index with a visible **Contains**
-filter and the same library. Result rows and the inspector identify matching
-Fractal names and Amp block/channel positions. Clear search and Clear amp filter
-are independent. Back restores the family, selected variants, manufacturer, search
-and directory scroll position. Zero matches produce an explicit empty result.
-
-Optional saved-scene filters distinguish programmed selection from programmed
-engagement. They do not claim effective live usage: Scene Ignore and unsaved
-edits remain unknown. Browsing and keyboard navigation send no MIDI messages.
+Family rows show the real amp family prominently, with the exact Fractal model
+names in smaller, wrapping text underneath, alongside the variant count. The
+inspector pairs each variant's specific real amp reference with its exact Fractal
+model name beneath it, including revision/channel details and any attribution
+qualifications already recorded in the catalogue. Unmapped entries explicitly
+say that their real amp is not mapped. All variants are checked initially, and any subset can be selected.
+With none checked, Find presets is disabled. A small Wiki heading beneath the
+preset count lists direct links to each variant's Amp models section. Catalogue
+evidence and technical source commentary are kept in the catalogue and research
+files for a future Config view; their disclosure buttons are removed from Amps.
+Actionable sync and availability notices remain visible when needed. Body text is 14,
+headings 16, and supporting text 12. **Find presets** opens a focused view in
+Preset Index with the selected amp as its heading and **Presets containing this amp**.
+Search, removable amp filters, scene-matching choices and library management
+controls are hidden in this view; active sync progress and cancellation remain
+available. Result summaries group actual matching channels by Amp block and exact
+model, using A–D only when all four match. Different selected variants retain their
+Fractal names. Exact block/channel matches remain in the inspector and tooltips.
+**Back to Amps** restores the family, selected variants, manufacturer, search and
+directory scroll position, and returns keyboard focus to **Find presets**. Opening
+Preset Index directly restores the independent general preset/tag search.
+Zero matches produce an explicit empty result. Browsing and keyboard navigation
+send no MIDI messages. Saved channel matches do not imply scene selection or
+engagement; Scene Ignore and unsaved edits remain unknown.
 
 ## Catalogue evidence and remaining gate
 
@@ -108,12 +119,24 @@ unknown and an observed lower bound where available. Old committed scans remain
 usable during an unfinished scan; their scan date is displayed. A firmware
 change prevents counts and filters from joining incompatible IDs.
 
-## Personal references
+## Wiki links and personal references
 
-Wiki and References appear only in the family detail. Add Wiki link accepts
-HTTPS pages on `wiki.fractalaudio.com`; it rejects other hosts, credentials,
-nonstandard ports and executable/local URI schemes. Links are deduplicated and
-stored atomically in `amp-references.json` beside the app's settings, with a backup.
+Wiki links appear only in the family detail, beneath the preset count. The embedded
+`Catalog/amp-wiki-sections.json` maps all 336 reference variant names to exact
+section anchors retrieved from the Fractal Wiki's MediaWiki API on 2026-10-04.
+The app uses these offline and escapes fragment characters such as `+`, `#` and
+quotation marks. Tucana Clean and Lead link to their separate sections. Explicit
+wiki-name aliases cover renamed variants; Fox ODS Mid links to the general Fox ODS
+section, retaining the recorded uncertainty about Mid versus Deep. Unknown models
+have an Amp models page link rather than an invented section anchor.
+
+The previous Wiki/References popup is replaced by named links. Personal links
+also appear directly with readable page/section titles, deduplicated by URL.
+The pane has no Add Wiki link control or entry dialog. Stored personal links
+are preserved and accept only HTTPS pages on `wiki.fractalaudio.com`; validation
+rejects other hosts, credentials, nonstandard ports and executable/local URI
+schemes. Links are deduplicated and stored atomically in `amp-references.json`
+beside the app's settings, with a backup.
 They are keyed by stable family or device/firmware-qualified variant IDs.
 
 Relevant personal links travel in the existing profile settings/favorites ZIP
@@ -121,12 +144,16 @@ through `PortableAmpReferences`. Import keeps the catalogue untouched, and the
 host merges the links into the personal store when loading that profile. A full
 settings-directory backup includes `amp-references.json` and its `.bak` file.
 Catalogue JSON and upstream license/notice files ship with the optional module.
+`RealAmpFamily.Source`/`Confidence`, each variant's identity/mapping evidence,
+directory coverage, catalogue version and saved scan metadata remain available
+for the future Config presentation. This change does not discard that data.
 
 ## Verification
 
 Automated tests cover catalogue isolation, distinct counts, incomplete scans,
 firmware mismatch, unknown IDs, unused models, family and exact-variant Contains,
-saved-scene narrowing, back navigation, scroll preservation, keyboard isolation,
+compact channel grouping, independent search restoration, back navigation,
+focus return, scroll preservation, keyboard isolation,
 Wiki URL validation, deduplication and profile export/import. Headless UI captures
 exercise Light/Dark themes at 1000 and 1440 pixels. Firmware tests cover read-only
 library metadata, malformed and fragmented replies, stale-version rejection,

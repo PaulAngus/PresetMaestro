@@ -9,4 +9,7 @@ public sealed record PresetSnapshot(
     string Name,
     string[] SceneNames,
     AmpBlockSnapshot[] Amps,
-    string ContentSha256);
+    string ContentSha256)
+{
+    public string? BypassIgnoredSha256 { get; init; }
+}

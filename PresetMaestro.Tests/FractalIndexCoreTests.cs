@@ -9,6 +9,44 @@ namespace PresetMaestro.Tests;
 public sealed class FractalIndexCoreTests
 {
     [Fact]
+    public void ComparisonFingerprintIgnoresAllEffectBypassStatesAndRepresentationButKeepsParameters()
+    {
+        byte[] body = new byte[4096], raw = new byte[16384];
+        void Word(int offset, int value) => BinaryPrimitives.WriteUInt16LittleEndian(body.AsSpan(offset, 2), (ushort)value);
+        Word(0x104, 58); Word(0x108, 118);
+        Word(0x21e, 25); Word(0x220, 1); Word(0x27e, 25); Word(0x280, 1);
+        int amp = 0x2c0, drive = amp + (23 + 147 * 4) * 2;
+        Word(amp + 30, 147); Word(amp + 32, 4); Word(amp + 46, 141);
+        Word(drive + 30, 12); Word(drive + 32, 4);
+        int tail = drive + (23 + 12 * 4) * 2;
+        Word(tail + 30, 257); Word(tail + 32, 1); Word(tail + 14, 900);
+        var image = new StoredPresetImage(new PresetScenes(0, "Preset", Enumerable.Repeat("Scene", 8).ToArray()), raw, body);
+        var device = FractalDeviceDefinition.For(FractalDeviceVariant.FM9);
+        var before = Gen3PresetBodyDecoder.Decode(image, device);
+        Assert.NotNull(before.BypassIgnoredSha256);
+        for (int scene = 0; scene < 8; scene++) { Word(amp + (7 + scene) * 2, 1); Word(drive + (7 + scene) * 2, 1); }
+        raw[4] = 12; raw[5] = 34; raw[0x4a] = 99; raw[900] = 1; raw[^1] = 1;
+        var bypassOnly = Gen3PresetBodyDecoder.Decode(image, device);
+        Assert.Equal(before.BypassIgnoredSha256, bypassOnly.BypassIgnoredSha256);
+        Assert.NotEqual(before.ContentSha256, bypassOnly.ContentSha256);
+        Word(amp + 48, 321);
+        Assert.NotEqual(before.BypassIgnoredSha256, Gen3PresetBodyDecoder.Decode(image, device).BypassIgnoredSha256);
+        Word(amp + 48, 0); Word(drive + 48, 321);
+        Assert.NotEqual(before.BypassIgnoredSha256, Gen3PresetBodyDecoder.Decode(image, device).BypassIgnoredSha256);
+        Word(drive + 48, 0); Word(amp, 2);
+        Assert.NotEqual(before.BypassIgnoredSha256, Gen3PresetBodyDecoder.Decode(image, device).BypassIgnoredSha256);
+        Word(amp, 0); raw[8] = 1;
+        Assert.NotEqual(before.BypassIgnoredSha256, Gen3PresetBodyDecoder.Decode(image, device).BypassIgnoredSha256);
+        raw[8] = 0; Word(0x20e, 42); // Modifier slot data is not effect bypass.
+        Assert.NotEqual(before.BypassIgnoredSha256, Gen3PresetBodyDecoder.Decode(image, device).BypassIgnoredSha256);
+        Word(0x20e, 0); Word(tail + 14, 901); // Opaque trailer data must still be compared.
+        Assert.NotEqual(before.BypassIgnoredSha256, Gen3PresetBodyDecoder.Decode(image, device).BypassIgnoredSha256);
+        Word(tail + 14, 900);
+        Word(0x20e, 0); Word(drive + 14, 2); // Unknown state encoding must not be silently masked.
+        Assert.Null(Gen3PresetBodyDecoder.Decode(image, device).BypassIgnoredSha256);
+    }
+
+    [Fact]
     public void DeviceDefinitionsKeepAxeRevisionCapacityAndCatalogFamilySeparate()
     {
         var fm9 = FractalDeviceDefinition.For(FractalDeviceVariant.FM9);

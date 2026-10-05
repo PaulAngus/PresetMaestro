@@ -12,12 +12,14 @@ public partial class MainWindow
     private const string UnsupportedNameReads = "Preset and scene name reads are currently verified for FM9 only. Preset sending remains available.";
 
     internal const string ConnectionError = "Could not connect to a supported Fractal device. Check the selected MIDI IN and MIDI OUT ports, then try again.";
-    private CancellationTokenSource? _connectionCts;
-    private long _connectionGeneration;
-    private FractalDeviceInformation? _detectedDevice;
+    internal DeviceConnectionSession ConnectionState { get; } = new();
+    private CancellationTokenSource? _connectionCts => ConnectionState.Pending;
+    private long _connectionGeneration => ConnectionState.Generation;
+    private FractalDeviceInformation? _detectedDevice => ConnectionState.Device;
     private FractalDeviceInformationClient? _deviceInformationClient;
     private DispatcherTimer? _connectionMonitor;
     private bool _deviceCheckFailed;
+    private bool _checkingDevices;
     private Border? _connectionDot;
     internal Func<string, Task>? ConnectionErrorOverride { get; set; }
     internal TimeSpan DeviceInformationTimeout { get; set; } = TimeSpan.FromMilliseconds(700);
@@ -33,9 +35,8 @@ public partial class MainWindow
         }
 
         Disconnect();
-        long generation = ++_connectionGeneration;
-        using var cancellation = new CancellationTokenSource();
-        _connectionCts = cancellation;
+        using var cancellation = ConnectionState.Begin();
+        long generation = _connectionGeneration;
         UpdateConnectButtons();
         UpdatePresetSyncButtons();
         try
@@ -66,7 +67,7 @@ public partial class MainWindow
                 return;
             }
 
-            _detectedDevice = device;
+            ConnectionState.Device = device;
             _presetNameClient.SetDeviceModel(device.Model);
             _settings.DeviceModel = device.Model;
             _settings.DeviceName = device.DeviceName;
@@ -77,7 +78,6 @@ public partial class MainWindow
             RefreshProfileList();
             if (!CanReadDeviceNames)
             {
-                _presetNamesStatus.Text = UnsupportedNameReads;
                 AppendLog($"CONNECT: {UnsupportedNameReads}");
             }
             AppendLog($"CONNECT: validated {device.ModelLabel} on selected MIDI IN '{input}'.");
@@ -85,8 +85,8 @@ public partial class MainWindow
             _connectionMonitor?.Stop();
             _deviceCheckFailed = false;
             _connectionMonitor = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _connectionMonitor.Tick += (_, _) =>
-                CheckConnectedDevices(input, output);
+            _connectionMonitor.Tick += async (_, _) =>
+                await CheckConnectedDevicesAsync(input, output);
             _connectionMonitor.Start();
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
@@ -110,10 +110,7 @@ public partial class MainWindow
         }
         finally
         {
-            if (ReferenceEquals(_connectionCts, cancellation))
-            {
-                _connectionCts = null;
-            }
+            ConnectionState.Finish(cancellation);
 
             UpdateConnectButtons();
             UpdatePresetSyncButtons();
@@ -125,14 +122,19 @@ public partial class MainWindow
         {
             OpenCheckedThruInputs(reopen: false);
 #if FRACTAL_INDEX
+            PrepareConnectionLibrarySetup();
             // An empty local library can record the detected firmware without
             // reading presets or starting a comparison before the user's choice.
-            if (_indexCache is { Browsable: null, Imported: false } emptyLibrary &&
+            if (_connectionDefaultLibrary is null && _indexCache is { Browsable: null, Imported: false } emptyLibrary &&
                 emptyLibrary.Device.Variant.ToDeviceModel() == _detectedDevice.Model)
             { SaveDetectedLibraryFirmware(emptyLibrary); }
 #endif
             OpenConnectionSyncOptions(initialConnection: true);
+#if FRACTAL_INDEX
+            if (!_connectionLibrarySetupRequired) { StartSceneTracking(); }
+#else
             StartSceneTracking();
+#endif
 
             await Task.Delay(ThruInputRetryDelay);
             if (generation == _connectionGeneration && _detectedDevice is not null && _midi.InputOpen && _midi.OutputOpen)
@@ -142,11 +144,17 @@ public partial class MainWindow
         }
     }
 
-    internal void CheckConnectedDevices(string input, string output)
+    internal async Task CheckConnectedDevicesAsync(string input, string output)
     {
+        if (_checkingDevices) { return; }
+        _checkingDevices = true;
+        long generation = _connectionGeneration;
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         try
         {
-            if (!_midi.InputOpen || !_midi.OutputOpen || !_midi.GetInputPortNames().Contains(input) || !_midi.GetOutputPortNames().Contains(output))
+            var ports = await _portDiscovery.RefreshAsync(deadline.Token);
+            if (_sceneClosing || generation != _connectionGeneration) { return; }
+            if (!_midi.InputOpen || !_midi.OutputOpen || !ports.Inputs.Contains(input) || !ports.Outputs.Contains(output))
             {
                 AppendLog("CONNECT: selected MIDI device removed; disconnected.");
                 Disconnect();
@@ -161,6 +169,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
+            if (_sceneClosing || generation != _connectionGeneration) { return; }
             // Enumeration failure is not evidence that the open transport failed.
             // Retry on the next tick; actual send failures still disconnect immediately.
             if (!_deviceCheckFailed)
@@ -169,6 +178,7 @@ public partial class MainWindow
                 _deviceCheckFailed = true;
             }
         }
+        finally { _checkingDevices = false; }
     }
 
     private void OpenCheckedThruInputs(bool reopen)

@@ -55,6 +55,7 @@ public partial class MainWindow
         _indexConnectionSyncCompletion = null;
         if (_indexChecking)
         {
+            _libraryCheckOutcome = _connectionSyncOutcome;
             _connectionSyncCheckedContext = ConnectionSyncContext;
             _connectionSyncMatchedContext = needsAttention ? null : ConnectionSyncContext;
             _showConnectionSyncChecks = false;
@@ -101,6 +102,9 @@ public partial class MainWindow
         status.Children.Add(_connectionSyncProgress);
         _connectionSyncStatusPanel = new Border { Name = "ConnectionSyncStatusPanel", Padding = new(16), BorderThickness = new(4, 0, 0, 0), Child = status };
         body.Children.Add(_connectionSyncStatusPanel);
+#if FRACTAL_INDEX
+        body.Children.Add(BuildLibraryMatchDetails());
+#endif
         _connectionSyncNextHeading = new TextBlock { Name = "ConnectionSyncNextHeading", Text = "Next step", FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = TextBrush };
         _connectionSyncNext = new TextBlock { Name = "ConnectionSyncNext", TextWrapping = TextWrapping.Wrap, FontSize = 14, Foreground = TextBrush };
         var nextStep = new StackPanel { Spacing = 6 };
@@ -117,6 +121,7 @@ public partial class MainWindow
         };
         body.Children.Add(_connectionSyncNextPanel);
 #if FRACTAL_INDEX
+        body.Children.Add(BuildConnectionLibrarySetup());
         _connectionSyncCheckChoices = CreateConnectionLibraryCheckChoices();
         body.Children.Add(_connectionSyncCheckChoices);
         _connectionSyncCompareNote = new TextBlock
@@ -158,7 +163,7 @@ public partial class MainWindow
         _connectionSyncResume = AddOption("Incomplete library sync", "Continue saved reads and retry missing presets.", "Resume", "ConnectionSyncResume");
         _connectionSyncResume.Click += async (_, _) => await SyncIndexAsync(resume: true);
 #endif
-        var management = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new(0, 12, 0, 0) };
+        var management = new WrapPanel { Name = "ConnectionSyncManagement", Orientation = Orientation.Horizontal, Margin = new(0, 12, 0, 0) };
         _connectionSyncManageProfiles = new Button { Content = "Manage profiles", Name = "ConnectionManageProfiles", Margin = new(0, 0, 8, 0) };
         _connectionSyncManageProfiles.Click += (_, _) => OpenSyncManagement(dialog, "ManageProfiles"); management.Children.Add(_connectionSyncManageProfiles);
 #if FRACTAL_INDEX
@@ -177,13 +182,23 @@ public partial class MainWindow
         _connectionSyncCancel.Click += (_, _) => _presetNamesCts?.Cancel(); footer.Children.Add(_connectionSyncCancel);
         _connectionSyncDone = new Button { Content = "Skip for now", Name = "ConnectionSyncDone" };
         Grid.SetColumn(_connectionSyncDone, 2);
-        _connectionSyncDone.Click += (_, _) => dialog.Close(); footer.Children.Add(_connectionSyncDone);
+        _connectionSyncDone.Click += (_, _) =>
+        {
+#if FRACTAL_INDEX
+            if (_connectionLibrarySetupRequired) { Disconnect(); return; }
+#endif
+            dialog.Close();
+        };
+        footer.Children.Add(_connectionSyncDone);
         var layout = new Grid { RowDefinitions = new("*,Auto"), MaxHeight = Math.Max(300, Math.Min(720, Bounds.Height - 60)) };
         layout.Children.Add(new ScrollViewer { Content = body, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
         var footerPanel = new Border { Child = footer, Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new(0, 1, 0, 0) };
         Grid.SetRow(footerPanel, 1); layout.Children.Add(footerPanel);
         dialog.Content = layout;
         dialog.KeyDown += (_, e) => { if (e.Key == Key.Escape) { dialog.Close(); e.Handled = true; } };
+#if FRACTAL_INDEX
+        dialog.Closing += (_, _) => { if (_connectionLibrarySetupRequired && _detectedDevice is not null) { Disconnect(); } };
+#endif
         dialog.Closed += (_, _) =>
         {
             if (_connectionSyncDialog != dialog) { return; }
@@ -270,17 +285,23 @@ public partial class MainWindow
         bool ready = _detectedDevice is not null && _midi.InputOpen && _midi.OutputOpen && !busy;
         bool checking = false;
 #if FRACTAL_INDEX
+        busy |= _connectionLibraryChoiceBusy;
+        ready &= !_connectionLibrarySetupRequired && !_connectionLibraryChoiceBusy;
+        RefreshConnectionLibrarySetup(busy);
+        SetSyncOptionVisible(_connectionSyncNames!, !_connectionLibrarySetupRequired);
+        SetSyncOptionVisible(_connectionSyncScenes!, !_connectionLibrarySetupRequired);
+        if (_connectionSyncManageProfiles!.Parent is WrapPanel management) { management.IsVisible = !_connectionLibrarySetupRequired; }
         checking = _indexChecking;
         _connectionSyncLibrary!.IsEnabled = _indexSyncButton?.IsEnabled == true;
         _connectionSyncResume!.IsEnabled = _indexResumeButton?.IsEnabled == true;
         if (_connectionSyncResume.Parent is Grid resume && resume.Parent is Border border) { border.IsVisible = _indexCache?.LastAttempt is { Status: not "Complete" }; }
         _connectionSyncCheck!.IsEnabled = _indexCheckButton?.IsEnabled == true;
         _connectionSyncFullCheck!.IsEnabled = _connectionSyncCheck.IsEnabled;
-        bool canCompare = _indexCache?.Committed is not null && _indexCache.Device.Variant.ToDeviceModel() == _detectedDevice?.Model;
+        bool canCompare = !_connectionLibrarySetupRequired && _indexCache?.Committed is not null && _indexCache.Device.Variant.ToDeviceModel() == _detectedDevice?.Model;
         _connectionSyncCheckChoices!.IsVisible = canCompare && _showConnectionSyncChecks && !busy;
         _connectionSyncCompareNote!.IsVisible = _connectionSyncCheckChoices.IsVisible;
         _connectionSyncShowChecks!.IsVisible = canCompare && !_connectionSyncCheckChoices.IsVisible && !busy;
-        _connectionSyncManageLibraries!.IsEnabled = !busy;
+        _connectionSyncManageLibraries!.IsEnabled = !busy && !_connectionLibrarySetupRequired;
         SetSyncOptionDescription("ConnectionSyncCheckDescription", _indexCache?.Committed is null
             ? "Update library first to save presets and scenes for comparison."
             : CanReadDeviceNames ? QuickMatchDescription : "A sample to see whether this library fits your device.");
@@ -300,15 +321,30 @@ public partial class MainWindow
             : "Refresh this profile’s favorite labels after renaming scenes. Useful when you do not need a full library sync.");
         ToolTip.SetTip(_connectionSyncScenes, !CanReadDeviceNames ? UnsupportedNameReads : !_favorites.Any(f => !f.IsEmpty) ? "This profile has no favorites to read." : null);
         ToolTip.SetTip(_connectionSyncNames, CanReadDeviceNames ? null : UnsupportedNameReads);
+        SetSyncOptionDescription("ConnectionSyncNamesDescription", $"{_settings.PresetNameCache.Count} preset names cached in this profile. Refresh names after renaming or moving presets; a successful library check also refreshes them.");
         _connectionSyncCancel!.IsVisible = _presetNamesCts is not null;
         _connectionSyncDone!.Content = _presetNamesCts is not null || _connectionSyncOutcome is { } outcome && outcome.Context == ConnectionSyncContext ? "Done" : "Skip for now";
 #if FRACTAL_INDEX
+        if (_connectionLibrarySetupRequired)
+        {
+            _connectionSyncDone.Content = "Disconnect";
+            _connectionSyncLibrary!.Background = AccentBrush;
+            _connectionSyncLibrary.Foreground = Brushes.White;
+        }
+        else
+        {
+            _connectionSyncLibrary!.Background = SurfaceBrush;
+            _connectionSyncLibrary.Foreground = TextBrush;
+        }
+        _connectionSyncManageProfiles!.IsEnabled = !busy && !_connectionLibrarySetupRequired;
         bool matched = !busy && _connectionSyncMatchedContext == ConnectionSyncContext;
         if (matched) { _connectionSyncDone.Content = "Use saved library"; }
         _connectionSyncDone.Background = matched ? AccentBrush : SurfaceBrush;
         _connectionSyncDone.Foreground = matched ? Brushes.White : TextBrush;
 #endif
+#if !FRACTAL_INDEX
         _connectionSyncManageProfiles!.IsEnabled = !busy;
+#endif
         RefreshConnectionSyncStatus(checking);
     }
 
@@ -321,16 +357,16 @@ public partial class MainWindow
         bool choicePrompt = false;
         bool running = _presetNamesCts is not null || _connectionCts is not null;
         bool indeterminate = _connectionCts is not null;
-        double maximum = _presetNamesProgress?.Maximum ?? 512;
-        double value = _presetNamesProgress?.Value ?? 0;
+        double maximum = _syncReadTotal;
+        double value = _syncReadCompleted;
         if (checking)
         {
 #if FRACTAL_INDEX
             title = _indexCheckingNames ? "Checking preset names first…" : _indexCheckingFull ? "Running full library check…" : "Running quick library check…";
             maximum = _indexCheckingNames ? 512 : Math.Max(1, _libraryMatchProgress?.Total ?? 1);
-            value = _indexCheckingNames ? _presetNamesProgress!.Value : _libraryMatchProgress?.Checked ?? 0;
+            value = _indexCheckingNames ? _syncReadCompleted : _libraryMatchProgress?.Checked ?? 0;
             detail = _indexCheckingNames ? $"{value:0} of 512 names read. An obvious mismatch stops the longer check."
-                : $"{value:0} of {_libraryMatchProgress?.Total ?? 0} {(_indexCheckingFull ? "preset slots" : "random presets")} checked, including all saved scenes.";
+                : $"{value:0} of {_libraryMatchProgress?.Total ?? 0} {(_indexCheckingFull ? "preset slots" : "random presets")} checked, including saved scenes.";
 #endif
             next = "Please wait. Sync options will be available when the check finishes. Cancel read stops this check.";
             tone = SyncStatusTone.Activity;
@@ -365,6 +401,13 @@ public partial class MainWindow
             title = outcome.Title; detail = outcome.Detail; next = outcome.Next; tone = outcome.Tone;
         }
 #if FRACTAL_INDEX
+        else if (_connectionLibrarySetupRequired)
+        {
+            title = _connectionDefaultLibrary is not null && _connectionLibraryCandidate is null ? "Choose a library for this device" : "Full library sync required";
+            detail = _connectionLibrarySetupError is { } setupError ? "Library setup could not finish: " + setupError :
+                "This device has no recognised complete library on this PC. A names-only sync cannot supply its presets, scenes and amps.";
+            tone = SyncStatusTone.Attention;
+        }
         else if (_indexCache is null)
         {
             detail = "Device information has been read. This profile has no assigned device library.";
@@ -390,6 +433,16 @@ public partial class MainWindow
             title = choicePrompt ? "Check that you’re using the right library" : "Refresh saved data";
             detail = $"Compare this {_detectedDevice!.ModelLabel} with “{_indexCache.Device.Name}” — the presets, scenes and amp data saved in PresetMaestro.";
             next = "";
+        }
+#endif
+#if FRACTAL_INDEX
+        if (_connectionLibrarySetupRequired && !running)
+        {
+            next = _connectionDefaultLibrary is not null && _connectionLibraryCandidate is null
+                ? "Create a new library or choose Overwrite Default & sync. A complete library sync is required before continuing. Disconnect cancels setup."
+                : _indexCache?.LastAttempt is { Status: not "Complete" }
+                    ? "Choose Resume to finish the full library sync, or Sync library to start again. Disconnect leaves setup incomplete."
+                    : "Choose Sync library to read every preset slot, its scenes and amps. Disconnect leaves setup incomplete.";
         }
 #endif
         if (!CanReadDeviceNames && !running)
@@ -424,11 +477,19 @@ public partial class MainWindow
         _connectionSyncProgress.IsIndeterminate = indeterminate;
         _connectionSyncProgress.Maximum = maximum;
         _connectionSyncProgress.Value = value;
+#if FRACTAL_INDEX
+        RefreshLibraryMatchDetails(running);
+#endif
     }
 
     private void SetSyncOptionDescription(string name, string text)
     {
         if (_connectionSyncDescriptions.TryGetValue(name, out var label)) { label.Text = text; }
+    }
+
+    private static void SetSyncOptionVisible(Button button, bool visible)
+    {
+        if (button.Parent is Grid row && row.Parent is Border border) { border.IsVisible = visible; }
     }
 
     internal async Task SyncFavoriteSceneNamesAsync()
@@ -441,8 +502,7 @@ public partial class MainWindow
         _presetNamesCts = cancellation; _syncingFavoriteScenes = true;
         _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _favoriteSceneCts?.Cancel();
         string key = _sceneCacheKey;
-        _presetNamesProgress.Maximum = slots.Length; _presetNamesProgress.Value = 0;
-        _presetNamesStatus.Text = $"Reading favorite scene names: 0 of {slots.Length} presets…";
+        _syncReadTotal = slots.Length; _syncReadCompleted = 0;
         UpdatePresetSyncButtons();
         try
         {
@@ -452,22 +512,18 @@ public partial class MainWindow
                 cancellation.Token.ThrowIfCancellationRequested();
                 if (result.Slot != slots[i]) { throw new InvalidDataException("The device returned a different preset."); }
                 CacheScenes(result, "stored", key); _saveSettings(_settings);
-                _presetNamesProgress.Value = i + 1;
-                _presetNamesStatus.Text = $"Reading favorite scene names: {i + 1} of {slots.Length} presets…";
+                _syncReadCompleted = i + 1;
                 RefreshConnectionSyncOptions();
             }
-            _presetNamesStatus.Text = $"Favorite scene names refreshed for {slots.Length} presets.";
             SetConnectionSyncOutcome("Favorite scene names synced", $"Scene names refreshed for {slots.Length} presets used by this profile’s favorites.", "Next: Choose Done to continue. Use Sync library if you also changed preset content or amps.");
         }
         catch (OperationCanceledException)
         {
-            _presetNamesStatus.Text = "Scene-name sync cancelled. Completed reads were saved.";
-            SetConnectionSyncOutcome("Scene-name sync cancelled", $"{_presetNamesProgress.Value:0} of {slots.Length} presets refreshed. Completed reads were saved.", "Next: Choose Sync scenes to retry, or Done to use the saved names.", needsAttention: true);
+            SetConnectionSyncOutcome("Scene-name sync cancelled", $"{_syncReadCompleted} of {slots.Length} presets refreshed. Completed reads were saved.", "Next: Choose Sync scenes to retry, or Done to use the saved names.", needsAttention: true);
         }
         catch (Exception ex)
         {
-            _presetNamesStatus.Text = "Scene-name sync stopped: " + ex.Message;
-            SetConnectionSyncOutcome("Scene-name sync stopped", $"{_presetNamesProgress.Value:0} of {slots.Length} presets refreshed. Completed reads were saved. {ex.Message}", "Next: Check the MIDI connection, then choose Sync scenes to retry.", needsAttention: true);
+            SetConnectionSyncOutcome("Scene-name sync stopped", $"{_syncReadCompleted} of {slots.Length} presets refreshed. Completed reads were saved. {ex.Message}", "Next: Check the MIDI connection, then choose Sync scenes to retry.", needsAttention: true);
         }
         finally
         {

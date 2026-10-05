@@ -20,12 +20,10 @@ public partial class FavoriteEditorTests
         return Field<MidiMappingWindow>(window, "_midiMappingWindow");
     }
 
-    private static void SetSceneCcThroughMapping(MainWindow window, int sceneCc)
+    private static void SetLegacySceneCc(MainWindow window, int sceneCc)
     {
-        var dialog = OpenMapping(window);
-        Find<TextBox>(dialog, "SceneCc").Text = sceneCc.ToString();
-        Click(Find<Button>(dialog, "SaveMapping"));
-        Dispatcher.UIThread.RunJobs();
+        Field<AppSettings>(window, "_settings").SceneCc = sceneCc;
+        Invoke(window, "ApplyProfileSettingsToUI");
     }
 
     [AvaloniaTheory]
@@ -81,7 +79,7 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<NumericUpDown>(), control => control.Name == "SceneCc");
             var dialog = OpenMapping(window);
-            Find<TextBox>(dialog, "SceneCc").Text = "62";
+            Assert.DoesNotContain(dialog.GetVisualDescendants().OfType<TextBox>(), control => control.Name == "SceneCc");
             Find<TextBox>(dialog, "MappingNoteNumber").Text = "60";
             Click(Find<Button>(dialog, "MapActionSEND"));
             Assert.Equal("SEND · MIDI note", Find<TextBlock>(dialog, "MappingSelectedAction").Text);
@@ -91,13 +89,13 @@ public partial class FavoriteEditorTests
             Click(Find<Button>(dialog, "SaveMapping"));
             Dispatcher.UIThread.RunJobs();
             Assert.False(dialog.IsVisible);
-            Assert.Equal(62, settings.SceneCc);
+            Assert.Equal(34, settings.SceneCc);
             Assert.Equal("1", settings.MidiNoteMap[60]);
             Assert.Equal("SEND", settings.MidiNoteMap[61]);
             Assert.DoesNotContain(36, settings.MidiNoteMap.Keys);
             Assert.DoesNotContain(46, settings.MidiNoteMap.Keys);
             Assert.Equal(15, settings.MidiNoteMap.Count);
-            Assert.Equal(62, store.LoadProfile("Default").SceneCc);
+            Assert.Equal(34, store.LoadProfile("Default").SceneCc);
             Assert.Equal(55, store.LoadProfile("Other").SceneCc);
             var machine = JsonNode.Parse(File.ReadAllText(Path.Combine(directory, "settings.json")))!.AsObject();
             var profile = JsonNode.Parse(File.ReadAllText(Path.Combine(directory, "Default-settings.json")))!.AsObject();
@@ -105,12 +103,12 @@ public partial class FavoriteEditorTests
             Assert.False(profile.ContainsKey("MidiNoteMap"));
             Assert.Equal("SEND", new ProfileStore(directory).LoadSettings().MidiNoteMap[61]);
             Assert.Equal(0, midi.TotalSendCount);
-            // Rebuilding Config or closing the main window must not restore the old CC.
+            // Reopening and closing must preserve both the note map and device settings.
             var reopened = OpenMapping(window);
-            Assert.Equal("62", Find<TextBox>(reopened, "SceneCc").Text);
+            Assert.Equal("60", Find<TextBox>(reopened, "MappingNoteNumber").Text);
             Click(Find<Button>(reopened, "CancelMapping"));
             window.Close();
-            Assert.Equal(62, store.LoadProfile("Default").SceneCc);
+            Assert.Equal(34, store.LoadProfile("Default").SceneCc);
         }
         finally { window.Close(); Directory.Delete(directory, true); }
     }
@@ -179,7 +177,6 @@ public partial class FavoriteEditorTests
             Dispatcher.UIThread.RunJobs();
             var dialog = OpenMapping(window);
             Find<TextBox>(dialog, "MappingNoteNumber").Text = "60";
-            Find<TextBox>(dialog, "SceneCc").Text = "70";
             Click(Find<Button>(dialog, "SaveMapping"));
             Assert.True(dialog.IsVisible);
             Assert.Equal(34, settings.SceneCc);
@@ -188,7 +185,7 @@ public partial class FavoriteEditorTests
             fail = false;
             Click(Find<Button>(dialog, "SaveMapping"));
             Assert.False(dialog.IsVisible);
-            Assert.Equal(70, settings.SceneCc);
+            Assert.Equal(34, settings.SceneCc);
             Assert.Equal("1", settings.MidiNoteMap[60]);
         }
         finally { fail = false; window.Close(); }

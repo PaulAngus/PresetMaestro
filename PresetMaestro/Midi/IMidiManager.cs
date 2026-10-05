@@ -15,6 +15,7 @@ public interface IMidiManager : IDisposable
 
     IReadOnlyList<string> GetInputPortNames();
     IReadOnlyList<string> GetOutputPortNames();
+    Task<MidiPorts> DiscoverPortsAsync() => Task.FromResult(new MidiPorts(GetInputPortNames(), GetOutputPortNames()));
 
     bool OpenInput(string portName, out string? errorMessage);
     bool OpenOutput(string portName, out string? errorMessage);

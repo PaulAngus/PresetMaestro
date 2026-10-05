@@ -102,6 +102,9 @@ public partial class MainWindow
         root.Children.Add(ApprovedHeader(host, sender, favorites, config));
         Grid.SetRow(host, 1);
         root.Children.Add(host);
+        _sendFeedbackPanel = BuildSendFeedbackPanel();
+        Grid.SetRow(_sendFeedbackPanel, 1);
+        root.Children.Add(_sendFeedbackPanel);
         var deleteSlotDialog = BuildDeleteSlotDialog();
         Grid.SetRowSpan(deleteSlotDialog, 2);
         root.Children.Add(deleteSlotDialog);
@@ -177,41 +180,42 @@ public partial class MainWindow
         var display = ApprovedDisplay();
         Grid.SetRow(display, 2);
         page.Children.Add(display);
-        _senderFeedbackPanel = BuildSendFeedbackPanel("SenderSendFeedback", out _senderFeedbackIcon, out _senderFeedbackTitle, out _senderFeedbackDetail, prominent: true);
-        Grid.SetRow(_senderFeedbackPanel, 2);
-        Grid.SetColumn(_senderFeedbackPanel, 2);
-        page.Children.Add(_senderFeedbackPanel);
         var keypad = ApprovedKeypad();
         Grid.SetRow(keypad, 4);
         page.Children.Add(keypad);
         return page;
     }
 
-    private static Border BuildSendFeedbackPanel(string name, out TextBlock icon, out TextBlock title, out TextBlock detail, bool prominent = false)
+    private Border BuildSendFeedbackPanel()
     {
         var foreground = ThemeBrush("SendSuccessForegroundBrush");
-        icon = new TextBlock { Text = "✓", FontSize = prominent ? 24 : 20, FontWeight = FontWeight.Bold, Foreground = foreground, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-        title = new TextBlock { FontSize = prominent ? 20 : 17, FontWeight = FontWeight.Bold, Foreground = foreground, TextWrapping = TextWrapping.Wrap };
-        detail = new TextBlock { FontSize = prominent ? 14 : 12, Foreground = foreground, TextWrapping = TextWrapping.Wrap };
-        var message = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center, Children = { title, detail } };
-        Control iconContainer = prominent
-            ? new Border { Width = 40, Height = 40, CornerRadius = new CornerRadius(20), BorderBrush = foreground, BorderThickness = new Thickness(2), VerticalAlignment = VerticalAlignment.Center, Child = icon }
-            : icon;
-        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = prominent ? 14 : 10, VerticalAlignment = prominent ? VerticalAlignment.Center : VerticalAlignment.Top, Children = { iconContainer, message } };
-        return new Border
+        _sendFeedbackIcon = new TextBlock { Text = "✓", FontSize = 20, FontWeight = FontWeight.Bold, Foreground = foreground, VerticalAlignment = VerticalAlignment.Center };
+        _sendFeedbackTitle = new TextBlock { Name = "SendFeedbackTitle", FontSize = 17, FontWeight = FontWeight.Bold, Foreground = foreground, TextWrapping = TextWrapping.Wrap };
+        _sendFeedbackDetail = new TextBlock { Name = "SendFeedbackDetail", FontSize = 13, Foreground = foreground, TextWrapping = TextWrapping.Wrap };
+        var message = new StackPanel { Spacing = 2, Children = { _sendFeedbackTitle, _sendFeedbackDetail } };
+        var content = new Grid { ColumnDefinitions = new("Auto,10,*") };
+        content.Children.Add(_sendFeedbackIcon);
+        Grid.SetColumn(message, 2); content.Children.Add(message);
+        var panel = new Border
         {
-            Name = name,
-            Width = prominent ? 280 : double.NaN,
-            Height = prominent ? 170 : double.NaN,
-            HorizontalAlignment = prominent ? HorizontalAlignment.Left : HorizontalAlignment.Stretch,
+            Name = "SendFeedback",
+            Width = 360,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(24, 8, 24, 24),
             Background = ThemeBrush("SendSuccessBackgroundBrush"),
             BorderBrush = foreground,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(prominent ? 4 : 7),
-            Padding = prominent ? new Thickness(20) : new Thickness(12, 10),
+            CornerRadius = new CornerRadius(7),
+            Padding = new Thickness(12, 10),
+            BoxShadow = Elevation,
             IsVisible = false,
             Child = content,
         };
+        AutomationProperties.SetLiveSetting(panel, AutomationLiveSetting.Assertive);
+        panel.PointerEntered += (_, _) => _sendFeedbackTimer.Stop();
+        panel.PointerExited += (_, _) => { if (panel.IsVisible) { _sendFeedbackTimer.Start(); } };
+        return panel;
     }
 
     private Control BuildApprovedDiagnosticsPage(Action showConfig)
@@ -304,7 +308,8 @@ public partial class MainWindow
         _autoSendCheck = new CheckBox { Name = "AutoSend", Content = "Auto-send after 3 digits", VerticalAlignment = VerticalAlignment.Bottom };
         _autoSendCheck.IsCheckedChanged += (_, _) => _settings.AutoSend = _autoSendCheck.IsChecked == true;
         auto.Children.Add(_autoSendCheck);
-        _autoSendDelaySpinner = new NumericUpDown { Name = "AutoSendDelay", Minimum = 10, Maximum = 2000, Value = 35, FormatString = "0", MinWidth = 110 };
+        _autoSendDelaySpinner = new CompactNumericUpDown { Name = "AutoSendDelay", Minimum = 10, Maximum = 2000, Value = 35, FormatString = "0", MinWidth = 110 };
+        AutomationProperties.SetName(_autoSendDelaySpinner, "Auto-send delay in milliseconds");
         _autoSendDelaySpinner.ValueChanged += (_, _) => { _settings.AutoSendDelayMs = (int)(_autoSendDelaySpinner.Value ?? 35); _autoSendTimer.Interval = TimeSpan.FromMilliseconds(_settings.AutoSendDelayMs); };
         var delay = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         delay.Children.Add(_autoSendDelaySpinner);
@@ -325,6 +330,12 @@ public partial class MainWindow
         _midiEntryCheck.IsCheckedChanged += (_, _) => _settings.MidiEntryEnabled = _midiEntryCheck.IsChecked == true;
         entrySources.Children.Add(_midiEntryCheck);
         stack.Children.Add(entrySources);
+        stack.Children.Add(new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children = { new TextBlock { Text = "MIDI note mapping", FontSize = 12, Foreground = SecondaryBrush, VerticalAlignment = VerticalAlignment.Center }, BuildMidiMappingButton() },
+        });
 
         void ArrangeEntryOptions(double width)
         {
@@ -407,7 +418,7 @@ public partial class MainWindow
     {
         _favoritesDisplayLabel = new TextBlock { Text = "---", FontFamily = new FontFamily("Bahnschrift"), FontSize = 20, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var card = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(16, 11, 12, 17), BoxShadow = Elevation };
-        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,8,*") };
+        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,8,*") };
         var header = new Grid { Name = "FavoriteToolbar", ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         title.Children.Add(new TextBlock
@@ -500,10 +511,6 @@ public partial class MainWindow
         Grid.SetColumn(actions, 1);
         header.Children.Add(actions);
         content.Children.Add(header);
-        _favoriteFeedbackPanel = BuildSendFeedbackPanel("FavoriteSendFeedback", out _favoriteFeedbackIcon, out _favoriteFeedbackTitle, out _favoriteFeedbackDetail);
-        _favoriteFeedbackPanel.Margin = new Thickness(0, 10, 0, 0);
-        Grid.SetRow(_favoriteFeedbackPanel, 1);
-        content.Children.Add(_favoriteFeedbackPanel);
         var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,24,*") };
         layout.Children.Add(BuildFavoriteSearch());
         _favResultCount = new TextBlock { Name = "FavoriteResultCount", Foreground = SecondaryBrush, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
@@ -537,7 +544,7 @@ public partial class MainWindow
         Grid.SetRow(body, 2);
         layout.Children.Add(body);
         _favSendBtn = new Button { IsVisible = false }; _favSendBtn.Click += OnFavSend;
-        Grid.SetRow(layout, 3);
+        Grid.SetRow(layout, 2);
         content.Children.Add(layout);
         card.Child = content;
         return card;
@@ -556,7 +563,7 @@ public partial class MainWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
         AutomationProperties.SetName(_favSyncPresetsButton, "Sync presets");
-        _favSyncPresetsButton.Click += async (_, _) => await SyncPresetNamesAsync();
+        _favSyncPresetsButton.Click += async (_, _) => { OpenConnectionSyncOptions(); await SyncPresetNamesAsync(); };
 
         var newFavorite = new Button
         {
@@ -656,8 +663,10 @@ public partial class MainWindow
         Grid.SetColumnSpan(version, 3);
         page.Children.Add(version);
         var connection = new StackPanel { Name = "ConfigLeftColumn", Spacing = 16, Children = { BuildApprovedConnection(showDiagnostics), ApprovedEntryOptions() } };
-        var mapping = new StackPanel { Name = "ConfigRightColumn", Spacing = 16, Children = { BuildProfileCard(showProfiles), BuildApprovedMapping(), BuildPresetNameSyncCard(), BuildApprovedAppearance() } };
-        AddIndexConfiguration(mapping);
+        var mapping = new StackPanel { Name = "ConfigRightColumn", Spacing = 16, Children = { BuildProfileCard(showProfiles), BuildApprovedAppearance() } };
+#if !FRACTAL_INDEX
+        mapping.Children.Insert(1, BuildLegacyPresetMapping());
+#endif
         page.Children.Add(connection); page.Children.Add(mapping);
 
         void Arrange()
@@ -741,6 +750,7 @@ public partial class MainWindow
         settingsActions.Children.Add(_disconnectButton);
         settingsActions.Children.Add(refresh);
         settingsActions.Children.Add(diagnostics);
+        settingsActions.Children.Add(BuildSyncOptionsButton());
 
         var columns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,16,144") };
         columns.Children.Add(routing);
@@ -752,32 +762,33 @@ public partial class MainWindow
         return card;
     }
 
-    private Control BuildApprovedMapping()
-    {
-        var card = ApprovedCard("Preset Mapping", "Translation settings · detected limits are applied automatically", compact: true); var stack = new StackPanel { Spacing = 8 }; _channelCombo = new ComboBox { Name = "MidiChannel", MinWidth = 80 }; _channelCombo.Items.Add("Omni"); for (int channel = 1; channel <= 16; channel++)
-        {
-            _channelCombo.Items.Add(channel.ToString());
-        }
+#if !FRACTAL_INDEX
+    // Builds without device libraries retain their existing profile mapping controls.
+    private ComboBox _legacyChannel = null!, _legacyOffset = null!;
+    private NumericUpDown _legacySceneCc = null!;
 
-        _channelCombo.SelectionChanged += (_, _) => { if (_channelCombo.SelectedIndex >= 0) { _settings.MidiChannel = _channelCombo.SelectedIndex; } };
-        _offsetCombo = new ComboBox { Name = "DisplayOffset", ItemsSource = new[] { "0 (device mapping disabled)", "1 (display starts at 001)" } };
-        _offsetCombo.SelectionChanged += OnOffsetChanged;
-        var fields = new Grid { ColumnDefinitions = new ColumnDefinitions("80,12,*"), RowDefinitions = new RowDefinitions("Auto,8,Auto") };
-        var channelField = CompactField("MIDI channel", _channelCombo);
-        _offsetCombo.HorizontalAlignment = HorizontalAlignment.Stretch;
-        var offset = CompactField("Display offset", _offsetCombo);
-        var scene = new StackPanel
+    private Control BuildLegacyPresetMapping()
+    {
+        var card = ApprovedCard("Preset Mapping", "Translation settings · detected limits are applied automatically", compact: true);
+        _legacyChannel = new ComboBox { Name = "MidiChannel", ItemsSource = Enumerable.Range(1, 16).Select(c => c.ToString()).Prepend("Omni").ToArray() };
+        _legacyChannel.SelectionChanged += (_, _) => { if (_legacyChannel.SelectedIndex >= 0) { _settings.MidiChannel = _legacyChannel.SelectedIndex; } };
+        _legacyOffset = new ComboBox { Name = "DisplayOffset", ItemsSource = new[] { "0 (device mapping disabled)", "1 (display starts at 001)" }, HorizontalAlignment = HorizontalAlignment.Stretch };
+        _legacyOffset.SelectionChanged += (_, _) =>
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Children = { new TextBlock { Text = "MIDI mapping", FontSize = 12, Foreground = SecondaryBrush, VerticalAlignment = VerticalAlignment.Center }, BuildMidiMappingButton() },
+            if (_legacyOffset.SelectedIndex < 0) { return; }
+            _settings.DisplayOffset = _legacyOffset.SelectedIndex;
+            UpdatePresetCapacityUI(); UpdateDisplay();
         };
-        fields.Children.Add(channelField);
+        _legacySceneCc = new NumericUpDown { Name = "SceneCc", Minimum = 0, Maximum = 127, FormatString = "0", Width = 100, HorizontalAlignment = HorizontalAlignment.Left };
+        _legacySceneCc.ValueChanged += (_, _) => { if (_legacySceneCc.Value is decimal value) { _settings.SceneCc = (int)value; } };
+        var fields = new Grid { ColumnDefinitions = new ColumnDefinitions("80,12,*") };
+        fields.Children.Add(CompactField("MIDI channel", _legacyChannel));
+        var offset = CompactField("Display offset", _legacyOffset);
         Grid.SetColumn(offset, 2); fields.Children.Add(offset);
-        Grid.SetRow(scene, 2); Grid.SetColumnSpan(scene, 3); fields.Children.Add(scene);
-        stack.Children.Add(fields);
-        stack.Children.Add(new Border { Background = InsetBrush, Padding = new Thickness(8), CornerRadius = new CornerRadius(5), Child = new TextBlock { Text = "Program Change mapping must be disabled on the device when Display Offset is 0.", FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush } }); SetApprovedCardContent(card, stack); return card;
+        SetApprovedCardContent(card, new StackPanel { Spacing = 8, Children = { fields, CompactField("Scene CC#", _legacySceneCc) } });
+        return card;
     }
+#endif
 
     private Control BuildApprovedAppearance()
     {

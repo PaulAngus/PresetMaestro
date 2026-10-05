@@ -50,7 +50,7 @@ public partial class MainWindow
 
     private Control BuildProfileCard(Action showProfiles)
     {
-        var card = ApprovedCard("Profiles", "Favorites, preset mapping and cached names", compact: true);
+        var card = ApprovedCard("Profiles", "Favorites, device library assignment and cached names", compact: true);
         var stack = new StackPanel { Spacing = 8, IsEnabled = _profileStore is not null };
         _profileCombo = new ComboBox { Name = "ProfileSelector", HorizontalAlignment = HorizontalAlignment.Stretch };
         _profileCombo.SelectionChanged += async (_, _) =>
@@ -73,6 +73,7 @@ public partial class MainWindow
         stack.Children.Add(manage);
         _profileStatus = new TextBlock { Name = "ProfileStatus", Text = _profileStore?.StartupMessage ?? "Ready.", TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush };
         stack.Children.Add(_profileStatus);
+        AddIndexConfiguration(stack);
         SetApprovedCardContent(card, stack);
         RefreshProfileList();
         return card;
@@ -133,7 +134,7 @@ public partial class MainWindow
                     throw new InvalidOperationException("Keep at least one profile.");
                 }
 
-                if (!await ConfirmProfileAsync("Delete Profile?", $"Delete profile '{target}' and its favorites, mapping and cached names?", "Delete profile"))
+                if (!await ConfirmProfileAsync("Delete Profile?", $"Delete profile '{target}' and its favorites and cached names?", "Delete profile"))
                 {
                     return;
                 }
@@ -231,9 +232,7 @@ public partial class MainWindow
             ApplyProfileSettingsToUI();
             RefreshFavoritesList();
             UpdateDisplay();
-            _presetNamesProgress.Value = 0;
-            _presetNamesStatus.Text = CanReadDeviceNames
-                ? $"{_settings.PresetNameCache.Count} cached preset names in this profile." : UnsupportedNameReads;
+            _syncReadCompleted = 0;
             if (CanReadDeviceNames && _midi.InputOpen && _midi.OutputOpen)
             {
                 _scenePoll.Start();

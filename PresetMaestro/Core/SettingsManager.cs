@@ -11,24 +11,9 @@ public static class SettingsManager
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
-    public static AppSettings Load()
-    {
-        try
-        {
-            return Load(SettingsPath);
-        }
-        catch { }
-        return new AppSettings();
-    }
+    public static AppSettings Load() => Load(SettingsPath);
 
-    public static void Save(AppSettings settings)
-    {
-        try
-        {
-            Save(settings, SettingsPath);
-        }
-        catch { }
-    }
+    public static void Save(AppSettings settings) => Save(settings, SettingsPath);
 
     internal static AppSettings Load(string path)
     {
@@ -38,11 +23,11 @@ public static class SettingsManager
         }
 
         string json = File.ReadAllText(path);
-        json = MigrateLegacyMidiNoteMap(path, json);
+        json = MigrateLegacyMidiNoteMap(json);
         return JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings();
     }
 
-    private static string MigrateLegacyMidiNoteMap(string path, string json)
+    private static string MigrateLegacyMidiNoteMap(string json)
     {
         try
         {
@@ -54,9 +39,9 @@ public static class SettingsManager
 
             root["MidiNoteMap"] = root["NoteMap"]?.DeepClone();
             root.Remove("NoteMap");
-            string updated = root.ToJsonString();
-            File.WriteAllText(path, updated);
-            return updated;
+            // Loading must not rewrite the file before ProfileStore can preserve its
+            // pre-migration backup. Normal saves already use atomic replacement.
+            return root.ToJsonString();
         }
         catch
         {

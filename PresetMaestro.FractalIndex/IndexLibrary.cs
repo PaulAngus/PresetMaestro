@@ -7,6 +7,14 @@ public sealed record IndexDevice(Guid Id, string Name, FractalDeviceVariant Vari
     public override string ToString() => Name;
 }
 
+public sealed record IndexLibrarySummary(IndexDevice Device, DevicePresetMapping? PresetMapping);
+
+public sealed record DevicePresetMapping(int MidiChannel = 1, int DisplayOffset = 0, int SceneCc = 34)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsValid => MidiChannel is >= 0 and <= 16 && DisplayOffset is >= 0 and <= 1 && SceneCc is >= 0 and <= 127;
+}
+
 public sealed class IndexScan
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -29,6 +37,8 @@ public sealed class DeviceIndex
 {
     public int SchemaVersion { get; set; } = 1;
     public required IndexDevice Device { get; set; }
+    // Null identifies older libraries whose mapping still belongs to a profile.
+    public DevicePresetMapping? PresetMapping { get; set; }
     public bool Imported { get; set; }
     public IndexScan? Committed { get; set; }
     public IndexScan? LastAttempt { get; set; }
@@ -187,7 +197,8 @@ public static class IndexJson
     {
         if (cache is null || cache.SchemaVersion != 1 || cache.Device is null || cache.Device.Id == Guid.Empty ||
             !Enum.IsDefined(cache.Device.Variant) || string.IsNullOrWhiteSpace(cache.Device.Name) ||
-            cache.Device.Firmware is not null && !Version.TryParse(cache.Device.Firmware, out _))
+            cache.Device.Firmware is not null && !Version.TryParse(cache.Device.Firmware, out _) ||
+            cache.PresetMapping is { IsValid: false })
         { throw new InvalidDataException("Unsupported device index."); }
         var definition = FractalDeviceDefinition.For(cache.Device.Variant);
         foreach (var scan in new[] { cache.Committed, cache.LastAttempt }.OfType<IndexScan>())
@@ -220,6 +231,7 @@ public static class IndexJson
 /// <summary>Shared per-device JSON. Profile tags are saved separately by the host.</summary>
 public sealed class IndexLibrary(string directory)
 {
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, (DateTime Written, DateTime Created, long Length, IndexLibrarySummary Summary)> _summaries = new();
     public string DirectoryPath { get; } = Path.GetFullPath(directory);
     private string FilePath(Guid id) => Path.Combine(DirectoryPath, id.ToString("N") + ".json");
     public DeviceIndex? Load(Guid id)
@@ -231,17 +243,33 @@ public sealed class IndexLibrary(string directory)
             ?? throw new InvalidDataException("Device index is empty.");
         IndexJson.Validate(cache);
         if (cache.Device.Id != id) { throw new InvalidDataException("Device index identity mismatch."); }
+        RestoreCheckpoints(cache);
         return cache;
+    }
+    public IndexLibrarySummary? LoadSummary(Guid id)
+    {
+        var file = new FileInfo(FilePath(id));
+        if (!file.Exists) { _summaries.TryRemove(id, out _); return null; }
+        if (_summaries.TryGetValue(id, out var entry) && entry.Written == file.LastWriteTimeUtc &&
+            entry.Created == file.CreationTimeUtc && entry.Length == file.Length) { return entry.Summary; }
+        var cache = Load(id);
+        if (cache is null) { _summaries.TryRemove(id, out _); return null; }
+        var summary = new IndexLibrarySummary(cache.Device, cache.PresetMapping);
+        // Record the stamp from before the read. A concurrent replacement will
+        // invalidate the next lookup rather than caching old data with a new stamp.
+        _summaries[id] = (file.LastWriteTimeUtc, file.CreationTimeUtc, file.Length, summary);
+        return summary;
     }
     public IReadOnlyList<IndexDevice> ListDevices()
     {
         if (!Directory.Exists(DirectoryPath)) { return []; }
-        return Directory.EnumerateFiles(DirectoryPath, "*.json")
+        var ids = Directory.EnumerateFiles(DirectoryPath, "*.json")
             .Select(Path.GetFileNameWithoutExtension).Where(name => Guid.TryParseExact(name, "N", out _))
-            .Select(name => Load(Guid.ParseExact(name!, "N"))!)
-            .Select(cache => cache.Device).OrderBy(d => d.Name).ToArray();
+            .Select(name => Guid.ParseExact(name!, "N")).ToHashSet();
+        foreach (var id in _summaries.Keys) { if (!ids.Contains(id)) { _summaries.TryRemove(id, out _); } }
+        return ids.Select(LoadSummary).OfType<IndexLibrarySummary>().Select(summary => summary.Device).OrderBy(d => d.Name).ToArray();
     }
-    public DeviceIndex SaveDevice(IndexDevice device)
+    public DeviceIndex SaveDevice(IndexDevice device, DevicePresetMapping? mapping = null)
     {
         string name = device.Name.Trim();
         if (name.Length is 0 or > 80 || name.Any(char.IsControl))
@@ -255,6 +283,7 @@ public sealed class IndexLibrary(string directory)
         device = device with { Name = name };
         cache ??= new DeviceIndex { Device = device };
         cache.Device = device;
+        if (mapping is not null) { cache.PresetMapping = mapping; }
         Save(cache);
         return cache;
     }
@@ -268,6 +297,10 @@ public sealed class IndexLibrary(string directory)
             File.WriteAllText(temporary, JsonSerializer.Serialize(cache, IndexJson.Options));
             if (File.Exists(path)) { File.Copy(path, path + ".bak", true); }
             File.Move(temporary, path, true);
+            _summaries.TryRemove(cache.Device.Id, out _);
+            // A crash between replacement and deletion is harmless: the journal
+            // belongs to a scan ID and only applies to an unfinished Scanning scan.
+            File.Delete(JournalPath(cache.Device.Id));
         }
         finally { if (File.Exists(temporary)) { File.Delete(temporary); } }
     }
@@ -276,6 +309,53 @@ public sealed class IndexLibrary(string directory)
         // Exact GUID-derived files only; the host removes profile references first.
         File.Delete(FilePath(id));
         File.Delete(FilePath(id) + ".bak");
+        File.Delete(JournalPath(id));
+        _summaries.TryRemove(id, out _);
+    }
+
+    private string JournalPath(Guid id) => Path.Combine(DirectoryPath, id.ToString("N") + ".scan.jsonl");
+    private sealed record Checkpoint(Guid ScanId, int Slot, IndexedPreset? Preset, string? Error);
+    private static readonly JsonSerializerOptions JournalOptions = new(IndexJson.Options) { WriteIndented = false };
+
+    public void SaveCheckpoint(DeviceIndex cache, int slot)
+    {
+        var scan = cache.LastAttempt ?? throw new InvalidOperationException("No scan is active.");
+        if (scan.Status != "Scanning") { throw new InvalidOperationException("Only a running scan can append a checkpoint."); }
+        var checkpoint = new Checkpoint(scan.Id, slot, scan.Presets.GetValueOrDefault(slot), scan.Errors.GetValueOrDefault(slot));
+        if (slot < 0 || slot >= FractalDeviceDefinition.For(cache.Device.Variant).PresetSlots ||
+            checkpoint.Preset is { } preset && preset.Slot != slot ||
+            (checkpoint.Preset is null) == (checkpoint.Error is null))
+        { throw new InvalidDataException("A checkpoint must contain exactly one valid slot result."); }
+        using var stream = new FileStream(JournalPath(cache.Device.Id), FileMode.Append, FileAccess.Write, FileShare.Read);
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(checkpoint, JournalOptions) + "\n");
+        stream.Write(bytes);
+        stream.Flush(flushToDisk: true);
+    }
+
+    private void RestoreCheckpoints(DeviceIndex cache)
+    {
+        if (cache.LastAttempt is not { Status: "Scanning" } scan) { return; }
+        string path = JournalPath(cache.Device.Id);
+        if (!File.Exists(path)) { return; }
+        if (new FileInfo(path).Length > 32 * 1024 * 1024) { throw new InvalidDataException("Scan journal is too large."); }
+        string text = File.ReadAllText(path);
+        int start = 0, end;
+        // A torn final record has no newline. Completed records remain recoverable.
+        while ((end = text.IndexOf('\n', start)) >= 0)
+        {
+            var checkpoint = JsonSerializer.Deserialize<Checkpoint>(text.AsSpan(start, end - start), JournalOptions)
+                ?? throw new InvalidDataException("Invalid scan checkpoint.");
+            start = end + 1;
+            if (checkpoint.ScanId != scan.Id) { continue; }
+            if (checkpoint.Slot < 0 || checkpoint.Slot >= FractalDeviceDefinition.For(cache.Device.Variant).PresetSlots ||
+                checkpoint.Preset is { } preset && preset.Slot != checkpoint.Slot ||
+                (checkpoint.Preset is null) == (checkpoint.Error is null))
+            { throw new InvalidDataException("Invalid scan checkpoint."); }
+            scan.Presets.Remove(checkpoint.Slot); scan.Errors.Remove(checkpoint.Slot);
+            if (checkpoint.Preset is not null) { scan.Presets[checkpoint.Slot] = checkpoint.Preset; }
+            else { scan.Errors[checkpoint.Slot] = checkpoint.Error!; }
+        }
+        IndexJson.Validate(cache);
     }
 }
 
@@ -315,7 +395,7 @@ public sealed class IndexScanner(PresetIndexReader reader, IndexLibrary library)
                     scan.Errors[slot] = ex.Message;
                     consecutiveFailures++;
                 }
-                library.Save(cache);
+                library.SaveCheckpoint(cache, slot);
                 progress?.Invoke(new(scan.Presets.Count, device.PresetSlots, scan.Errors.Count, slot, scan.Presets.Values.Count(p => p.NameOnlyEmpty)));
                 if (consecutiveFailures >= 3) { throw new IOException("Index sync stopped after three consecutive failed reads."); }
             }

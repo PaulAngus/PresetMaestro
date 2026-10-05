@@ -19,13 +19,16 @@ public partial class MainWindow
     private TextBlock? _libraryManagementStatus, _libraryHeading, _libraryFacts, _libraryCount, _libraryModelLabel;
     private Button? _libraryCreate, _librarySave, _libraryUse, _libraryDelete, _libraryCancel;
     private Dictionary<Guid, string> _libraryDisplayNames = [];
+    private ComboBox? _libraryChannel, _libraryOffset;
+    private NumericUpDown? _librarySceneCc;
+    private Control? _libraryMapping;
 
-    private bool LibraryManagementBusy => _presetNamesCts is not null || _connectionCts is not null || _changingProfile || _indexError is not null;
+    private bool LibraryManagementBusy => _presetNamesCts is not null || _connectionCts is not null || _changingProfile || _indexScanning || _indexChecking || _indexError is not null;
 
     private IndexDevice[] AvailableIndexDevices()
     {
-        var devices = _indexLibrary.ListDevices().Concat(_indexProfile.Devices)
-            .DistinctBy(d => d.Id).ToArray();
+        // Profile references can outlive a saved library. Only saved files are assignable.
+        var devices = _indexLibrary.ListDevices().ToArray();
         CacheLibraryDisplayNames(devices);
         return devices;
     }
@@ -125,6 +128,8 @@ public partial class MainWindow
             Foreground = SecondaryBrush,
             TextWrapping = TextWrapping.Wrap,
         });
+        _libraryMapping = BuildLibraryPresetMapping();
+        details.Children.Add(_libraryMapping);
         var commands = new WrapPanel { Orientation = Orientation.Horizontal };
         _librarySave = ProfileCommand("IndexUpdateDevice", "Save changes");
         _librarySave.Click += (_, _) => SaveManagedLibrary();
@@ -163,6 +168,44 @@ public partial class MainWindow
         return page;
     }
 
+    private Control BuildLibraryPresetMapping()
+    {
+        var card = ApprovedCard("Preset Mapping", "For this device library · shared by all assigned profiles", compact: true);
+        card.Name = "LibraryPresetMapping";
+        _libraryChannel = new ComboBox { Name = "MidiChannel", HorizontalAlignment = HorizontalAlignment.Stretch };
+        _libraryChannel.Items.Add("Omni");
+        for (int channel = 1; channel <= 16; channel++) { _libraryChannel.Items.Add(channel.ToString()); }
+        _libraryOffset = new ComboBox
+        {
+            Name = "DisplayOffset",
+            ItemsSource = new[] { "0 (device mapping disabled)", "1 (display starts at 001)" },
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        _librarySceneCc = new NumericUpDown { Name = "SceneCc", Minimum = 0, Maximum = 127, Increment = 1, FormatString = "0", Width = 100, HorizontalAlignment = HorizontalAlignment.Left };
+        AutomationProperties.SetName(_libraryChannel, "Device MIDI channel");
+        AutomationProperties.SetName(_libraryOffset, "Device display offset");
+        AutomationProperties.SetName(_librarySceneCc, "Device Scene Select CC number");
+        var fields = new Grid { ColumnDefinitions = new ColumnDefinitions("100,12,*,12,100") };
+        fields.Children.Add(CompactField("MIDI channel", _libraryChannel));
+        var offset = CompactField("Display offset", _libraryOffset);
+        Grid.SetColumn(offset, 2); fields.Children.Add(offset);
+        var scene = CompactField("Scene CC#", _librarySceneCc);
+        Grid.SetColumn(scene, 4); fields.Children.Add(scene);
+        var stack = new StackPanel { Spacing = 8 };
+        stack.Children.Add(fields);
+        stack.Children.Add(new TextBlock
+        {
+            Text = "Save changes to apply this mapping. Detected preset limits are applied automatically. Program Change mapping must be disabled on the device when Display Offset is 0.",
+            FontSize = 12,
+            Foreground = SecondaryBrush,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        SetApprovedCardContent(card, stack);
+        return card;
+    }
+
+    private DevicePresetMapping ManagedLibraryMapping(DeviceIndex? cache) =>
+        Core.ProfileLibraryCoordinator.ResolveMapping(cache, _indexProfile, _settings, _profileStore?.ListProfiles() ?? [], ReadManagedProfile);
     private string[] LibraryAssignedProfiles(Guid id) => (_profileStore?.ListProfiles() ?? [])
         .Where(name => IndexJson.ReadProfile(ReadManagedProfile(name).FractalIndex).SelectedDeviceId == id).ToArray();
 
@@ -172,10 +215,9 @@ public partial class MainWindow
         _refreshingLibraries = true;
         try
         {
-            var devices = _indexLibrary.ListDevices();
-            CacheLibraryDisplayNames(devices);
+            var devices = AvailableIndexDevices();
             if (_managedLibraryId is null || devices.All(d => d.Id != _managedLibraryId))
-            { _managedLibraryId = devices.FirstOrDefault(d => d.Id == _indexProfile.SelectedDeviceId)?.Id ?? (devices.Count > 0 ? devices[0].Id : null); }
+            { _managedLibraryId = devices.FirstOrDefault(d => d.Id == _indexProfile.SelectedDeviceId)?.Id ?? (devices.Length > 0 ? devices[0].Id : null); }
             _managedLibraries.Items.Clear();
             foreach (var device in devices)
             {
@@ -191,7 +233,7 @@ public partial class MainWindow
                 _managedLibraries.Items.Add(item);
             }
             _managedLibraries.SelectedItem = _managedLibraries.Items.OfType<ListBoxItem>().FirstOrDefault(i => (Guid)i.Tag! == _managedLibraryId);
-            _libraryCount!.Text = $"{devices.Count} libraries";
+            _libraryCount!.Text = devices.Length == 1 ? "1 library" : $"{devices.Length} libraries";
             RefreshManagedLibraryDetails();
         }
         catch (Exception ex) { SetIndexMessage("Could not load libraries: " + ex.Message); }
@@ -213,6 +255,10 @@ public partial class MainWindow
         _indexVariant.IsVisible = _creatingLibrary && choices.Length > 1;
         _libraryModelLabel!.IsVisible = !_indexVariant.IsVisible;
         _libraryModelLabel.Text = (_indexVariant.SelectedItem as IndexVariantChoice)?.Label ?? "—";
+        var mapping = ManagedLibraryMapping(_creatingLibrary ? null : cache);
+        _libraryChannel!.SelectedIndex = mapping.MidiChannel;
+        _libraryOffset!.SelectedIndex = mapping.DisplayOffset;
+        _librarySceneCc!.Value = mapping.SceneCc;
         foreach (var item in _managedLibraries!.Items.OfType<ListBoxItem>())
         {
             bool selected = !_creatingLibrary && (Guid)item.Tag! == _managedLibraryId;
@@ -238,8 +284,8 @@ public partial class MainWindow
     {
         if (_librarySave is null) { return; }
         bool ready = !LibraryManagementBusy && _profileStore is not null;
-        DeviceIndex? cache = null;
-        try { if (_managedLibraryId is Guid id) { cache = _indexLibrary.Load(id); } }
+        IndexLibrarySummary? cache = null;
+        try { if (_managedLibraryId is Guid id) { cache = _indexLibrary.LoadSummary(id); } }
         catch (Exception ex) { ready = false; SetIndexMessage("Could not read library: " + ex.Message); }
         _libraryCreate!.IsEnabled = ready && !_creatingLibrary;
         _librarySave.Content = _creatingLibrary ? "Create library" : "Save changes";
@@ -251,6 +297,7 @@ public partial class MainWindow
         _libraryCancel!.IsVisible = _creatingLibrary;
         _indexDeviceName!.IsEnabled = ready && (_creatingLibrary || cache is not null);
         _indexVariant!.IsEnabled = ready && _creatingLibrary && _indexVariant.IsVisible;
+        _libraryMapping!.IsEnabled = ready && (_creatingLibrary || cache is not null);
         _managedLibraries!.IsEnabled = ready;
         if (_indexAvailableDevices is not null) { _indexAvailableDevices.IsEnabled = ready; }
     }
@@ -259,6 +306,25 @@ public partial class MainWindow
     {
         if (LibraryManagementBusy) { RefreshIndexContext(); return; }
         if (!IndexDeviceMatchesProfile(device.Variant)) { RefreshIndexContext(); return; }
+        try
+        {
+            var cache = _indexLibrary.Load(device.Id);
+            if (cache is null)
+            {
+                RefreshIndexContext();
+                SetIndexMessage("This library is no longer available. Choose another saved library.");
+                return;
+            }
+            device = cache.Device;
+            if (cache is { PresetMapping: null })
+            {
+                // Resolve the old assignment before replacing it, so another device
+                // cannot inherit the active device's legacy mapping by accident.
+                cache.PresetMapping = ManagedLibraryMapping(cache);
+                _indexLibrary.Save(cache);
+            }
+        }
+        catch (Exception ex) { SetIndexMessage("Could not load library mapping: " + ex.Message); return; }
         if (SaveIndexProfile(profile => profile.AssignDevice(device)))
         {
             _indexSelectedSlot = null; RefreshIndexContext();
@@ -282,7 +348,11 @@ public partial class MainWindow
                 ? LibraryVariants().First(c => c.Variant.ToDeviceModel() == detected.Model).Variant : choice.Variant);
             var device = new IndexDevice(existing?.Device.Id ?? Guid.NewGuid(), _indexDeviceName?.Text ?? "", variant,
                 existing is null ? _detectedDevice?.Firmware : existing.Device.Firmware);
-            var saved = _indexLibrary.SaveDevice(device);
+            if (_librarySceneCc?.Value is not decimal sceneCc || sceneCc != decimal.Truncate(sceneCc))
+            { throw new ArgumentException("Scene CC# must be a whole number from 0 to 127."); }
+            var mapping = new DevicePresetMapping(_libraryChannel!.SelectedIndex, _libraryOffset!.SelectedIndex, (int)sceneCc);
+            if (!mapping.IsValid) { throw new ArgumentException("Choose a valid MIDI channel, display offset and Scene CC#."); }
+            var saved = _indexLibrary.SaveDevice(device, mapping);
             _managedLibraryId = saved.Device.Id; _creatingLibrary = false;
             RefreshIndexContext();
             SetIndexMessage(creating ? "Library created. Choose Use for this profile to assign it." : "Library changes saved.");

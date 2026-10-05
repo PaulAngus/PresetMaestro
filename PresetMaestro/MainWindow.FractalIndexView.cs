@@ -8,17 +8,23 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using PresetMaestro.Core;
 using PresetMaestro.FractalIndex;
+using PresetMaestro.Midi;
 
 namespace PresetMaestro;
 
 public partial class MainWindow
 {
-    private Control? _indexPageControl;
+    private Control? _indexPageControl, _indexSearchControls, _indexLibraryActions, _indexSyncInfo;
+    private TextBlock? _indexPageTitle;
     private ListBox? _indexList;
     private StackPanel? _indexInspector;
+    private StackPanel? _indexInspectorHeader;
+    private ScrollViewer? _indexInspectorScroll;
     private Border? _indexInspectorFrame;
+    private Grid? _indexResultsPane;
     private TextBlock? _indexStatus, _indexCount, _indexEmpty;
     private Button? _indexSyncButton, _indexResumeButton, _indexCancelButton, _indexReviewButton;
     private ProgressBar? _indexProgress;
@@ -32,6 +38,7 @@ public partial class MainWindow
     private readonly List<SearchChip> _indexSearchChips = [];
     private bool _indexAllTags = true, _indexRendering;
     private int? _indexSelectedSlot;
+    private int? _indexSelectedScene;
     private Border? _indexConnectionSyncBanner;
     private TextBlock? _indexConnectionSyncTitle, _indexConnectionSyncSummary;
 
@@ -57,7 +64,11 @@ public partial class MainWindow
     {
         var button = create("Preset Index", _indexPageControl!, AppPage.PresetIndex, null);
         _presetIndexNavigation = button;
-        button.Click += (_, _) => { RefreshIndexContext(); };
+        button.Click += (_, _) =>
+        {
+            if (!_openingAmpPresets) { _ampContains = null; }
+            RefreshIndexContext();
+        };
         nav.Children.Add(button);
         _ampsNavigation = create("Amps", _ampsPage!, AppPage.Amps, null);
         _ampsNavigation.Click += (_, _) => RefreshIndexContext();
@@ -68,10 +79,12 @@ public partial class MainWindow
     {
         var page = new Grid { Name = "PresetIndexPage", Margin = new Thickness(20, 12, 20, 20) };
         var card = new Border { Background = ThemeBrush("AppBrush"), BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(16, 11, 12, 12) };
-        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,*,Auto,Auto") };
+        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,*,Auto") };
         var title = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 0, 0, 8) };
-        title.Children.Add(new TextBlock { Text = "Preset Index", FontSize = 16, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center });
+        _indexPageTitle = new TextBlock { Name = "IndexPageTitle", Text = "Preset Index", FontSize = 20, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+        title.Children.Add(_indexPageTitle);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        _indexLibraryActions = actions;
         _indexReviewButton = IndexButton("Needs review", "IndexReview");
         _indexReviewButton.Click += async (_, _) => await ShowIndexReviewAsync();
         _indexSyncButton = IndexButton("Sync device", "IndexSync");
@@ -86,6 +99,7 @@ public partial class MainWindow
         actions.Children.Add(_indexResumeButton); actions.Children.Add(_indexCancelButton);
         Grid.SetColumn(actions, 1); title.Children.Add(actions); content.Children.Add(title);
         var syncInfo = new StackPanel { Spacing = 7, Margin = new Thickness(0, 0, 0, 10) };
+        _indexSyncInfo = syncInfo;
         _indexConnectionSyncTitle = new TextBlock { Name = "IndexConnectionSyncTitle", FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = ThemeBrush("SendSuccessForegroundBrush"), TextWrapping = TextWrapping.Wrap };
         _indexConnectionSyncSummary = new TextBlock { Name = "IndexConnectionSyncSummary", FontSize = 14, Foreground = TextBrush, TextWrapping = TextWrapping.Wrap };
         var completion = new Grid { ColumnDefinitions = new("*,12,Auto") };
@@ -95,8 +109,8 @@ public partial class MainWindow
         Grid.SetColumn(dismiss, 2); completion.Children.Add(dismiss);
         _indexConnectionSyncBanner = new Border { Name = "IndexConnectionSyncBanner", Child = completion, Padding = new(12), CornerRadius = new(6), Background = ThemeBrush("SendSuccessBackgroundBrush"), BorderBrush = ThemeBrush("SendSuccessForegroundBrush"), BorderThickness = new(4, 0, 0, 0), IsVisible = false };
         syncInfo.Children.Add(_indexConnectionSyncBanner);
-        syncInfo.Children.Add(new TextBlock { Name = "IndexSyncNotice", Text = "Sync can take several minutes, or longer over slower MIDI connections. You can cancel and resume.", FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap });
-        _indexMatchStatus = new TextBlock { Name = "IndexMatchStatus", FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap };
+        syncInfo.Children.Add(new TextBlock { Name = "IndexSyncNotice", Text = "Sync reads saved presets, scenes and amp models. It can take several minutes; you can cancel and resume.", FontSize = 13, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap });
+        _indexMatchStatus = new TextBlock { Name = "IndexMatchStatus", FontSize = 13, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap };
         syncInfo.Children.Add(_indexMatchStatus);
         _indexProgressText = new TextBlock { Name = "IndexProgressText", Text = _indexProgressMessage, FontSize = 13, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, TextWrapping = TextWrapping.Wrap };
         _indexProgress = new ProgressBar { Name = "IndexProgress", Height = 14, Minimum = 0, Maximum = 512, Foreground = AccentBrush, Background = UiBorderBrush };
@@ -104,34 +118,62 @@ public partial class MainWindow
         _indexProgressPanel = new StackPanel { Spacing = 7, Children = { _indexProgressText, _indexProgress } };
         syncInfo.Children.Add(_indexProgressPanel);
         Grid.SetRow(syncInfo, 1); content.Children.Add(syncInfo);
-        var search = BuildIndexSearch(); Grid.SetRow(search, 2); content.Children.Add(search);
-        _indexCount = new TextBlock { Name = "IndexResultCount", FontSize = 11, Foreground = SecondaryBrush, Margin = new Thickness(0, 4, 0, 4) };
-        var resultsHeading = new StackPanel { Spacing = 4, Children = { BuildAmpFilterRow(), _indexCount } };
+        _indexSearchControls = BuildIndexSearch(); Grid.SetRow(_indexSearchControls, 2); content.Children.Add(_indexSearchControls);
+        _indexCount = new TextBlock { Name = "IndexResultCount", FontSize = 13, Foreground = SecondaryBrush, Margin = new Thickness(0, 8, 0, 8) };
+        var resultsHeading = new StackPanel { Spacing = 4, Children = { BuildAmpDetailsHeading(), _indexCount } };
         Grid.SetRow(resultsHeading, 3); content.Children.Add(resultsHeading);
         var results = new Grid { Margin = new Thickness(0, 5, 0, 5), MinHeight = 100 };
-        _indexList = new ListBox { Name = "IndexPresetList", Background = SurfaceBrush, BorderThickness = new Thickness(0), ItemContainerTheme = CompactListItemTheme() };
+        _indexList = new ListBox { Name = "IndexPresetList", Background = SurfaceBrush, BorderThickness = new Thickness(0), ItemContainerTheme = CompactListItemTheme(), Focusable = true };
         _indexList.ItemsPanel = new FuncTemplate<Panel?>(() => new IndexTablesPanel());
         ScrollViewer.SetHorizontalScrollBarVisibility(_indexList, ScrollBarVisibility.Disabled);
         _indexList.SelectionChanged += (_, _) =>
         {
             if (_indexRendering) { return; }
             _indexSelectedSlot = (_indexList.SelectedItem as ListBoxItem)?.Tag is IndexedPreset preset ? preset.Slot : null;
+            _indexSelectedScene = null;
             if (_indexList.SelectedIndex >= 0) { _indexList.ScrollIntoView(_indexList.SelectedIndex); }
             PaintIndexSelection(); RenderIndexInspector();
+        };
+        _indexList.DoubleTapped += (_, e) =>
+        {
+            if (IndexItemFromSource(e.Source) is { Tag: IndexedPreset preset })
+            { GoToDevice(preset.Slot, null, _indexCache!.Device.Variant.ToDeviceModel()); e.Handled = true; }
         };
         results.Children.Add(_indexList);
         _indexEmpty = new TextBlock { Name = "IndexEmptyState", TextWrapping = TextWrapping.Wrap, MaxWidth = 520, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         results.Children.Add(_indexEmpty);
         var listFrame = new Border { Child = results, Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(4, 0), ClipToBounds = true };
-        Grid.SetRow(listFrame, 4); content.Children.Add(listFrame);
+        _indexResultsPane = new Grid { Name = "IndexResultsPane", ColumnDefinitions = new("*,0,0") };
+        _indexResultsPane.Children.Add(listFrame);
+        Grid.SetRow(_indexResultsPane, 4); content.Children.Add(_indexResultsPane);
         _indexInspector = new StackPanel { Name = "IndexInspector", Spacing = 0 };
-        _indexInspectorFrame = new Border { Name = "IndexInspectorFrame", Child = _indexInspector, Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(0, 3, 0, 0), Margin = new Thickness(0, 10, 0, 0) };
-        Grid.SetRow(_indexInspectorFrame, 5); content.Children.Add(_indexInspectorFrame);
-        _indexStatus = new TextBlock { Name = "IndexStatus", FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush, Margin = new Thickness(0, 7, 0, 0) };
-        Grid.SetRow(_indexStatus, 6); content.Children.Add(_indexStatus);
+        _indexInspectorHeader = new StackPanel { Name = "IndexInspectorHeader", Spacing = 12 };
+        var inspectorHeader = new Border { Child = _indexInspectorHeader, BorderBrush = UiBorderBrush, BorderThickness = new(0, 0, 0, 1), Padding = new(16, 12, 16, 12) };
+        _indexInspectorScroll = new ScrollViewer { Name = "IndexInspectorScroll", Content = _indexInspector, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new(16) };
+        var inspectorLayout = new Grid { RowDefinitions = new("Auto,*") };
+        inspectorLayout.Children.Add(inspectorHeader);
+        Grid.SetRow(_indexInspectorScroll, 1); inspectorLayout.Children.Add(_indexInspectorScroll);
+        _indexInspectorFrame = new Border { Name = "IndexInspectorFrame", Child = inspectorLayout, Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new(6), ClipToBounds = true };
+        _indexInspectorFrame.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) { CloseIndexInspector(); e.Handled = true; }
+        };
+        Grid.SetColumn(_indexInspectorFrame, 2); _indexResultsPane.Children.Add(_indexInspectorFrame);
+        _indexStatus = new TextBlock { Name = "IndexStatus", FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush, Margin = new Thickness(0, 10, 0, 0) };
+        Grid.SetRow(_indexStatus, 5); content.Children.Add(_indexStatus);
         card.Child = content; page.Children.Add(card);
         RenderIndexResults(); UpdateIndexButtons();
         return page;
+    }
+
+    private static ListBoxItem? IndexItemFromSource(object? source)
+    {
+        for (var visual = source as Visual; visual is not null; visual = visual.GetVisualParent())
+        {
+            if (visual is Button) { return null; }
+            if (visual is ListBoxItem item) { return item; }
+        }
+        return null;
     }
 
     private void RefreshIndexConnectionSyncCompletion()
@@ -261,22 +303,31 @@ public partial class MainWindow
         if (_ampFilterRow is not null)
         {
             _ampFilterRow.IsVisible = _ampContains is not null;
-            _ampFilterLabel!.Text = "Contains: " + _ampContains?.Label;
+            _indexPageTitle!.Text = _ampContains?.Label ?? "Preset Index";
+            _indexSearchControls!.IsVisible = _ampContains is null;
+            _indexLibraryActions!.IsVisible = _ampContains is null || _indexScanning;
+            _indexSyncInfo!.IsVisible = _ampContains is null || _indexScanning;
+            if (_ampContains is not null)
+            {
+                chips.Clear();
+                if (_indexSearchPopup is not null) { _indexSearchPopup.IsOpen = false; }
+            }
         }
         // Use exactly the Favorites picker's empty-edge policy. Unknown names and interior gaps remain.
         var visibleSlots = PresetSelection.TrimExplicitEmptyEdges(saved.Select(p => new PresetChoice(p.Slot, p.Name)).ToArray())
             .Select(p => p.Slot).ToHashSet();
         var presets = saved.Where(p => visibleSlots.Contains(p.Slot)).ToArray();
         if (_indexSelectedSlot is int selected && !visibleSlots.Contains(selected)) { _indexSelectedSlot = null; }
-        var filtered = presets.Where(p => (_ampContains is null || _ampContains.AppliesTo(_indexCache) && _ampContains.Matches(p) && MatchesAmpScene(p)) && IndexSearch.Matches(p, _indexProfile.Find(_indexCache!.Device.Id, p, scan!.Firmware),
+        var filtered = presets.Where(p => (_ampContains is null || _ampContains.AppliesTo(_indexCache) && _ampContains.Matches(p)) && IndexSearch.Matches(p, _indexProfile.Find(_indexCache!.Device.Id, p, scan!.Firmware),
             chips.Where(c => !c.IsTag).Select(c => c.Value), chips.Where(c => c.IsTag).Select(c => c.Value), _indexAllTags, _settings.DisplayOffset)).ToArray();
+        if (_indexSelectedSlot is int chosen && filtered.All(p => p.Slot != chosen)) { _indexSelectedSlot = _indexSelectedScene = null; }
         _indexRendering = true;
         _indexList.Items.Clear();
         foreach (var preset in filtered)
         {
             var annotation = _indexProfile.Find(_indexCache!.Device.Id, preset, scan!.Firmware);
-            var row = new Grid { Height = 32, ColumnDefinitions = new ColumnDefinitions("42,*"), Margin = new Thickness(4, 0) };
-            row.Children.Add(new TextBlock { Text = (preset.Slot + _settings.DisplayOffset).ToString("D3"), FontSize = 12, Foreground = AccentBrush, VerticalAlignment = VerticalAlignment.Center });
+            var row = new Grid { Height = _ampContains is null ? 42 : 64, ColumnDefinitions = new ColumnDefinitions("48,*"), Margin = new Thickness(8, 0) };
+            row.Children.Add(new TextBlock { Text = (preset.Slot + _settings.DisplayOffset).ToString("D3"), FontSize = 14, Foreground = AccentBrush, VerticalAlignment = VerticalAlignment.Center });
             var tags = new StackPanel { Orientation = Orientation.Horizontal, ClipToBounds = true, VerticalAlignment = VerticalAlignment.Center };
             foreach (string tag in annotation?.Tags ?? []) { tags.Children.Add(BuildFavoriteTagChip(tag, false)); }
             foreach (var (scene, sceneTags) in (annotation?.SceneTags ?? []).OrderBy(p => p.Key))
@@ -288,7 +339,7 @@ public partial class MainWindow
                 ClipToBounds = true,
                 Children =
             {
-                new TextBlock { Text = preset.Name.Length > 0 ? preset.Name : "(unnamed preset)", FontSize = 13, Foreground = TextBrush, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center }, tags,
+                new TextBlock { Text = preset.Name.Length > 0 ? preset.Name : "(unnamed preset)", FontSize = 14, Foreground = TextBrush, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center }, tags,
             }
             };
             Grid.SetColumn(titleTags, 1); row.Children.Add(titleTags);
@@ -297,12 +348,12 @@ public partial class MainWindow
                 row.Children.Remove(titleTags);
                 var summary = new StackPanel
                 {
-                    Spacing = 0,
+                    Spacing = 5,
                     VerticalAlignment = VerticalAlignment.Center,
                     Children =
                 {
                     titleTags,
-                    new TextBlock { Text = string.Join(" · ", _ampContains.MatchingChannels(preset)), FontSize = 10, Foreground = SecondaryBrush, TextTrimming = TextTrimming.CharacterEllipsis },
+                    new TextBlock { Name = "IndexAmpResultSummary", Text = string.Join(" · ", _ampContains.MatchingChannelSummary(preset)), FontSize = 13, Foreground = SecondaryBrush, TextTrimming = TextTrimming.CharacterEllipsis },
                 }
                 };
                 Grid.SetColumn(summary, 1); row.Children.Add(summary);
@@ -313,6 +364,10 @@ public partial class MainWindow
                 .Concat(annotation?.SceneTags.SelectMany(p => p.Value.Select(t => $"S{p.Key + 1}: {t}")) ?? [])
                 .Concat(_ampContains?.MatchingChannels(preset) ?? [])));
             _indexList.Items.Add(item);
+            var goTo = new MenuItem { Header = "Go to preset" };
+            goTo.Click += (_, _) => GoToDevice(preset.Slot, null, _indexCache!.Device.Variant.ToDeviceModel());
+            item.ContextMenu = new ContextMenu { Items = { goTo } };
+            item.ContextMenu.Opening += (_, _) => goTo.IsEnabled = DeviceNavigationUnavailable(_indexCache!.Device.Variant.ToDeviceModel()) is null;
         }
         _indexList.SelectedItem = _indexList.Items.OfType<ListBoxItem>().FirstOrDefault(i => ((IndexedPreset)i.Tag!).Slot == _indexSelectedSlot);
         _indexRendering = false;
@@ -325,20 +380,20 @@ public partial class MainWindow
         {
             _indexEmpty.Text = scan is null ? "No saved scan is available. Sync this device to find presets containing this amp."
                 : !_ampContains.AppliesTo(_indexCache) ? "Check this library with your device, or sync it again, to find presets using this amp."
-                : "No presets in this saved index match the Contains filter and current search. The amp remains in the Amps directory.";
+                : "No presets in this saved index contain this amp.";
         }
         int pending = _indexCache is null ? 0 : _indexProfile.Pending(_indexCache).Count();
         _indexReviewButton!.Content = $"Needs review ({pending})";
         _indexReviewButton.IsVisible = pending > 0 || _indexProfile.ReviewHistory.Count > 0;
         string state = _indexCache?.Committed is not null ? "complete saved index" : "partial saved index";
-        _indexCount.Text = $"{filtered.Length} of {presets.Length} presets" + (scan is null ? "" : $" · {state} · {scan.StartedAt.LocalDateTime:g}" + (_indexCache!.Imported ? " · imported / offline" : ""));
+        _indexCount.Text = (_ampContains is null ? $"{filtered.Length} of {presets.Length} presets" : $"{filtered.Length} " + (filtered.Length == 1 ? "preset" : "presets")) + (scan is null ? "" : $" · {state} · {scan.StartedAt.LocalDateTime:g}" + (_indexCache!.Imported ? " · imported / offline" : ""));
         if (!_indexScanning)
         {
             _indexProgress!.Value = scan?.Presets.Count ?? 0;
             _indexProgress.Maximum = _indexCache is null ? 512 : FractalDeviceDefinition.For(_indexCache.Device.Variant).PresetSlots;
             _indexStatus!.Text = _indexCache?.Committed is not null && _indexCache.LastAttempt is { Status: not "Complete" }
                 ? "Showing the last complete index. An unfinished scan is available to resume."
-                : "Click a preset to inspect it. Tags are saved in this profile. Scene tags use S1–S8 hints.";
+                : "Select a preset to see its scenes and amp models. Double-click or choose Go to to load it on the connected device.";
         }
         PaintIndexSelection(); RenderIndexInspector();
     }
@@ -366,82 +421,177 @@ public partial class MainWindow
     {
         if (_indexInspector is null) { return; }
         _indexInspector.Children.Clear();
+        _indexInspectorHeader!.Children.Clear();
+        _indexInspectorScroll!.Offset = default;
         _indexInspectorFrame!.IsVisible = false;
+        _indexResultsPane!.ColumnDefinitions = new("*,0,0");
         if (_indexSelectedSlot is not int slot || _indexCache?.Browsable is not { } scan || !scan.Presets.TryGetValue(slot, out var preset)) { return; }
         preset = AmpBrowserCatalog.ResolveForDisplay(preset, scan.EffectiveFirmware);
         _indexInspectorFrame.IsVisible = true;
+        _indexResultsPane.ColumnDefinitions = new("2*,16,3*");
+        var annotation = _indexProfile.Find(_indexCache.Device.Id, preset, scan.Firmware);
+        var close = IndexButton("Close details", "IndexCloseInspector");
+        close.MinHeight = 36; close.FontSize = 13; close.Padding = new(10, 4);
+        close.HorizontalAlignment = HorizontalAlignment.Right; close.VerticalAlignment = VerticalAlignment.Top;
+        close.Content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children =
+            {
+                new PathIcon
+                {
+                    Data = Geometry.Parse("M1,0 L6,5 L11,0 L12,1 L7,6 L12,11 L11,12 L6,7 L1,12 L0,11 L5,6 L0,1 Z"),
+                    Width = 12, Height = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+                new TextBlock { Text = "Close details", VerticalAlignment = VerticalAlignment.Center },
+            },
+        };
+        AutomationProperties.SetName(close, "Close details");
+        ToolTip.SetTip(close, "Close details (Esc)");
+        close.Click += (_, _) => CloseIndexInspector();
+        _indexInspectorHeader.Children.Add(BuildIndexTagLine($"{slot + _settings.DisplayOffset:D3}  {preset.Name}", annotation?.Tags ?? [], close));
+        var actions = new WrapPanel { Orientation = Orientation.Horizontal };
+        var model = _indexCache.Device.Variant.ToDeviceModel();
+        var goTo = new DeviceGoToButton("Go to preset", "IndexGoToPreset", () => preset.Slot,
+            selected => GoToDevice(selected, null, model), () => DeviceNavigationUnavailable(model))
+        { Margin = new(0, 0, 10, 0) };
+        actions.Children.Add(goTo);
+        var editTags = IndexButton(annotation?.Tags.Count > 0 ? "Edit preset tags" : "+ preset tag", "IndexPresetTags");
+        editTags.MinHeight = 36; editTags.FontSize = 13; editTags.Margin = new(0, 0, 10, 0);
+        editTags.IsEnabled = !preset.NameOnlyEmpty;
+        AutomationProperties.SetName(editTags, $"Edit tags for preset {preset.Name}");
+        editTags.Click += async (_, _) => await EditIndexTagsAsync(preset, null);
+        _indexInspectorHeader.Children.Add(actions);
         if (preset.NameOnlyEmpty)
         {
-            _indexInspector.Children.Add(new TextBlock { Text = $"{slot + _settings.DisplayOffset:D3}  <EMPTY> · Reported empty by the device; preset data was not downloaded.", Foreground = SecondaryBrush, FontSize = 12, Margin = new Thickness(6), TextWrapping = TextWrapping.Wrap });
+            actions.Children.Add(editTags);
+            _indexInspector.Children.Add(new TextBlock { Text = "Reported empty by the device; scene and amp data were not downloaded.", Foreground = SecondaryBrush, FontSize = 14, TextWrapping = TextWrapping.Wrap });
             return;
         }
-        var annotation = _indexProfile.Find(_indexCache.Device.Id, preset, scan.Firmware);
-        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Background = InsetBrush };
-        header.Children.Add(BuildIndexTagLine($"{slot + _settings.DisplayOffset:D3}  {preset.Name}", annotation?.Tags ?? [], null, preset));
-        var close = IndexButton("Close", "IndexCloseInspector");
-        close.Click += (_, _) => { _indexSelectedSlot = null; _indexList!.SelectedItem = null; RenderIndexInspector(); };
-        Grid.SetColumn(close, 1); header.Children.Add(close); _indexInspector.Children.Add(header);
         if (_ampContains is not null)
         {
             _indexInspector.Children.Add(new TextBlock { Name = "IndexAmpMatches", Text = string.Join("   ·   ", _ampContains.MatchingChannels(preset)), Foreground = AccentBrush, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(6, 4) });
         }
-        var scenes = new Grid { Name = "IndexScenes", ColumnDefinitions = new ColumnDefinitions("*,14,*"), RowDefinitions = new RowDefinitions("32,32,32,32,0,0,0,0") };
+        var scenes = new Grid { Name = "IndexScenes", ColumnDefinitions = new ColumnDefinitions("*,14,*"), RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,0,0,0,0") };
         for (int scene = 0; scene < 8; scene++)
         {
             var tags = annotation?.SceneTags.GetValueOrDefault(scene) ?? [];
-            var row = BuildIndexTagLine($"{scene + 1}   {(preset.SceneNames[scene].Length > 0 ? preset.SceneNames[scene] : "(unnamed scene)")}", tags, scene, preset);
-            row.Background = scene % 2 == 0 ? SurfaceBrush : InsetBrush;
+            var row = BuildIndexSceneRow(preset, scene, tags);
             Grid.SetColumn(row, scene < 4 ? 0 : 2); Grid.SetRow(row, scene % 4); scenes.Children.Add(row);
         }
         var headings = new Grid { ColumnDefinitions = new ColumnDefinitions("*,14,*"), Height = 24 };
         for (int group = 0; group < 2; group++)
         {
-            var heading = new Grid { ColumnDefinitions = IndexSceneColumns(preset) };
-            heading.Children.Add(new TextBlock { Text = "Scene", FontSize = 11, Foreground = SecondaryBrush, Margin = new Thickness(6, 0), VerticalAlignment = VerticalAlignment.Center });
-            for (int amp = 0; amp < preset.Amps.Length; amp++)
-            {
-                var text = new TextBlock { Text = $"Amp {preset.Amps[amp].BlockNumber}", FontSize = 11, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                Grid.SetColumn(text, amp + 2); heading.Children.Add(text);
-            }
+            var heading = new Grid();
+            heading.Children.Add(new TextBlock { Text = "Scene · saved amp settings", FontSize = 13, Foreground = SecondaryBrush, VerticalAlignment = VerticalAlignment.Center });
             Grid.SetColumn(heading, group * 2); headings.Children.Add(heading);
         }
         var sceneSection = new IndexSceneSectionPanel(headings, scenes)
         {
             Name = "IndexSceneSection",
-            Children = { IndexSectionHeading("Scenes & tags"), headings, scenes },
+            Spacing = 8,
+            Children = { IndexSectionHeading("Scenes"), new TextBlock { Text = "A–D identify each Amp block's channel. Off means bypassed. Go to loads this preset and scene on your device.", FontSize = 13, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap }, headings, scenes },
         };
         var ampSection = new StackPanel { Name = "IndexAmpSection" };
-        ampSection.Children.Add(IndexSectionHeading("Amp channels"));
+        ampSection.Spacing = 8; ampSection.Margin = new(0, 20, 0, 0);
+        ampSection.Children.Add(IndexSectionHeading("Amp models by channel"));
         ampSection.Children.Add(BuildIndexAmpTable(preset));
-        _indexInspector.Children.Add(new IndexInspectorSectionsPanel
+        var showAmps = IndexButton("Amp models ↓", "IndexShowAmpModels"); showAmps.MinHeight = 36; showAmps.FontSize = 13; showAmps.Margin = new(0, 0, 10, 0);
+        showAmps.Click += (_, _) => ampSection.BringIntoView(); actions.Children.Add(showAmps);
+        var showScenes = IndexButton("Back to scenes ↑", "IndexShowScenes"); showScenes.MinHeight = 36; showScenes.FontSize = 13; showScenes.Margin = new(0, 0, 10, 0);
+        AutomationProperties.SetName(showScenes, "Back to scenes");
+        showScenes.Click += (_, _) => _indexInspectorScroll.Offset = default;
+        actions.Children.Add(showScenes);
+        actions.Children.Add(editTags);
+        _indexInspector.Children.Add(sceneSection); _indexInspector.Children.Add(ampSection);
+    }
+
+    private void CloseIndexInspector()
+    {
+        var source = _indexList?.SelectedItem as ListBoxItem;
+        _indexSelectedSlot = null; _indexSelectedScene = null;
+        if (_indexList is not null) { _indexList.SelectedItem = null; }
+        RenderIndexInspector();
+        if (source?.Focus() != true) { _indexList?.Focus(); }
+    }
+
+    private Grid BuildIndexSceneRow(IndexedPreset preset, int scene, IEnumerable<string> tags)
+    {
+        int number = scene + 1;
+        var row = new Grid { Name = $"IndexScene{number}Row", MinHeight = 66, ColumnDefinitions = new("*,Auto,8,Auto"), Background = _indexSelectedScene == scene ? ThemeBrush("SelectedBrush") : InsetBrush, Margin = new(0, 0, 0, 6), Focusable = true };
+        var labels = new StackPanel { Spacing = 5, Margin = new(10, 6), VerticalAlignment = VerticalAlignment.Center };
+        var tagPanel = new StackPanel { Orientation = Orientation.Horizontal, ClipToBounds = true, VerticalAlignment = VerticalAlignment.Center };
+        foreach (var tag in tags) { tagPanel.Children.Add(BuildFavoriteTagChip(tag, false)); }
+        labels.Children.Add(new FavoriteTitleTagsPanel
         {
-            Margin = new Thickness(6, 4, 6, 6),
-            Children = { sceneSection, ampSection },
+            Children =
+        {
+            new TextBlock { Text = $"{number}   {(preset.SceneNames[scene].Length > 0 ? preset.SceneNames[scene] : "(unnamed scene)")}", FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, TextTrimming = TextTrimming.CharacterEllipsis }, tagPanel,
+        }
         });
+        string ampSummary = preset.Amps.Length == 0 ? "No Amp blocks" : string.Join("\n", preset.Amps.Select(amp =>
+        {
+            var state = amp.Scenes[scene];
+            var model = amp.Channels.Single(channel => channel.Channel == state.Channel).Model;
+            return $"{model.DisplayName} · channel {(char)('A' + state.Channel)}{(state.Bypassed ? " (off)" : "")}";
+        }));
+        labels.Children.Add(new TextBlock { Name = $"IndexScene{number}AmpSummary", Text = ampSummary, FontSize = 13, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap });
+        row.Children.Add(labels);
+        var edit = IndexButton("Tags…", $"IndexScene{number}Tags");
+        edit.MinHeight = 36; ToolTip.SetTip(edit, tags.Any() ? string.Join(", ", tags) : "Add tags to this scene.");
+        edit.Click += async (_, _) => await EditIndexTagsAsync(preset, scene);
+        Grid.SetColumn(edit, 1); row.Children.Add(edit);
+        var model = _indexCache!.Device.Variant.ToDeviceModel();
+        var goTo = new DeviceGoToButton("Go to", $"IndexScene{number}GoTo", () => number,
+            selected => GoToDevice(preset.Slot, selected, model), () => DeviceNavigationUnavailable(model))
+        { Margin = new(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(goTo, 3); row.Children.Add(goTo);
+        void Select()
+        {
+            _indexSelectedScene = scene;
+            foreach (var other in row.Parent is Grid scenes ? scenes.Children.OfType<Grid>() : []) { other.Background = other == row ? ThemeBrush("SelectedBrush") : InsetBrush; }
+        }
+        // DoubleTapped requires identical child controls for both presses. A scene is one
+        // target even when the pointer moves between its labels and background.
+        row.PointerPressed += (_, e) =>
+        {
+            if (e.Source is not Visual visual || visual is Button || visual.GetVisualAncestors().OfType<Button>().Any()) { return; }
+            bool invoke = e.GetCurrentPoint(row).Properties.IsLeftButtonPressed && e.ClickCount % 2 == 0 && _indexSelectedScene == scene;
+            Select(); row.Focus();
+            if (invoke) { goTo.Go(); e.Handled = true; }
+        };
+        row.KeyDown += (_, e) =>
+        {
+            if (e.Source == row && e.Key == Key.Enter) { Select(); goTo.Go(); e.Handled = true; }
+        };
+        var menu = new MenuItem { Header = "Go to scene" }; menu.Click += (_, _) => goTo.Go();
+        row.ContextMenu = new ContextMenu { Items = { menu } };
+        row.ContextMenu.Opening += (_, _) => { goTo.Refresh(); menu.IsEnabled = goTo.IsEnabled; };
+        AutomationProperties.SetName(row, $"Scene {number}: {preset.SceneNames[scene]}. {ampSummary.Replace('\n', ';')}");
+        return row;
     }
 
     private static TextBlock IndexSectionHeading(string title) => new()
     {
         Text = title,
-        FontSize = 12,
+        FontSize = 16,
         FontWeight = FontWeight.SemiBold,
         Foreground = TextBrush,
-        Height = 28,
+        Height = 30,
         VerticalAlignment = VerticalAlignment.Center,
         Padding = new Thickness(6, 5),
     };
 
-    private static ColumnDefinitions IndexSceneColumns(IndexedPreset preset) =>
-        new("*,100" + string.Concat(preset.Amps.Select(_ => ",44")));
-
-    private static Control BuildIndexAmpTable(IndexedPreset preset)
+    private Control BuildIndexAmpTable(IndexedPreset preset)
     {
         if (preset.Amps.Length == 0)
         {
             return new TextBlock { Name = "IndexAmpChannels", Text = "No Amp blocks in this preset.", FontSize = 12, Foreground = SecondaryBrush, Margin = new Thickness(8) };
         }
-        // Content-sized columns and four short rows; the surrounding Auto row gives spare height to the preset list.
-        var table = new Grid { Name = "IndexAmpChannels", ColumnDefinitions = new ColumnDefinitions("60," + string.Join(',', preset.Amps.Select(_ => "Auto"))), RowDefinitions = new RowDefinitions("24,32,32,32,32"), HorizontalAlignment = HorizontalAlignment.Left };
+        // Wrapping model names remain readable independently of the preset list's height.
+        var table = new Grid { Name = "IndexAmpChannels", ColumnDefinitions = new ColumnDefinitions("70," + string.Join(',', preset.Amps.Select(_ => "*"))), RowDefinitions = new RowDefinitions("30,Auto,Auto,Auto,Auto") };
         AutomationProperties.SetName(table, "Saved amp models by channel");
         for (int row = 0; row < 5; row++)
         {
@@ -457,7 +607,21 @@ public partial class MainWindow
             Grid.SetColumn(heading, column + 1); table.Children.Add(heading);
             foreach (var channel in amp.Channels)
             {
-                var text = new TextBlock { Text = channel.Model.DisplayName, FontSize = 12, Foreground = TextBrush, MaxWidth = 310, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 24, 0) };
+                var family = _ampsCatalog?.Families.FirstOrDefault(f => f.Variants.Any(v => v.ModelId == channel.Model.Id));
+                var variant = family?.Variants.First(v => v.ModelId == channel.Model.Id);
+                string realAmp = family is null || family.Family.Confidence == "unmapped" ? "Real amp not mapped"
+                    : variant!.SpecificModel == variant.Name ? $"{family.Family.Manufacturer} {family.Family.Name}" : variant.SpecificModel;
+                var text = new StackPanel
+                {
+                    Spacing = 4,
+                    MinHeight = 64,
+                    Margin = new(12, 8),
+                    Children =
+                {
+                    new TextBlock { Text = realAmp, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = "Fractal: " + channel.Model.DisplayName, FontSize = 13, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap },
+                }
+                };
                 ToolTip.SetTip(text, channel.Model.DisplayName);
                 Grid.SetColumn(text, column + 1); Grid.SetRow(text, channel.Channel + 1); table.Children.Add(text);
             }
@@ -465,43 +629,20 @@ public partial class MainWindow
         return table;
     }
 
-    private Grid BuildIndexTagLine(string title, IEnumerable<string> tags, int? scene, IndexedPreset preset)
+    private Grid BuildIndexTagLine(string title, IEnumerable<string> tags, Button close)
     {
-        var row = new Grid { Height = 32, ColumnDefinitions = scene.HasValue ? IndexSceneColumns(preset) : new ColumnDefinitions("*,Auto"), ClipToBounds = true };
+        var row = new Grid { MinHeight = 40, ColumnDefinitions = new ColumnDefinitions("*,12,Auto") };
         var tagPanel = new StackPanel { Orientation = Orientation.Horizontal, ClipToBounds = true, VerticalAlignment = VerticalAlignment.Center };
         foreach (var tag in tags) { tagPanel.Children.Add(BuildFavoriteTagChip(tag, false)); }
         var titleTags = new FavoriteTitleTagsPanel
         {
-            Margin = new Thickness(6, 0),
             Children =
         {
-            new TextBlock { Text = title, Foreground = TextBrush, FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis }, tagPanel,
+            new TextBlock { Name = "IndexInspectorTitle", Text = title, Foreground = TextBrush, FontSize = 16, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap }, tagPanel,
         }
         };
         row.Children.Add(titleTags);
-        if (scene is int sceneNumber)
-        {
-            for (int column = 0; column < preset.Amps.Length; column++)
-            {
-                var amp = preset.Amps[column];
-                var state = amp.Scenes[sceneNumber];
-                var cell = new Border
-                {
-                    BorderBrush = UiBorderBrush,
-                    BorderThickness = new Thickness(column == 0 ? 1 : 0, 0, 0, 0),
-                    Child = new TextBlock { Text = $"{(char)('A' + state.Channel)}{(state.Bypassed ? " off" : "")}", FontSize = 11, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-                };
-                string description = $"Scene {sceneNumber + 1}, Amp {amp.BlockNumber}, channel {(char)('A' + state.Channel)}: {amp.Channels[state.Channel].Model.DisplayName} ({(state.Bypassed ? "bypassed" : "engaged")})";
-                ToolTip.SetTip(cell, description); AutomationProperties.SetName(cell, description);
-                Grid.SetColumn(cell, column + 2); row.Children.Add(cell);
-            }
-        }
-        string scope = scene.HasValue ? "scene" : "preset";
-        var edit = IndexButton(tags.Any() ? $"Edit {scope} tags" : $"+ {scope} tag", scene is int s ? $"IndexScene{s + 1}Tags" : "IndexPresetTags");
-        AutomationProperties.SetName(edit, scene is int index ? $"Edit tags for scene {index + 1}: {preset.SceneNames[index]}" : $"Edit tags for preset {preset.Name}");
-        edit.Background = Brushes.Transparent; edit.BorderThickness = new Thickness(0);
-        edit.Click += async (_, _) => await EditIndexTagsAsync(preset, scene);
-        Grid.SetColumn(edit, 1); row.Children.Add(edit);
+        Grid.SetColumn(close, 2); row.Children.Add(close);
         return row;
     }
 
@@ -570,11 +711,21 @@ public partial class MainWindow
             combo.SelectedItem = sameContent.Length == 1 ? sameContent[0] : choices.FirstOrDefault(c => c.Preset.Slot == annotation.Slot);
             item.Children.Add(combo);
             var mappings = new Dictionary<int, ComboBox>();
+            var model = _indexCache!.Device.Variant.ToDeviceModel();
+            item.Children.Add(new DeviceGoToButton("Go to preset", "IndexReviewGoToPreset", () => (combo.SelectedItem as IndexReviewChoice)?.Preset.Slot,
+                slot => GoToDevice(slot, null, model), () => DeviceNavigationUnavailable(model)));
             foreach (var (scene, tags) in annotation.SceneTags.Where(p => p.Value.Count > 0))
             {
                 var destination = new ComboBox { ItemsSource = Enumerable.Range(1, 8).Select(i => $"Scene {i}").ToArray(), SelectedIndex = scene, Width = 110 };
                 mappings[scene] = destination;
-                item.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new TextBlock { Text = $"S{scene + 1}: {string.Join(", ", tags)} →", Foreground = SecondaryBrush, VerticalAlignment = VerticalAlignment.Center }, destination } });
+                item.Children.Add(new WrapPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Children = { new TextBlock { Text = $"S{scene + 1}: {string.Join(", ", tags)} →", Foreground = SecondaryBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 0, 8, 0) }, destination,
+                    new DeviceGoToButton("Go to scene", "IndexReviewGoToScene", () => combo.SelectedItem is IndexReviewChoice ? destination.SelectedIndex + 1 : null,
+                        selected => combo.SelectedItem is IndexReviewChoice choice && GoToDevice(choice.Preset.Slot, selected, model), () => DeviceNavigationUnavailable(model)) { Margin = new(8, 0) },
+                }
+                });
             }
             var attach = IndexButton("Attach tags to selected preset");
             attach.Click += (_, _) =>
@@ -605,7 +756,7 @@ internal sealed class IndexSceneSectionPanel(Grid headings, Grid scenes) : Stack
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        bool twoColumns = availableSize.Width >= 720;
+        bool twoColumns = availableSize.Width >= 700;
         if (_twoColumns != twoColumns)
         {
             _twoColumns = twoColumns;
@@ -614,7 +765,7 @@ internal sealed class IndexSceneSectionPanel(Grid headings, Grid scenes) : Stack
             headings.Children[1].IsVisible = twoColumns;
             scenes.ColumnDefinitions[1].Width = new GridLength(twoColumns ? 14 : 0);
             scenes.ColumnDefinitions[2].Width = twoColumns ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-            for (int row = 4; row < 8; row++) { scenes.RowDefinitions[row].Height = new GridLength(twoColumns ? 0 : 32); }
+            for (int row = 4; row < 8; row++) { scenes.RowDefinitions[row].Height = twoColumns ? new GridLength(0) : GridLength.Auto; }
             for (int scene = 0; scene < scenes.Children.Count; scene++)
             {
                 Grid.SetColumn(scenes.Children[scene], twoColumns && scene >= 4 ? 2 : 0);
@@ -625,53 +776,25 @@ internal sealed class IndexSceneSectionPanel(Grid headings, Grid scenes) : Stack
     }
 }
 
-internal sealed class IndexInspectorSectionsPanel : Panel
-{
-    private const double Gap = 16;
-    private bool _sideBySide;
-    private double _ampWidth;
-
-    protected override Size MeasureOverride(Size availableSize)
-    {
-        if (Children.Count != 2) { return default; }
-        double width = double.IsFinite(availableSize.Width) ? availableSize.Width : 1200;
-        Children[1].Measure(new Size(width, double.PositiveInfinity));
-        _ampWidth = Children[1].DesiredSize.Width;
-        _sideBySide = width >= 400 + Gap + _ampWidth;
-        Children[0].Measure(new Size(_sideBySide ? width - Gap - _ampWidth : width, double.PositiveInfinity));
-        return new Size(width, _sideBySide ? Math.Max(Children[0].DesiredSize.Height, Children[1].DesiredSize.Height)
-            : Children[0].DesiredSize.Height + Gap + Children[1].DesiredSize.Height);
-    }
-
-    protected override Size ArrangeOverride(Size finalSize)
-    {
-        if (Children.Count != 2) { return finalSize; }
-        double sceneWidth = _sideBySide ? Math.Max(0, finalSize.Width - Gap - _ampWidth) : finalSize.Width;
-        Children[0].Arrange(new Rect(0, 0, sceneWidth, Children[0].DesiredSize.Height));
-        Children[1].Arrange(_sideBySide
-            ? new Rect(sceneWidth + Gap, 0, _ampWidth, Children[1].DesiredSize.Height)
-            : new Rect(0, Children[0].DesiredSize.Height + Gap, finalSize.Width, Children[1].DesiredSize.Height));
-        return finalSize;
-    }
-}
-
 internal sealed class IndexTablesPanel : Panel, INavigableContainer
 {
     private int _columns = 2, _rows;
     private double _width;
+    private double _rowHeight;
     protected override Size MeasureOverride(Size availableSize)
     {
         _width = double.IsFinite(availableSize.Width) ? availableSize.Width : 900;
-        _columns = Math.Max(1, (int)(_width / 340));
+        _columns = Math.Min(Math.Max(1, Children.Count), Math.Max(1, (int)(_width / 400)));
         _rows = (Children.Count + _columns - 1) / _columns;
-        foreach (var child in Children) { child.Measure(new Size(Math.Max(0, _width / _columns - 12), 32)); }
-        return new Size(_width, _rows * 32);
+        _rowHeight = 42;
+        foreach (var child in Children) { child.Measure(new Size(Math.Max(0, _width / _columns - 16), double.PositiveInfinity)); _rowHeight = Math.Max(_rowHeight, child.DesiredSize.Height); }
+        return new Size(_width, _rows * _rowHeight);
     }
     protected override Size ArrangeOverride(Size finalSize)
     {
         if (_rows == 0) { return finalSize; }
         double width = _width / _columns;
-        for (int i = 0; i < Children.Count; i++) { Children[i].Arrange(new Rect(i / _rows * width, i % _rows * 32, Math.Max(0, width - 12), 32)); }
+        for (int i = 0; i < Children.Count; i++) { Children[i].Arrange(new Rect(i / _rows * width, i % _rows * _rowHeight, Math.Max(0, width - 16), _rowHeight)); }
         return finalSize;
     }
     public IInputElement? GetControl(NavigationDirection direction, IInputElement? from, bool wrap)

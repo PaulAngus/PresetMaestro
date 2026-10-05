@@ -27,11 +27,11 @@ public sealed class MidiMappingWindow : Window
     private int _selected;
 
     public MidiMappingWindow(string profile, int sceneCc, IReadOnlyDictionary<int, string> noteMap,
-        Action<int, Dictionary<int, string>> save)
+        Action<int, Dictionary<int, string>> save, bool showSceneCc = true)
     {
         _save = save;
         _light = Application.Current?.ActualThemeVariant != ThemeVariant.Dark;
-        Title = "MIDI Mapping";
+        Title = showSceneCc ? "MIDI Mapping" : "MIDI Note Mapping";
         Width = 450;
         SizeToContent = SizeToContent.Height;
         CanResize = false;
@@ -52,7 +52,7 @@ public sealed class MidiMappingWindow : Window
         }
 
         var root = new StackPanel { Margin = new Thickness(15) };
-        root.Children.Add(Label("MIDI Mapping", 17, bold: true, bottom: 13));
+        root.Children.Add(Label(Title, 17, bold: true, bottom: 13));
 
         var sceneRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 0, 0, 12) };
         var sceneHeading = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
@@ -65,8 +65,11 @@ public sealed class MidiMappingWindow : Window
         sceneInput.Children.Add(_sceneCc);
         Grid.SetColumn(sceneInput, 1);
         sceneRow.Children.Add(sceneInput);
-        root.Children.Add(sceneRow);
-        root.Children.Add(Divider());
+        if (showSceneCc)
+        {
+            root.Children.Add(sceneRow);
+            root.Children.Add(Divider());
+        }
         _sceneError = Label("", 12);
         _sceneError.Name = "SceneCcError";
         _sceneError.Foreground = ErrorBrush;

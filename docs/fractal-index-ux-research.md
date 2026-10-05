@@ -21,6 +21,34 @@ The current application stores one device model/name and slot-keyed name caches 
 
 ## Documented precedents and what they imply
 
+### Preset details dismissal (reviewed 2026-10-04)
+
+The current side-by-side preset inspector follows the [Microsoft Fluent 2 inline drawer pattern](https://fluent2.microsoft.design/components/web/react/core/drawer/usage): supplemental details remain beside the preset list. Fluent's anatomy places the title and optional close control in the header, with a separate scrolling body; it allows a sticky header for long content. Its guidance also calls for predictable placement and concise action labels.
+
+PresetMaestro applies this with an X and **Close details** at the top-right edge of the details header. The header remains visible while scenes and amp models scroll, and preset actions occupy their own row beneath the title. Top-right placement, the visible text label, Escape dismissal within the pane, and focus return to the originating preset are this application's implementation choices. Closing keeps the active search and returns the space to the preset list without sending MIDI. Verify the header remains reachable at the supported narrow size in both themes.
+
+The close X uses a centered 12-pixel vector icon with an 8-pixel gap to its label, avoiding the baseline offset of a multiplication text character. This is an Avalonia implementation choice, retaining the existing theme, button and accessible name. [Fluent 2 button guidance](https://fluent2.microsoft.design/components/web/react/core/button/usage) documents concise action labels and the meaning of Close; the icon and text form one dismissal control.
+
+**Back to scenes** is placed beside **Amp models** in the fixed header action row, rather than below the amp table. Fluent 2 drawer guidance documents header quick actions such as Back and sticky headers for long content; [Windows navigation guidance](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/navigationview) calls for consistent navigation. Using persistent section-jump buttons in Avalonia's existing header is a product choice, not a requirement to introduce a NavigationView. Both section actions stay visible while the body scrolls, work with keyboard activation and remain separate from Close details. No deliberate deviation from these patterns is intended.
+
+Verification on 2026-10-04 inspected rendered light and dark layouts at 1440×850 and 1000×680. Regression checks cover dismissal after scrolling, Escape and focus return, scene invocation across child boundaries, keyboard invocation and independent embedded button actions. The scene double-click failure was also reproduced in the running Windows app; desktop control was stopped by the user before a live retest of the updated build.
+
+### Library update decision (reviewed 2026-10-04)
+
+[Windows dialog guidance](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/dialogs-and-flyouts/dialogs) calls for a simple blocking question, concise specific actions and a safe cancellation choice. [Fluent 2 dialog guidance](https://fluent2.microsoft.design/components/web/react/core/dialog/usage/) documents modal blocking, focus containment and return, persistent headers/footers, and avoiding nested dialogs.
+
+PresetMaestro's update confirmation belongs to the open **Sync with connected device** window through Avalonia's owned modal `ShowDialog` API. It shows the unmatched preset count instead of percentages and thresholds. **View differences**, **Update library**, and **Cancel** have short descriptions beside them. Review replaces the decision content inside this same confirmation window, showing preset numbers, names, saved/connected values, read errors or an explicit exact-change limitation when only a fingerprint differs. A fixed **Back** button returns to the decision; review performs no new device reads or writes. Escape returns from review, or cancels from the decision. Closing returns focus to Sync library after synchronization actions become available again.
+
+Deliberate deviations: the user requires the confirmation to remain above the sync window, so this owned confirmation is nested within the existing sync dialog. Review reuses that confirmation instead of opening another dialog. Actions are stacked with explanations beside each button, with Cancel last, instead of a horizontal footer; this is the user's requested presentation. Light/dark rendering at 1440×850 and 1000×680 and interaction regressions cover review, focus, counts, cancellation, accepted updates and preservation of saved data before acceptance.
+
+### Scene amp names (reviewed 2026-10-04)
+
+[Windows writing guidance](https://learn.microsoft.com/en-us/windows/apps/design/style/writing-style) recommends familiar wording and giving the key information the most visibility. [Fluent 2 text guidance](https://fluent2.microsoft.design/components/web/react/core/text/usage) documents consistent text presets and typography roles. PresetMaestro's product choice is to lead each scene's saved amp summary with the exact Fractal model selected by that scene's channel, instead of the uninformative block number. The channel and existing off marker follow the model name. Each Amp block uses a separate line; automatic row height and wrapping keep both names readable at supported narrow sizes. The scene's accessible name includes the same summary. Existing typography and task controls are retained, with no deliberate deviation from this guidance. Rendered light and dark views at 1440×850 and 1000×680 cover two Amp blocks, differing scene channels, and long model names; existing scene invocation tests check keyboard and pointer behavior after rows resize.
+
+### Scene invocation (reviewed 2026-10-04)
+
+[Windows mouse guidance](https://learn.microsoft.com/en-us/windows/apps/develop/input/mouse-interactions) documents routed pointer and double-tap events; [Windows list guidance](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/lists) distinguishes selection from item actions. PresetMaestro's product choice is single-click selection and double-click invocation, with explicit **Go to**, a context-menu action and Enter on a focused scene row as alternatives. Each scene's label, amp summary and background form one target. Avalonia pointer click counts recognize a double-click that crosses child boundaries; the two clicks must select the same scene. Embedded Tags and Go to buttons keep their own actions. Invocation uses the existing connected-device checks and MIDI mapping. These are product and framework implementation choices, not Microsoft requirements; no deliberate departure from the documented patterns is intended.
+
 | Source | Documented pattern | Application to PresetMaestro |
 |---|---|---|
 | [Fractal FM9-Edit](https://www.fractalaudio.com/fm9-edit/) | Presets and scenes are managed in a dedicated editor; the whole preset can be viewed before opening block details. | Keep PresetMaestro's index as a browser: preset summary first, scene/Amp detail on selection. This page establishes the editor pattern, not an offline search or profile model. |
@@ -33,6 +61,47 @@ The current application stores one device model/name and slot-keyed name caches 
 These sources support the interaction pattern. None specifies how PresetMaestro should bind its own profiles to Fractal units or reconcile preset lineage; those are product decisions below.
 
 ## Proposed experience
+
+### Library check differences (reviewed 2026-10-04)
+
+Current guidance: [Fluent 2 message bar](https://fluent2.microsoft.design/components/web/react/core/messagebar/usage)
+calls for specific, actionable feedback with supplementary details and wrapped
+content; [Windows writing style](https://learn.microsoft.com/en-us/windows/apps/design/style/writing-style)
+calls for concise explanations that help people decide what to do next. The app
+keeps the existing status surface, adds **What differs** immediately beneath it,
+and preserves the separate **Next step** section and fixed dismissal footer.
+Before/after values have readable labels and wrap instead of truncating. Long
+preset lists use a bounded scroll area. Escape and Done dismiss the dialog.
+These are Avalonia product choices; Fluent does not prescribe this exact diff
+layout. No new confirmation gate is added. Inspection covers light/dark themes
+with 1440- and 1000-pixel main windows and the supported 650-pixel sync dialog.
+Regression checks exercise actual failed checks, independent baseline/name
+preservation, keyboard dismissal and persisted evidence.
+
+The app now makes sample scope and baseline age explicit. Bypass states are
+excluded by new comparison fingerprints at the user's request. Older image-only
+fingerprints cannot identify bypass-only differences or reconstruct unindexed
+effect parameters; explain that limit and offer a deliberate library refresh.
+Never present a content mismatch as proof that a different physical unit is
+connected. See [diagnosis and comparison rules](library-check-diagnostics.md).
+
+### Selected amp details and result summaries (reviewed 2026-10-04)
+
+**User-directed flow:** after choosing an amp, this is a focused details view of that amp. The user returns through **Back to Amps** to search again or choose another amp. Show the chosen amp as a plain heading, such as Energyball, followed by Presets containing this amp and the matching preset list. Remove the Amp filter label, removable Contains chip, Clear amp filter action, Match in dropdown/radios, and matching-rule helper. Do not repeat the amp-search controls here. This replaces the earlier filter-form proposal; the internal matching mechanism must not dictate the user-facing layout.
+
+Relevant current primary guidance:
+
+| Source | Documented guidance | Application proposal |
+|---|---|---|
+| [Fluent 2 layout](https://fluent2.microsoft.design/layout) | Proximity establishes relationships; whitespace groups content and creates hierarchy. Use a consistent spacing ramp. | Separate navigation, the selected amp heading and matching presets. Use quieter secondary text. |
+| [Fluent 2 button](https://fluent2.microsoft.design/components/web/react/core/button/usage) | Use restrained appearances for minor actions; links can serve navigation. | Keep a clearly labelled Back to Amps navigation action, using existing Avalonia controls and theme. |
+| [Windows list/details](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/list-details) | Selecting a result updates its details; use layout appropriate to available width. | Keep a short summary in the result and expose exact channels and Fractal variants in the existing inspector. Preserve selection, device ordering and keyboard navigation during reflow. |
+
+**Recommended product choice:** selected amp details plus compact preset summaries. For the supplied Energyball examples, show 186 Uber Chuggas with Amp 1 · channels A–D, and 196 Blitz III with Amp 2 · channels A–D. The selected model is already named in the heading. Aggregate only matches sharing the same Amp block and exact model, and use A–D only when all four channels match; otherwise enumerate the actual letters, such as A, C. When a broad family matches different Fractal variants, include the variant name once per group or move additional groups into details; do not erase distinctions. These are stored-content summaries, never proof that every scene selects or enables the amp.
+
+Back to Amps preserves catalogue search, selection and scroll position. Direct Preset Index can retain its general-purpose preset search; the selected amp details view does not repeat it. This is the current product decision and supersedes older recommendations below for exposing an arriving Contains filter and scene-matching controls. Keep the saved-settings/Scene Ignore/unsaved-edits qualification with the scene-state details it qualifies. Check labels, keyboard access, focus return and reflow in light/dark themes at normal and narrow widths before implementation. Removing unnecessary controls and aggregating channel matches are user-directed application decisions; the guidance supports the hierarchy and list/details pattern. No deliberate departure from those patterns is intended.
+
+Implemented in the Avalonia app on 2026-10-04. The selected amp view also hides idle library management and sync notices so the hierarchy stays focused on the selected amp and its presets; active sync progress and cancellation remain available. This is a product choice, not a Fluent requirement. General preset/tag search is preserved independently and restored by direct Preset Index navigation. Back returns focus to Find presets in the amp details. Regression checks cover saved-channel matching regardless of programmed scene state, exact-model/block grouping, noncontiguous channels, independent search restoration and navigation without MIDI. Rendered app inspection covers light/dark themes at 1000 and 1440 pixels, including preset details.
 
 ### Agreed navigation direction (2026-09-30)
 

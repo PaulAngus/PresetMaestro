@@ -15,6 +15,66 @@ public sealed class ProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public void ImportRejectsOversizedRawJsonWithoutChangingExistingProfiles()
+    {
+        var store = new ProfileStore(_directory);
+        store.LoadSettings();
+        string source = Path.Combine(_directory, "Oversized-settings.json");
+        using (var file = File.Create(source)) { file.SetLength(32 * 1024 * 1024 + 1); }
+        File.WriteAllText(Path.Combine(_directory, "Oversized-favorites.json"), "[]");
+        var profiles = store.ListProfiles().ToArray();
+        string original = File.ReadAllText(Path.Combine(_directory, "Default-settings.json"));
+        var error = Assert.Throws<InvalidDataException>(() => store.Import(source, "Imported"));
+        Assert.Contains("too large", error.Message);
+        Assert.Equal(profiles, store.ListProfiles());
+        Assert.Equal(original, File.ReadAllText(Path.Combine(_directory, "Default-settings.json")));
+        Assert.False(File.Exists(Path.Combine(_directory, "Imported-settings.json")));
+    }
+
+    [Fact]
+    public void SettingsSaveRestoresProfileWhenMachineFileIsLockedAndCanBeRetried()
+    {
+        var store = new ProfileStore(_directory);
+        var settings = store.LoadSettings();
+        string profilePath = Path.Combine(_directory, "Default-settings.json");
+        string machinePath = Path.Combine(_directory, "settings.json");
+        string originalProfile = File.ReadAllText(profilePath), originalMachine = File.ReadAllText(machinePath);
+        settings.PresetNameCache[0] = "Updated";
+        using (var locked = new FileStream(machinePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            var error = Record.Exception(() => store.SaveSettings(settings));
+            Assert.True(error is IOException or UnauthorizedAccessException, error?.ToString());
+            Assert.Equal(originalProfile, File.ReadAllText(profilePath));
+            Assert.Equal(originalMachine, File.ReadAllText(machinePath));
+        }
+        store.SaveSettings(settings);
+        Assert.Equal("Updated", store.LoadProfile("Default").PresetNameCache[0]);
+        Assert.Empty(Directory.GetFiles(_directory, "*.tmp"));
+    }
+
+    [Fact]
+    public void ExportKeepsHistoricalLibraryReferencesWithoutInventingEmptySnapshots()
+    {
+        var store = new ProfileStore(_directory);
+        var settings = store.LoadSettings();
+        var saved = new PresetMaestro.FractalIndex.IndexDevice(Guid.NewGuid(), "Saved", PresetMaestro.FractalIndex.FractalDeviceVariant.FM9, "12.00");
+        var missing = saved with { Id = Guid.NewGuid(), Name = "Historical" };
+        var library = new PresetMaestro.FractalIndex.IndexLibrary(Path.Combine(_directory, "FractalIndex"));
+        library.Save(new() { Device = saved });
+        var profile = new PresetMaestro.FractalIndex.IndexProfile { Devices = [saved, missing], SelectedDeviceId = saved.Id };
+        settings.FractalIndex = PresetMaestro.FractalIndex.IndexJson.ToElement(profile);
+        store.SaveSettings(settings);
+        string archive = Path.Combine(_directory, "profile.zip");
+        store.Export("Default", archive);
+        string importedName = store.Import(archive, "Imported");
+        var imported = PresetMaestro.FractalIndex.IndexJson.ReadProfile(store.LoadProfile(importedName).FractalIndex);
+        Assert.Equal(2, imported.Devices.Count);
+        Assert.Equal("Saved", Assert.Single(imported.PortableSnapshots).Device.Name);
+        Assert.Contains(imported.Devices, device => device.Name == "Historical");
+        Assert.Single(library.ListDevices());
+    }
+
+    [Fact]
     public void MigratesLegacyDataOnceAndKeepsComputerOptionsSeparate()
     {
         Directory.CreateDirectory(_directory);

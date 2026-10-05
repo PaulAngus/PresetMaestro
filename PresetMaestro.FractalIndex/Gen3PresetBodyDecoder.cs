@@ -23,11 +23,13 @@ public static class Gen3PresetBodyDecoder
         // The grid supplies presence/instance IDs only. Coordinates and routing
         // do not form part of the indexed Amp state or determine its identity.
         var presentAmps = new SortedSet<int>();
+        bool hasPlacedBlocks = false;
         for (int column = 0; column < device.GridColumns; column++)
         {
             for (int row = 0; row < device.GridRows; row++)
             {
                 int effect = Word(gridStart + (column * device.GridRows + row) * 4);
+                hasPlacedBlocks |= effect is > 0 and <= 1000;
                 if (effect is 58 or 59)
                 {
                     if (effect - 58 >= device.MaxAmpBlocks)
@@ -114,6 +116,7 @@ public static class Gen3PresetBodyDecoder
             throw new InvalidDataException("Amp grid and block-record counts differ.");
         }
         return new PresetSnapshot(image.Scenes.Slot, image.Scenes.PresetName, image.Scenes.Names,
-            [.. amps], Convert.ToHexString(SHA256.HashData(image.RawImage)));
+            [.. amps], Convert.ToHexString(SHA256.HashData(image.RawImage)))
+        { BypassIgnoredSha256 = BypassIgnoredFingerprint.Compute(image, chainStart, hasPlacedBlocks) };
     }
 }

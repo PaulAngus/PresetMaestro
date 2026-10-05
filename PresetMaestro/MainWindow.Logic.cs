@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -73,9 +75,9 @@ public partial class MainWindow
 
     private void OpenSettingsFile()
     {
-        SaveSettingsFromUI();
         try
         {
+            SaveSettingsFromUI();
             Process.Start(new ProcessStartInfo(SettingsManager.SettingsPath) { UseShellExecute = true });
         }
         catch (Exception ex)
@@ -160,7 +162,7 @@ public partial class MainWindow
         if (fav == null)
         {
             AppendLog($"ERROR: no favorite assigned to slot {slot}");
-            ShowSendFeedback($"Favorite {slot} doesn't exist", "Choose an existing favorite to send.", warning: true, favoritesOnly: true);
+            ShowSendFeedback($"Favorite {slot} doesn't exist", "Choose an existing favorite to send.", warning: true);
             UpdateDisplay();
             return;
         }
@@ -182,7 +184,7 @@ public partial class MainWindow
         if (fav.Scene is < 1 or > 8)
         {
             AppendLog($"ERROR: favorite '{fav.Name}' has invalid scene {fav.Scene}");
-            ShowSendFeedback("Favorite scene is invalid", "Edit the favorite and choose scene 1–8.", warning: true, favoritesOnly: true);
+            ShowSendFeedback("Favorite scene is invalid", "Edit the favorite and choose scene 1–8.", warning: true);
             _enteredDigits = string.Empty;
             UpdateDisplay();
             return;
@@ -262,17 +264,16 @@ public partial class MainWindow
     }
 
     // ── UI update ────────────────────────────────────────────────
-    private void ShowSendFeedback(string title, string detail, bool warning = false, bool favoritesOnly = false)
+    private void ShowSendFeedback(string title, string detail, bool warning = false)
     {
-        HideSendFeedback();
-        if (!favoritesOnly)
-        {
-            SetSendFeedbackPanel(_senderFeedbackPanel, _senderFeedbackIcon, _senderFeedbackTitle, _senderFeedbackDetail, title, detail, warning);
-        }
-
-        SetSendFeedbackPanel(_favoriteFeedbackPanel, _favoriteFeedbackIcon, _favoriteFeedbackTitle, _favoriteFeedbackDetail, title, detail, warning);
-        _sendFeedbackTimer.Interval = TimeSpan.FromSeconds(warning ? 8 : 6);
-        _sendFeedbackTimer.Start();
+        _sendFeedbackTimer.Stop();
+        string? previous = AutomationProperties.GetName(_sendFeedbackPanel);
+        SetSendFeedbackPanel(_sendFeedbackPanel, _sendFeedbackIcon, _sendFeedbackTitle, _sendFeedbackDetail, title, detail, warning);
+        string announcement = title + ". " + detail;
+        AutomationProperties.SetName(_sendFeedbackPanel, announcement);
+        ControlAutomationPeer.CreatePeerForElement(_sendFeedbackPanel).RaisePropertyChangedEvent(AutomationElementIdentifiers.NameProperty, previous, announcement);
+        _sendFeedbackTimer.Interval = TimeSpan.FromSeconds(warning ? 8 : 7);
+        if (!_sendFeedbackPanel.IsPointerOver) { _sendFeedbackTimer.Start(); }
     }
 
     private static void SetSendFeedbackPanel(Border panel, TextBlock icon, TextBlock titleBlock, TextBlock detailBlock, string title, string detail, bool warning)
@@ -293,8 +294,7 @@ public partial class MainWindow
     private void HideSendFeedback()
     {
         _sendFeedbackTimer.Stop();
-        _senderFeedbackPanel.IsVisible = false;
-        _favoriteFeedbackPanel.IsVisible = false;
+        _sendFeedbackPanel.IsVisible = false;
     }
 
     private void UpdateDisplay()
@@ -547,20 +547,30 @@ public partial class MainWindow
     }
 
     // ── Port management ────────────────────────────────────────────
-    private void RefreshPortLists()
+    private async void RefreshPortLists()
+    {
+        try
+        {
+            await _portDiscovery.RefreshAsync();
+            if (!_sceneClosing) { ApplyPortLists(); }
+        }
+        catch (Exception ex) { AppendLog("MIDI discovery failed: " + ex.Message); }
+    }
+
+    private void ApplyPortLists()
     {
         string prevIn = _inputPortCombo.SelectedItem as string ?? string.Empty;
         string prevOut = _outputPortCombo.SelectedItem as string ?? string.Empty;
         var prevThru = GetCheckedThruPorts();
 
         _inputPortCombo.Items.Clear();
-        foreach (var n in _midi.GetInputPortNames())
+        foreach (var n in _portDiscovery.Current.Inputs)
         {
             _inputPortCombo.Items.Add(n);
         }
 
         _outputPortCombo.Items.Clear();
-        foreach (var n in _midi.GetOutputPortNames())
+        foreach (var n in _portDiscovery.Current.Outputs)
         {
             _outputPortCombo.Items.Add(n);
         }
@@ -593,7 +603,7 @@ public partial class MainWindow
         }
 
         _thruInputPanel.Children.Clear();
-        foreach (var n in _midi.GetInputPortNames())
+        foreach (var n in _portDiscovery.Current.Inputs)
         {
             if (string.Equals(n, selectedInput, StringComparison.Ordinal) ||
                 string.Equals(n, selectedOutput, StringComparison.Ordinal))
@@ -700,15 +710,16 @@ public partial class MainWindow
 
     private void Disconnect()
     {
-        _connectionGeneration++;
-        _connectionCts?.Cancel();
+        ConnectionState.Disconnect();
         _connectionMonitor?.Stop();
         StopSceneTracking();
         _presetNamesCts?.Cancel();
         _midi.CloseAllThruInputs();
         _midi.CloseInput();
         _midi.CloseOutput();
-        _detectedDevice = null;
+#if FRACTAL_INDEX
+        ResetConnectionLibrarySetup();
+#endif
         _connectionSyncDialog?.Close();
         _profileValidationCts?.Cancel();
         _presetNameClient.SetDeviceModel(Core.DeviceModel.FM9);
@@ -769,8 +780,11 @@ public partial class MainWindow
             _settings.DeviceModel = _detectedDevice.Model;
             _settings.DeviceName = _detectedDevice.DeviceName;
         }
-        _channelCombo.SelectedIndex = Math.Clamp(_settings.MidiChannel, 0, 16);
-        _offsetCombo.SelectedIndex = Math.Clamp(_settings.DisplayOffset, 0, 1);
+#if !FRACTAL_INDEX
+        _legacyChannel.SelectedIndex = Math.Clamp(_settings.MidiChannel, 0, 16);
+        _legacyOffset.SelectedIndex = Math.Clamp(_settings.DisplayOffset, 0, 1);
+        _legacySceneCc.Value = _settings.SceneCc;
+#endif
         UpdatePresetCapacityUI();
     }
 
@@ -793,8 +807,6 @@ public partial class MainWindow
         _settings.MidiInputPort = _inputPortCombo.SelectedItem as string ?? string.Empty;
         _settings.MidiOutputPort = _outputPortCombo.SelectedItem as string ?? string.Empty;
         _settings.ThruInputPorts = GetCheckedThruPorts();
-        _settings.MidiChannel = _channelCombo.SelectedIndex;
-        _settings.DisplayOffset = _offsetCombo.SelectedIndex;
         _settings.MaxDisplayedPreset = EffectiveMaximum;
         _settings.AutoSend = _autoSendCheck.IsChecked == true;
         _settings.AutoSendDelayMs = (int)(_autoSendDelaySpinner.Value ?? 35);
@@ -804,8 +816,22 @@ public partial class MainWindow
         _saveSettings(_settings);
     }
 
-    private void OnClosing()
+    protected override void OnClosing(WindowClosingEventArgs e)
     {
+        base.OnClosing(e);
+        if (e.Cancel) { return; }
+        try
+        {
+            SaveSettingsFromUI();
+            _saveFavorites(_favorites);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            e.Cancel = true;
+            AppendLog("SAVE FAILED: " + ex.Message);
+            ShowSendFeedback("Couldn't save before closing", "Check that the profile folder is writable, then close the app again.", warning: true);
+            return;
+        }
         Disconnect();
         _sceneClosing = true;
         StopSceneTracking();
@@ -813,20 +839,13 @@ public partial class MainWindow
         _autoSendTimer.Stop();
         _sendFeedbackTimer.Stop();
         _presetNamesCts?.Cancel();
-        SaveSettingsFromUI();
-        _saveFavorites(_favorites);
+        _midi.LogMessage -= OnMidiLogMessage;
+        _midi.NoteOnReceived -= OnNoteOnReceived;
         _presetNameClient.Dispose();
         _midi.Dispose();
     }
 
     // ── Diagnostics test button ────────────────────────────────────
-    private void OnOffsetChanged(object? sender, EventArgs e)
-    {
-        _settings.DisplayOffset = _offsetCombo.SelectedIndex;
-        UpdatePresetCapacityUI();
-        UpdateDisplay();
-    }
-
     private void OnTestTranslation(object? sender, RoutedEventArgs e)
     {
         string src = _enteredDigits.Length > 0 ? _enteredDigits : (_currentPreset?.ToString() ?? "0");

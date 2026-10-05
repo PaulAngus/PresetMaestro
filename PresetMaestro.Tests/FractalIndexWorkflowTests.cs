@@ -69,11 +69,9 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             var checking = window.CheckAssignedLibraryAsync();
             await source.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Dispatcher.UIThread.RunJobs();
-            var sync = Find<Button>(window, "ConfigPresetSync");
-            Assert.False(sync.IsEnabled);
-            Assert.Equal("Checking library…", sync.Content);
-            Assert.Contains("Preset-name sync will be available", Find<TextBlock>(window, "PresetSyncStatus").Text);
-            Assert.True(Find<Button>(window, "ConfigPresetSyncCancel").IsEnabled);
+            var sync = Find<Button>(window, "ConfigSyncOptions");
+            Assert.True(sync.IsEnabled);
+            Assert.Equal("Sync progress…", sync.Content);
             Assert.False(Find<Button>(syncDialog, "ConnectionSyncNames").IsEnabled);
             Assert.False(Find<Button>(syncDialog, "ConnectionManageProfiles").IsEnabled);
             Assert.False(Find<Button>(syncDialog, "ConnectionManageLibraries").IsEnabled);
@@ -92,9 +90,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             Click(Find<Button>(syncDialog, "ConnectionSyncCancel"));
             await checking;
             Assert.True(sync.IsEnabled);
-            Assert.Equal("Sync Preset Names", sync.Content);
-            Assert.Contains("Ready to sync", Find<TextBlock>(window, "PresetSyncStatus").Text);
-            Assert.False(Find<Button>(window, "ConfigPresetSyncCancel").IsEnabled);
+            Assert.Equal("Sync options…", sync.Content);
             Assert.True(Find<Button>(syncDialog, "ConnectionSyncNames").IsEnabled);
             Assert.Equal("Library check cancelled", Find<TextBlock>(syncDialog, "ConnectionSyncStatusTitle").Text);
             Assert.Contains("Saved library data was kept", Find<TextBlock>(syncDialog, "ConnectionSyncStatus").Text);
@@ -216,7 +212,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             else
             {
                 Assert.Equal(dialog, Assert.Single(window.OwnedWindows));
-                Assert.True(Find<Button>(window, "ConfigPresetSync").IsEffectivelyVisible);
+                Assert.True(Find<Button>(window, "ConfigSyncOptions").IsEffectivelyVisible);
             }
             Assert.Equal(Enumerable.Range(0, 512), fastNameReads);
             Assert.Equal(full ? 512 : 16, source.NameReads.Count);
@@ -330,7 +326,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
                 Assert.Null(saved.LastAttempt!.FirmwareConfirmation);
                 Assert.False(AmpBrowserCatalog.Build(saved).HasUsageData);
                 Assert.Equal(outcome is "save fails" or "firmware unavailable" ? baseline.Presets[0].Name : "Previous cached name", store.LoadSettings().PresetNameCache[0]);
-                Assert.True(Find<Button>(window, "ConfigPresetSync").IsEffectivelyVisible);
+                Assert.True(Find<Button>(window, "ConfigSyncOptions").IsEffectivelyVisible);
                 var dialog = Assert.Single(window.OwnedWindows);
                 Assert.True(Find<Border>(dialog, "ConnectionSyncNextPanel").IsVisible);
                 Assert.False(string.IsNullOrWhiteSpace(Find<TextBlock>(dialog, "ConnectionSyncNext").Text));
@@ -384,7 +380,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
     [InlineData(false)]
     public async Task InitialLibrarySyncOpensIndexOnlyAfterTheSavedDataIsReady(bool accept)
     {
-        var cache = Cache(); cache.Committed = null;
+        var cache = Cache();
         var store = new ProfileStore(_directory);
         var library = new IndexLibrary(Path.Combine(_directory, "FractalIndex")); library.Save(cache);
         var settings = store.LoadSettings(); settings.MidiInputPort = "FM9"; settings.MidiOutputPort = "FM9";
@@ -399,7 +395,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             if (request[5] == 1) { midi.Reply(FractalDeviceInformationTests.SyntheticName("Stage")); }
         };
         var window = new MainWindow(settings, [], midi, profileStore: store,
-            confirm: (title, _, _, _) => { Assert.Equal("Establish device library", title); return Task.FromResult(accept); },
+            confirm: (title, _, _, _) => { Assert.Equal("Confirm library update", title); return Task.FromResult(accept); },
             queryPresetNameAsync: (_, _, _) => throw new InvalidOperationException("The full library sync should reuse its preset names."))
         { Width = 1200, Height = 900, ThruInputRetryDelay = TimeSpan.Zero };
         var source = new NameSource(slot => slot < 16 ? "Populated" : "<EMPTY>", withAmp: true);
@@ -422,13 +418,13 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             }
             else
             {
-                Assert.True(Find<Button>(window, "ConfigPresetSync").IsEffectivelyVisible);
+                Assert.True(Find<Button>(window, "ConfigSyncOptions").IsEffectivelyVisible);
                 var dialog = Assert.Single(window.OwnedWindows);
                 Assert.Equal("Library sync needs attention", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
                 Assert.True(Find<Border>(dialog, "ConnectionSyncNextPanel").IsVisible);
                 Assert.Contains("Sync library", Find<TextBlock>(dialog, "ConnectionSyncNext").Text);
-                Assert.Null(library.Load(cache.Device.Id)!.Committed);
-                Assert.Empty(source.FullReads);
+                Assert.Equal("hash-0", library.Load(cache.Device.Id)!.Committed!.Presets[0].ContentSha256);
+                Assert.Equal(16, source.FullReads.Count);
                 Assert.Equal("Previous name", settings.PresetNameCache[0]);
             }
         }
@@ -550,7 +546,9 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         window = new MainWindow(settings, [], midi, profileStore: store, confirm: (title, message, _, _) =>
         {
             Assert.Equal("Confirm library update", title);
-            Assert.Contains("99 of 100 populated", message);
+            Assert.StartsWith("1 preset doesn't match.", message);
+            if (renamed) { Assert.Contains("Device name differs.", message); }
+            Assert.DoesNotContain('%', message);
             Assert.Equal(baselineId, library.Load(cache.Device.Id)!.Committed!.Id);
             confirmations++;
             if (disconnect) { typeof(MainWindow).GetMethod("Disconnect", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(window, null); }
@@ -583,6 +581,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             if (dialogOutput is not null && threshold == 99)
             {
                 Directory.CreateDirectory(dialogOutput);
+                syncDialog.UpdateLayout(); Dispatcher.UIThread.RunJobs(); AvaloniaHeadlessPlatform.ForceRenderTimerTick();
                 using var screenshot = syncDialog.CaptureRenderedFrame(); screenshot!.Save(Path.Combine(dialogOutput, renamed ? "connection-sync-review.png" : "connection-sync-matched.png"));
             }
             Assert.Equal(baselineId, library.Load(cache.Device.Id)!.Committed!.Id);
@@ -645,7 +644,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         var window = new MainWindow(settings, [], midi, profileStore: store, confirm: (title, message, _, _) =>
         {
             Assert.Equal("Confirm library update", title);
-            Assert.Contains(detectedMajor is null ? "unavailable" : "Firmware differs", message);
+            Assert.Equal("Presets match. Firmware differs.", message);
             confirmations++;
             return Task.FromResult(false);
         })
@@ -919,11 +918,13 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         finally { window.Close(); }
     }
 
-    [AvaloniaFact]
-    public void IndexScreenScalesTo1024PresetsAndKeepsSceneRowsCompact()
+    [AvaloniaTheory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
+    public void IndexScreenScalesTo1024PresetsWithReadableScrollableDetails(string theme)
     {
         var store = new ProfileStore(_directory);
-        var settings = store.LoadSettings(); settings.Theme = "Light"; settings.DisplayOffset = 1;
+        var settings = store.LoadSettings(); settings.Theme = theme; settings.DisplayOffset = 1;
         var cache = Cache(1024, FractalDeviceVariant.AxeFxIIIMarkII);
         var example = cache.Committed!.Presets[125];
         var secondAmp = new IndexedAmpBlock(2, [new(0, new(326, "Class-A 30W Brilliant", null, "fixture", true)), new(1, new(6, "Class-A 15W TB", null, "fixture", true)), new(2, new(163, "Citrus A30 Dirty", null, "fixture", true)), new(3, new(271, "Matchbox D-30 EF86", null, "fixture", true))], example.Amps[0].Scenes);
@@ -948,13 +949,18 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             list.SelectedIndex = 125;
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(8, Find<Grid>(window, "IndexScenes").Children.Count);
-            Assert.All(Find<Grid>(window, "IndexScenes").Children, row => Assert.Equal(32, row.Bounds.Height));
+            Assert.All(Find<Grid>(window, "IndexScenes").Children, row => Assert.True(row.Bounds.Height >= 60));
+            Assert.Equal("Plexi 50W Jumped · channel A\nClass-A 30W Brilliant · channel A", Find<TextBlock>(window, "IndexScene1AmpSummary").Text);
+            Assert.Equal("Plexi 50W 6CA7 · channel B\nClass-A 15W TB · channel B", Find<TextBlock>(window, "IndexScene2AmpSummary").Text);
+            Assert.Equal("Plexi 100W Jumped · channel D (off)\nMatchbox D-30 EF86 · channel D (off)", Find<TextBlock>(window, "IndexScene8AmpSummary").Text);
+            Assert.Contains("Plexi 50W 6CA7", Avalonia.Automation.AutomationProperties.GetName(Find<Grid>(window, "IndexScene2Row")));
+            AssertSceneSummariesFit();
             var sceneSection = Find<StackPanel>(window, "IndexSceneSection");
             var ampSection = Find<StackPanel>(window, "IndexAmpSection");
-            Assert.Equal(sceneSection.Bounds.Y, ampSection.Bounds.Y);
-            Assert.True(ampSection.Bounds.X >= sceneSection.Bounds.Right);
-            Assert.Equal(152, Find<Grid>(window, "IndexAmpChannels").Bounds.Height);
-            Assert.Equal("+ scene tag", Find<Button>(window, "IndexScene3Tags").Content);
+            Assert.True(ampSection.Bounds.Y >= sceneSection.Bounds.Bottom);
+            Assert.True(Find<Grid>(window, "IndexAmpChannels").Bounds.Height >= 280);
+            Assert.Equal("Tags…", Find<Button>(window, "IndexScene3Tags").Content);
+            Assert.True(Find<ScrollViewer>(window, "IndexInspectorScroll").Extent.Height > Find<ScrollViewer>(window, "IndexInspectorScroll").Viewport.Height);
             var search = Find<TextBox>(window, "IndexSearchInput");
             search.Text = "Live";
             Dispatcher.UIThread.RunJobs();
@@ -967,7 +973,29 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             {
                 Directory.CreateDirectory(output);
                 list.SelectedIndex = 125; Dispatcher.UIThread.RunJobs();
-                using var amps = window.CaptureRenderedFrame(); amps!.Save(Path.Combine(output, "preset-index-together.png"));
+                using var amps = window.CaptureRenderedFrame(); amps!.Save(Path.Combine(output, "preset-index-together-" + theme.ToLowerInvariant() + ".png"));
+            }
+            list.SelectedIndex = 125; Dispatcher.UIThread.RunJobs();
+            var close = Find<Button>(window, "IndexCloseInspector");
+            var frame = Find<Border>(window, "IndexInspectorFrame");
+            var closePosition = close.TranslatePoint(default, frame);
+            var backToScenes = Find<Button>(window, "IndexShowScenes");
+            var backPosition = backToScenes.TranslatePoint(default, frame);
+            Click(Find<Button>(window, "IndexShowAmpModels")); Dispatcher.UIThread.RunJobs();
+            Assert.True(Find<ScrollViewer>(window, "IndexInspectorScroll").Offset.Y > 0);
+            Assert.Equal(closePosition, close.TranslatePoint(default, frame));
+            Assert.True(close.IsEffectivelyVisible);
+            Assert.Equal(backPosition, backToScenes.TranslatePoint(default, frame));
+            Assert.True(backToScenes.IsEffectivelyVisible);
+            Assert.True(backToScenes.TranslatePoint(default, window)!.Value.Y < Find<ScrollViewer>(window, "IndexInspectorScroll").TranslatePoint(default, window)!.Value.Y);
+            if (output is not null)
+            {
+                using var models = window.CaptureRenderedFrame(); models!.Save(Path.Combine(output, "preset-index-amp-models-" + theme.ToLowerInvariant() + ".png"));
+            }
+            Click(Find<Button>(window, "IndexShowScenes")); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(0, Find<ScrollViewer>(window, "IndexInspectorScroll").Offset.Y);
+            if (output is not null)
+            {
                 list.SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
                 using var singleAmp = window.CaptureRenderedFrame(); singleAmp!.Save(Path.Combine(output, "preset-index-together-single-amp.png"));
             }
@@ -975,19 +1003,63 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             window.Width = 1000; window.Height = 680; Dispatcher.UIThread.RunJobs();
             sceneSection = Find<StackPanel>(window, "IndexSceneSection");
             ampSection = Find<StackPanel>(window, "IndexAmpSection");
-            Assert.Equal(sceneSection.Bounds.Y, ampSection.Bounds.Y);
-            Assert.True(ampSection.Bounds.X >= sceneSection.Bounds.Right);
-            Assert.True(Find<ListBox>(window, "IndexPresetList").Bounds.Height >= 100);
-            Assert.Equal(256, Find<Grid>(window, "IndexScenes").Bounds.Height);
-            Assert.All(Find<Grid>(window, "IndexScenes").Children, row => Assert.Equal(32, row.Bounds.Height));
+            Assert.True(ampSection.Bounds.Y >= sceneSection.Bounds.Bottom);
+            Assert.True(Find<ListBox>(window, "IndexPresetList").Bounds.Height >= 300);
+            Assert.True(Find<Grid>(window, "IndexScenes").Bounds.Height >= 576);
+            Assert.All(Find<Grid>(window, "IndexScenes").Children, row => Assert.True(row.Bounds.Height >= 60));
+            AssertSceneSummariesFit();
             if (output is not null)
             {
-                using var narrow = window.CaptureRenderedFrame(); narrow!.Save(Path.Combine(output, "preset-index-narrow.png"));
+                using var narrow = window.CaptureRenderedFrame(); narrow!.Save(Path.Combine(output, "preset-index-narrow-" + theme.ToLowerInvariant() + ".png"));
             }
+            close = Find<Button>(window, "IndexCloseInspector");
+            closePosition = close.TranslatePoint(default, frame);
+            backToScenes = Find<Button>(window, "IndexShowScenes");
+            backPosition = backToScenes.TranslatePoint(default, frame);
+            Click(Find<Button>(window, "IndexShowAmpModels")); Dispatcher.UIThread.RunJobs();
+            Assert.True(Find<ScrollViewer>(window, "IndexInspectorScroll").Offset.Y > 0);
+            Assert.Equal(closePosition, close.TranslatePoint(default, frame));
+            Assert.True(close.IsEffectivelyVisible);
+            Assert.Equal(backPosition, backToScenes.TranslatePoint(default, frame));
+            Assert.True(backToScenes.IsEffectivelyVisible);
+            backToScenes.Focus();
+            window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(0, Find<ScrollViewer>(window, "IndexInspectorScroll").Offset.Y);
             window.Width = 1440; Dispatcher.UIThread.RunJobs();
-            Assert.Equal(128, Find<Grid>(window, "IndexScenes").Bounds.Height);
+            Assert.True(Find<Grid>(window, "IndexScenes").Bounds.Height >= 288);
+            search.Text = "Plexis"; Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, list.ItemCount);
+            list.SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
+            var origin = (ListBoxItem)list.SelectedItem!;
+            close = Find<Button>(window, "IndexCloseInspector"); close.Focus();
+            Click(close); Dispatcher.UIThread.RunJobs();
+            Assert.False(frame.IsVisible);
+            Assert.Equal("Plexis", search.Text);
+            Assert.Equal(1, list.ItemCount);
+            Assert.Same(origin, window.FocusManager?.GetFocusedElement());
+            list.SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
+            Assert.True(frame.IsVisible);
+            var sceneAction = Find<Button>(window, "IndexScene8GoTo"); sceneAction.Focus();
+            var escape = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape };
+            sceneAction.RaiseEvent(escape); Dispatcher.UIThread.RunJobs();
+            Assert.True(escape.Handled);
+            Assert.False(frame.IsVisible);
+            Assert.Same(origin, window.FocusManager?.GetFocusedElement());
+            Assert.Empty(midi.Sent);
         }
         finally { window.Close(); }
+
+        void AssertSceneSummariesFit()
+        {
+            for (int scene = 1; scene <= 8; scene++)
+            {
+                var row = Find<Grid>(window, $"IndexScene{scene}Row");
+                var summary = Find<TextBlock>(window, $"IndexScene{scene}AmpSummary");
+                var position = summary.TranslatePoint(default, row)!.Value;
+                Assert.True(position.Y >= 0 && position.Y + summary.Bounds.Height <= row.Bounds.Height);
+                Assert.True(position.X + summary.Bounds.Width <= Find<Button>(window, $"IndexScene{scene}Tags").Bounds.X);
+            }
+        }
     }
 
     [AvaloniaFact]
@@ -1134,7 +1206,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         public Task<StoredPresetImage> ReadStoredImageAsync(int slot, FractalDeviceDefinition device, CancellationToken token) => Task.FromResult(read(slot, device));
     }
 
-    private sealed class NameSource(Func<int, string?> name, bool withAmp = false) : IStoredPresetImageSource, IStoredPresetNameSource
+    internal sealed class NameSource(Func<int, string?> name, bool withAmp = false) : IStoredPresetImageSource, IStoredPresetNameSource
     {
         public List<int> FullReads { get; } = [];
         public List<int> NameReads { get; } = [];

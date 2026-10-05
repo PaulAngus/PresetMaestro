@@ -53,3 +53,13 @@ FM3, Axe-Fx III and other FM9 firmware versions require independent rosters.
 
 Manufacturer and product names are trademarks of their respective owners,
 used descriptively. This catalogue does not imply endorsement or affiliation.
+
+amp-wiki-sections.json contains factual section anchors for supplementary reading,
+retrieved on 2026-10-04 from the Fractal Wiki MediaWiki API:
+https://wiki.fractalaudio.com/wiki/api.php?action=parse&page=Amp_models&prop=sections&format=json
+Links are matched to the reference variant names with explicit aliases for wiki
+heading differences. Fox ODS Mid links to the general Fox ODS section, not Deep;
+the mapping qualifications in real-amp-details.json remain unchanged. These links
+do not establish device availability or modify reference amplifier attribution.
+No article prose or images are included. Catalogue evidence and source commentary
+remain preserved for future display in Config despite removal from the Amps UI.

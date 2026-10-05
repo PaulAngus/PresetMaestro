@@ -8,7 +8,7 @@ FM9 preset and scene name reads are supported by the current protocol code. FM3 
 
 1. Connect your device over USB, or connect both MIDI directions through a MIDI interface.
 2. Open **Config**, select the MIDI input and output, and click **Connect**. If a port is busy, close device editor or another MIDI application using it.
-3. Check **MIDI Channel**, **Display Offset**, and **Scene CC#**. Scene CC defaults to **34** in this app; the device's Scene Select assignment must match it.
+3. Open **Config → Device library for this profile → Manage library**. Select your device library, check **MIDI Channel**, **Display Offset**, and **Scene CC#**, then **Save changes**. These settings are shared by profiles assigned to that library. Scene CC defaults to **34**; the device's Scene Select assignment must match it. Incoming note assignments are under **Config → Entry Options → MIDI note mapping**.
 4. Open **Preset Sender** and select a preset. Under **Config → Scenes**, the panel shows all eight scenes. Cached names appear first, then the app reads the current names from the device. Preset Sender retains its original display/keypad layout.
 5. Click a scene button to select that scene within the current preset.
 
@@ -22,7 +22,7 @@ The optional **Preset Index** page browses locally cached saved presets, Amp cha
 
 ## Profiles
 
-Use **Config → Profiles** to select the active profile or rescan for profiles. **Manage Profiles** opens a compact profile list and details screen, with **Back to Config** to return. Selecting a row only inspects it; **Use profile** explicitly activates it. The separate **Active** indicator identifies the profile currently in use. **Copy…**, **Rename…**, **Delete…** and **Export…** apply to the selected profile, including inactive profiles. Copy duplicates its favorites, mapping and cached names and activates the independent copy. Copying or exporting the active profile includes its current data. Deleting an inactive profile leaves the active profile unchanged; deleting the active profile safely selects another readable profile first. At least one profile must remain. **Create…** asks for a name and activates a new profile with default mapping and empty favorites and caches. Switching saves the current profile and clears the current Favorites selection. Finish or cancel a name sync before changing profiles.
+Use **Config → Profiles** to select the active profile or rescan for profiles. **Manage Profiles** opens a compact profile list and details screen, with **Back to Config** to return. Selecting a row only inspects it; **Use profile** explicitly activates it. The separate **Active** indicator identifies the profile currently in use. **Copy…**, **Rename…**, **Delete…** and **Export…** apply to the selected profile, including inactive profiles. Copy duplicates its favorites, library assignment and cached names and activates the copy. Profiles assigned to the same library share its preset mapping. Copying or exporting the active profile includes its current data. Deleting an inactive profile leaves the active profile unchanged; deleting the active profile safely selects another readable profile first. At least one profile must remain. **Create…** asks for a name and activates a new profile with empty favorites and caches; assign its device library in Config. Switching saves the current profile and clears the current Favorites selection. Finish or cancel a name sync before changing profiles.
 
 The selected profile details show both the device model and its device name. Connecting records the device name in the active profile, so it remains visible when disconnected and travels with copies and exports. Older profiles show **Not recorded** until connected; devices with a blank name show **Unnamed device**.
 
@@ -31,7 +31,9 @@ Before activating a different profile, the app checks its device type, device na
 Each profile has two files in `%APPDATA%\PresetMaestro`:
 
 - `<profile>-favorites.json`: favorite slots, names, preset/scene mappings, and tags.
-- `<profile>-settings.json`: device model and name, MIDI channel, display offset, maximum preset, Scene CC, and cached preset/scene names.
+- `<profile>-settings.json`: device model and name, library assignment, and cached preset/scene names. Legacy mapping values are retained for compatibility; an assigned library's saved mapping takes precedence.
+
+MIDI channel, display offset and Scene CC are saved in `FractalIndex/<device-id>.json` with the device library. Existing libraries adopt the active profile's mapping when first opened. Copies sharing a library share its mapping; exported library snapshots include it.
 
 `settings.json` keeps computer settings: MIDI input/output and thru ports, debug mode, entry options and note mappings, appearance, the available profile names (`Profiles`), and the last selected profile (`ActiveProfile`). Startup restores that profile. If its files are missing or unreadable, the app reports this and loads another readable profile, creating a new default profile if needed while preserving the original files.
 
@@ -55,18 +57,23 @@ For prompt notification of front-panel/footswitch preset changes over DIN MIDI, 
 
 ## Buttons you will use
 
+The connection dialog requires a complete library sync when this profile has no complete, locally established library for the connected model. Cached preset names alone do not satisfy setup. An unused **Default** library is assigned automatically. If Default already contains scan data or is assigned to another profile, choose **Create new library & sync** or confirm **Overwrite Default & sync**. Overwriting preserves the existing library until every slot has been checked successfully. Cancelling or failing a read keeps setup open with **Resume**; closing setup disconnects. A successful complete sync opens Preset Index. Axe-Fx III requires its hardware revision to be selected before creating the library.
+
 | Where | Control | What it does |
 |---|---|---|
 | Config → Scenes | Scene buttons 1–8 | Changes the active scene using your configured Scene CC. Does not reload the preset. |
 | Config → Scenes | Refresh current scene names | Re-reads the loaded preset's names. Use after renaming scenes externally or after a failed read. |
-| Config → Scenes | Sync all stored scene names | Reads saved scene names for all 512 presets, without selecting those presets. Also collects their preset names. |
-| Config → Scenes | Cancel scene sync | Stops the bulk scene scan; completed entries remain cached. |
+| Config → MIDI Connection → Sync options… | Sync library | Reads saved presets, scenes and amp data into the assigned library. An accepted complete scan also refreshes this profile's preset and scene names. |
+| Config → MIDI Connection → Sync options… | Sync scenes | Refreshes scene names for the presets used by this profile's favorites. |
+| Sync with connected device | Cancel read | Stops the active read; completed entries remain cached. |
 | Config → Scenes | Clear scene-name cache | Removes this MIDI port pair's locally cached scene names. Does not change the device or delete favorites. |
-| Config → Preset Name Sync | Sync Preset Names | Reads preset titles only. This is separate from scene-name sync. |
+| Config → MIDI Connection → Sync options… | Sync names | Reads preset titles only. Favorites also has a quick Sync shortcut beside the preset picker. |
 | Favorites → Edit Favorite | Named scene picker | Chooses a scene number for the favorite using cached labels. Saving the favorite does not select it on the device. |
 | Favorites → Edit Favorite | Read names for this preset | Fetches scene labels for that favorite's preset without loading it on the device. |
 
 ## Favorites tables and search
+
+The app opens on Config at its minimum width of 1000 logical pixels. Preset Sender, Favorites and Go to/double-click navigation from Preset Index or Amps use the same send confirmation near the top, centred just below navigation. It shows the sent selection without moving page content or keyboard focus. Successful confirmations disappear after seven seconds; hovering pauses that timer.
 
 Favorites uses the full content width with adjacent bordered tables. Every table repeats **Slot | Name | Preset | Scene**. Tag pills follow each favorite title directly within the Name field, sharing the available space; hover for the full title or tag list. There are always at least two tables; wider windows add more. Favorites fill down each table in balanced groups, after filtering and global sorting. Resizing and filtering preserve the real slot numbers. All tables share one selection and one vertical scrollbar; their headings scroll together. Drag a heading separator to resize that field across every table.
 
@@ -91,14 +98,14 @@ Developer notes and the verification procedure are in [FAVORITES.md](FAVORITES.m
 1. Open **Favorites** and add a new Favorite or edit an existing one.
 2. Click **Select Preset…** beside its preset number. This opens a separate, resizable dialog.
 3. Search by preset number or name, or browse the grid. It always lists device slots **000–511**, left-to-right across each row, then top-to-bottom. Filtering keeps that same order.
-4. Click a preset and **Select Preset**, double-click an entry, or press **Enter**. **Escape** or **Cancel** leaves the Favorite unchanged.
+4. Click a preset and **Select Preset**, or press **Enter**, to use it in the Favorite draft. **Go to preset** or double-click auditions it on the connected device while keeping the picker open. **Escape** or **Cancel** leaves the Favorite draft unchanged.
 5. Choose the scene and other Favorite details, then use the editor's existing **Save** button.
 
 The dialog has five columns at its default size, fewer when narrowed, and a vertical scrollbar. Arrow keys navigate the grid; Up/Down from the search box moves focus into the grid. Home/End move within a row, Ctrl+Home/Ctrl+End go to the first/last result, Page Up/Down move by a page, and Ctrl+F returns to search. The blue highlight and left-edge marker identify the selected preset.
 
-Names come from the existing preset-name cache. Before syncing, unknown slots show `(name unavailable)` but can still be selected by number. On FM9, use **Config → Preset Name Sync → Sync Preset Names** to populate names, then reopen the picker. A completed stored-scene scan also supplies preset names.
+Names come from the existing preset-name cache. Before syncing, unknown slots show `(name unavailable)` but can still be selected by number. On FM9, use **Config → MIDI Connection → Sync options… → Sync names**, or the editor's **↻ Sync** shortcut, to populate names, then reopen the picker. Both show progress and results in the shared sync dialog. A successful library check or accepted complete library sync also supplies preset names.
 
-The picker uses device numbering even when **Display Offset** is 1: selecting `000` fills the Favorite's displayed preset field with `1`. Choosing a preset here does **not** send MIDI, change the device's current preset, or save the Favorite automatically. The scene picker refreshes from cached names for the chosen preset.
+The picker returns the device slot and shows numbers using **Display Offset**: slot `000` is displayed as `001` when the offset is 1. **Select Preset** fills the Favorite draft without sending a program change or saving the Favorite. Explicit **Go to** actions and double-click send the chosen preset or scene using its configured mapping. The scene picker uses cached names for the draft's preset and offers **Go to scene**; going to a scene on another preset loads that preset first.
 
 ## Bulk sync versus everyday use
 
@@ -133,11 +140,13 @@ dotnet format .\PresetMaestro.slnx --verify-no-changes --no-restore
 .\Publish-App.ps1
 ```
 
+Windows CI repeats the Release build, regression tests, formatting checks and optional-feature build, and retains test results and coverage. For local coverage, run `dotnet test .\PresetMaestro.slnx --configuration Release --collect:"XPlat Code Coverage"`. The [4 October 2026 code review](docs/code-review-2026-10-04.md) records corrected failure paths, coverage evidence and the completed follow-up work.
+
 `Publish-App.ps1` is a local, untracked helper that prompts for the version before publishing (showing the current one from `PresetMaestro\Version.txt`), then runs `dotnet publish` and optionally hands off to `Copy-PublishedExe.ps1`. Publishing creates the single-file executable `.\publish\PresetMaestro.exe`.
 
 The Windows x64 executable includes its .NET runtime and needs no separate .NET installation. The project references only Avalonia's Windows and Skia backends and NAudio's MIDI/WinMM packages, avoiding unused desktop platforms, audio playback packages, and the WinForms runtime. Single-file compression reduces distribution size; ReadyToRun remains enabled and code trimming is not used. Compressed assemblies are unpacked on startup, so the executable's size is smaller than its extracted runtime payload.
 
-The solution-level test command runs the maintained application and shared-protocol regression tests. The suite includes preset-catalog and headless Avalonia dialog tests for ordering, filtering, resizing, selection, and keyboard interaction. Scene tests use simulated MIDI and synthetic compressed presets; hardware observations are recorded in the scene-name and protocol notes. Builds enforce the repository's `.editorconfig`, Microsoft recommended .NET analyzers, nullable reference types, and warnings-as-errors.
+The solution-level test command runs the maintained application and shared-protocol regression tests. The suite includes preset-catalog and headless Avalonia dialog tests for ordering, filtering, resizing, selection, and keyboard interaction. Scene tests use simulated MIDI, synthetic compressed presets and a captured FM9 replay fixture. Opt-in [physical device suites](docs/hardware-tests.md) cover read-only FM9 checks, multi-model compatibility reports and explicitly enabled preset/scene navigation. Normal tests and CI never send to hardware. Builds enforce the repository's `.editorconfig`, Microsoft recommended .NET analyzers, nullable reference types, and warnings-as-errors.
 
 ## Further reading
 

@@ -48,6 +48,12 @@ public partial class FavoriteEditorTests
     private static void SetField(MainWindow window, string name, object? value) =>
         typeof(MainWindow).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, value);
 
+    private static string SyncOutcomeDetail(MainWindow window)
+    {
+        object outcome = Field<object>(window, "_connectionSyncOutcome");
+        return (string)outcome.GetType().GetProperty("Detail")!.GetValue(outcome)!;
+    }
+
     private static MainWindow CreateWindow(
         FakeMidi? midi = null,
         List<Favorite>? favorites = null,
@@ -899,28 +905,80 @@ public partial class FavoriteEditorTests
 
             Click(Find<Button>(window, "NavConfig"));
             Dispatcher.UIThread.RunJobs();
-            Assert.Contains("device stopped responding", Find<TextBlock>(window, "PresetSyncStatus").Text);
+            Assert.Contains("device stopped responding", SyncOutcomeDetail(window));
         }
         finally { window.Close(); }
     }
 
     [AvaloniaFact]
-    public async Task MissingSelectedPresetIsPreservedAndReportedAfterSuccessfulSync()
+    public async Task MissingSelectedPresetIsPreservedAndReportedAfterPartialSync()
     {
         var midi = new FakeMidi { InputOpen = true, OutputOpen = true };
         var favorite = Clone(Sample);
-        var window = CreateWindow(midi, [favorite], (_, _, _) => Task.FromResult(new PresetNameResult(0, "Only returned preset")));
+        var settings = new AppSettings { Theme = "Light", PresetNameCache = new() { [101] = "Previously cached preset" } };
+        var requested = new List<int>();
+        Task<PresetNameResult> Query(int slot, TimeSpan _, CancellationToken token)
+        {
+            requested.Add(slot);
+            if (slot == 101) { throw new TimeoutException("Selected preset did not reply."); }
+            return Task.FromResult(new PresetNameResult(slot, $"Refreshed preset {slot}"));
+        }
+        var window = CreateWindow(midi, [favorite], Query, settings: settings);
         try
         {
             ShowEditor(window, favorite);
             await window.SyncPresetNamesAsync();
 
+            Assert.Equal(Enumerable.Range(0, 512), requested);
+            Assert.Equal(512, settings.PresetNameCache.Count);
+            Assert.Equal("Previously cached preset", settings.PresetNameCache[101]);
+            Assert.Equal("Refreshed preset 102", settings.PresetNameCache[102]);
             Assert.Equal(101, Field<NumericUpDown>(window, "_favPresetSpinner").Value);
             Click(Find<Button>(window, "NavConfig"));
             Dispatcher.UIThread.RunJobs();
-            string status = Find<TextBlock>(window, "PresetSyncStatus").Text!;
+            string status = SyncOutcomeDetail(window);
+            Assert.Contains("511 of 512 preset names refreshed", status);
             Assert.Contains("Preset 101 was not returned", status);
             Assert.Contains("selection was preserved", status);
+            Assert.Equal(0, midi.TotalSendCount);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task MismatchedPresetNameReplyIsRejectedAndPreservesCachedNamesAndEditor()
+    {
+        var midi = new FakeMidi { InputOpen = true, OutputOpen = true };
+        var favorite = Clone(Sample);
+        var settings = new AppSettings
+        {
+            Theme = "Light",
+            PresetNameCache = new() { [0] = "Old zero", [1] = "Old one", [101] = "Previously cached preset" },
+        };
+        var requested = new List<int>();
+        Task<PresetNameResult> Query(int slot, TimeSpan _, CancellationToken token)
+        {
+            requested.Add(slot);
+            return Task.FromResult(new PresetNameResult(0, slot == 0 ? "Refreshed zero" : "Reply for wrong preset"));
+        }
+        var window = CreateWindow(midi, [favorite], Query, settings: settings);
+        try
+        {
+            ShowEditor(window, favorite);
+            Find<TextBox>(window, "FavoriteName").Text = "Unsaved name";
+            await window.SyncPresetNamesAsync();
+
+            Assert.Equal(new[] { 0, 1 }, requested);
+            Assert.Equal(3, settings.PresetNameCache.Count);
+            Assert.Equal("Refreshed zero", settings.PresetNameCache[0]);
+            Assert.Equal("Old one", settings.PresetNameCache[1]);
+            Assert.Equal("Previously cached preset", settings.PresetNameCache[101]);
+            Assert.DoesNotContain("Reply for wrong preset", settings.PresetNameCache.Values);
+            Assert.Equal(101, Field<NumericUpDown>(window, "_favPresetSpinner").Value);
+            Assert.Equal("Unsaved name", Find<TextBox>(window, "FavoriteName").Text);
+            Assert.True(Find<Border>(window, "FavoriteEditorCard").IsVisible);
+            Assert.Contains("Expected preset name 1, received 0", SyncOutcomeDetail(window));
+            Assert.Equal(0, midi.TotalSendCount);
         }
         finally { window.Close(); }
     }

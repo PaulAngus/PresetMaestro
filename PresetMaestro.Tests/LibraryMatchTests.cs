@@ -144,4 +144,84 @@ public sealed class LibraryMatchTests
         Assert.Throws<InvalidDataException>(() => IndexJson.ToElement(new IndexProfile { PresetMatchThresholdPercent = 0 }));
         Assert.Throws<InvalidDataException>(() => IndexJson.ToElement(new IndexProfile { PresetMatchThresholdPercent = 101 }));
     }
+
+    [Fact]
+    public void DifferencesKeepSpecificSettingsFailuresAndMetadataWithoutReportingBypass()
+    {
+        var baseline = Baseline(3);
+        var observed = new Dictionary<int, IndexedPreset>(baseline.Presets);
+        var preset = observed[1];
+        var amp = preset.Amps[0];
+        observed[1] = preset with
+        {
+            Name = "Renamed",
+            ContentSha256 = "changed",
+            SceneNames = ["New scene", .. preset.SceneNames.Skip(1)],
+            Amps = [amp with { Scenes = [new(2, !amp.Scenes[0].Bypassed), .. amp.Scenes.Skip(1)] }],
+        };
+        observed.Remove(2);
+        var result = LibraryMatch.Compare(baseline, observed, true, "Other", "13.00", [0, 1, 2],
+            new Dictionary<int, string> { [2] = "The device query timed out." });
+        Assert.Equal(new[] { 1, 2 }, result.Differences.Select(d => d.Slot));
+        Assert.Contains(result.Differences[0].Changes, c => c.Setting == "Preset name" && c.Saved == preset.Name && c.Connected == "Renamed");
+        Assert.Contains(result.Differences[0].Changes, c => c.Setting == "Scene 1 name" && c.Connected == "New scene");
+        Assert.Contains(result.Differences[0].Changes, c => c.Setting == "Scene 1, Amp 1 channel" && c.Connected == "Channel C");
+        Assert.DoesNotContain(result.Differences[0].Changes, c => c.Setting.Contains("bypass", StringComparison.OrdinalIgnoreCase) || c.Connected.Contains("bypass", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("The device query timed out.", result.Differences[1].ReadError);
+        Assert.Equal(new[] { "Device name", "Firmware" }, result.MetadataDifferences.Select(d => d.Setting));
+        Assert.Equal(new[] { 0, 1, 2 }, result.RequestedSlots);
+        Assert.True(result.IncludesLegacyFingerprints);
+    }
+
+    [Fact]
+    public void NewComparisonIgnoresBypassImageChangesButLegacyDifferencesRemainUnconfirmed()
+    {
+        var baseline = Baseline(1);
+        const string fingerprint = "gen3-no-bypass-v1:same-settings";
+        baseline.Presets[0] = baseline.Presets[0] with { BypassIgnoredSha256 = fingerprint };
+        var preset = baseline.Presets[0];
+        var observed = new Dictionary<int, IndexedPreset>
+        {
+            [0] = preset with
+            {
+                ContentSha256 = "different-raw-image",
+                Amps = [preset.Amps[0] with { Scenes = preset.Amps[0].Scenes.Select(s => s with { Bypassed = !s.Bypassed }).ToArray() }],
+            },
+        };
+        var result = LibraryMatch.Compare(baseline, observed, true, "Stage", "12.00", [0]);
+        Assert.True(result.MeetsThreshold(100));
+        Assert.Empty(result.Differences);
+        Assert.False(result.IncludesLegacyFingerprints);
+        observed[0] = observed[0] with { BypassIgnoredSha256 = "gen3-no-bypass-v1:changed-parameter" };
+        Assert.False(LibraryMatch.Compare(baseline, observed, true, "Stage", "12.00", [0]).MeetsThreshold(99));
+        baseline.Presets[0] = preset with { BypassIgnoredSha256 = null };
+        result = LibraryMatch.Compare(baseline, observed, true, "Stage", "12.00", [0]);
+        Assert.False(result.MeetsThreshold(99));
+        Assert.True(result.IncludesLegacyFingerprints);
+        Assert.Empty(result.Differences.Single().Changes);
+    }
+
+    [Fact]
+    public void CheckReportKeepsEvidenceSeparateFromTheBaseline()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-check-report-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var baseline = Baseline(512);
+            baseline.Status = "Complete";
+            var cache = new DeviceIndex { Device = new(Guid.NewGuid(), "Saved", FractalDeviceVariant.FM9), Committed = baseline };
+            var library = new IndexLibrary(directory); library.Save(cache);
+            var observed = new Dictionary<int, IndexedPreset>(baseline.Presets);
+            observed[1] = observed[1] with { ContentSha256 = "changed" };
+            var result = LibraryMatch.Compare(baseline, observed, true, "Stage", "12.00", [0, 1]);
+            new LibraryCheckReportStore(directory).Save(new(cache.Device.Id, baseline.Id, baseline.StartedAt,
+                DateTimeOffset.UtcNow, "Stage", "12.00", 99, result, []));
+            string report = File.ReadAllText(Path.Combine(directory, "Checks", cache.Device.Id.ToString("N") + ".json"));
+            Assert.Contains("changed", report);
+            Assert.Contains("RequestedSlots", report);
+            Assert.Equal("hash-1", library.Load(cache.Device.Id)!.Committed!.Presets[1].ContentSha256);
+            Assert.Single(library.ListDevices());
+        }
+        finally { if (Directory.Exists(directory)) { Directory.Delete(directory, true); } }
+    }
 }

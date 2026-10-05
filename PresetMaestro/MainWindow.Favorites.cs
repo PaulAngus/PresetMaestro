@@ -91,7 +91,10 @@ public partial class MainWindow
         int offset = _settings.DisplayOffset;
         _favPresetSpinner.Maximum = EffectiveMaximum;
         int currentSlot = Math.Clamp((int)(_favPresetSpinner.Value ?? offset) - offset, 0, DevicePresets.Capacity(PickerDeviceModel) - 1);
-        var dialog = new PresetSelectionWindow(_settings.PresetNameCache, currentSlot, _settings.DisplayOffset, PickerDeviceModel) { Icon = Icon };
+        var model = PickerDeviceModel;
+        var dialog = new PresetSelectionWindow(_settings.PresetNameCache, currentSlot, _settings.DisplayOffset, model,
+            slot => GoToDevice(slot, null, model), () => DeviceNavigationUnavailable(model))
+        { Icon = Icon };
         int? slot = _presetPickerOverride is not null
             ? await _presetPickerOverride(dialog)
             : await dialog.ShowDialog<int?>(this);
@@ -253,11 +256,14 @@ public partial class MainWindow
         clear.Click += (_, _) => ClearFavoriteSlot(fav);
         var remove = new MenuItem { Header = "Remove Slot and Shift Up…" };
         remove.Click += async (_, _) => await RemoveFavoriteSlotAsync(fav);
-        item.ContextMenu = new ContextMenu { Items = { edit, new Separator(), clear, remove } };
+        var goTo = new MenuItem { Header = "Go to preset & scene" };
+        goTo.Click += (_, _) => GoToDevice(fav.Preset - _settings.DisplayOffset, fav.Scene, PickerDeviceModel);
+        item.ContextMenu = new ContextMenu { Items = { goTo, edit, new Separator(), clear, remove } };
         item.ContextMenu.Opened += (_, _) =>
         {
             _favListBox.SelectedItem = item;
             UpdateFavoriteCommandStates();
+            goTo.IsEnabled = !fav.IsEmpty && DeviceNavigationUnavailable(PickerDeviceModel) is null;
         };
         _favInsertionLines[item] = divider;
         _favDetailStrips[item] = detailStrip;
@@ -668,21 +674,19 @@ public partial class MainWindow
             return;
         }
 
-        _favorites.RemoveAt(sourceIndex);
-        if (sourceIndex < targetIndex)
-        {
-            targetIndex--;
-        }
-
-        if (after)
-        {
-            targetIndex++;
-        }
-
-        _favorites.Insert(Math.Clamp(targetIndex, 0, _favorites.Count), source);
-        FavoritesManager.RenumberSlots(_favorites);
-        _saveFavorites(_favorites);
+        if (!TryFavoriteCommand(() => _favoriteCommands.Reorder(source, target, after))) { return; }
         RefreshFavoritesList();
+    }
+
+    private bool TryFavoriteCommand(Action command)
+    {
+        try { command(); return true; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            AppendLog("FAVORITES: could not save changes — " + ex.Message);
+            ShowSendFeedback("Couldn't save favorites", "Check that the profile folder is writable, then try again.", warning: true);
+            return false;
+        }
     }
 
     private void ClearFavoriteDragState()
@@ -734,53 +738,9 @@ public partial class MainWindow
         CommitFavoriteTag();
         var tags = _favEditingTags.ToList();
 
-        if (_favEditingId == 0)
-        {
-            var created = new Favorite
-            {
-                Id = FavoritesManager.NextId(_favorites),
-                Slot = _favorites.Count + 1,
-                Name = name,
-                Tags = tags,
-                Preset = (int)preset,
-                Scene = (int)scene,
-            };
-            _favorites.Add(created);
-        }
-        else
-        {
-            int idx = _favorites.FindIndex(f => f.Id == _favEditingId.Value);
-            if (idx < 0)
-            {
-                return;
-            }
-
-            _favorites[idx].Name = name;
-            _favorites[idx].Tags = tags;
-            _favorites[idx].Preset = (int)preset;
-            _favorites[idx].Scene = (int)scene;
-        }
-
-        FavoritesManager.RenumberSlots(_favorites);
-        _saveFavorites(_favorites);
+        if (!TryFavoriteCommand(() => _favoriteCommands.Save(_favEditingId.Value, name, (int)preset, (int)scene, tags))) { return; }
         HideFavoriteEditor();
         RefreshFavoritesList();
-    }
-
-    private void OnFavClearSlot(object? sender, RoutedEventArgs e)
-    {
-        if (_favEditingId is not int id || id == 0)
-        {
-            return;
-        }
-
-        var fav = _favorites.FirstOrDefault(f => f.Id == id);
-        if (fav == null)
-        {
-            return;
-        }
-
-        ClearFavoriteSlot(fav);
     }
 
     private void OnFavDelete(object? sender, RoutedEventArgs e)
@@ -847,7 +807,8 @@ public partial class MainWindow
         {
             Favorite? favorite = _deleteSlotDialogFavorite;
             CloseDeleteSlotDialog(returnFocus: false);
-            if (favorite != null && ApplyFavoriteSlotRemoval(_favorites, favorite, confirmed: true))
+            if (favorite != null && _favorites.Contains(favorite) &&
+                TryFavoriteCommand(() => _favoriteCommands.Remove(favorite)))
             {
                 CompleteFavoriteSlotRemoval(favorite);
             }
@@ -933,30 +894,13 @@ public partial class MainWindow
         }
     }
 
-    private async void OnFavRemoveSlot(object? sender, RoutedEventArgs e)
-    {
-        if (_favEditingId is not int id || id == 0)
-        {
-            return;
-        }
-
-        var fav = _favorites.FirstOrDefault(f => f.Id == id);
-        if (fav == null)
-        {
-            return;
-        }
-
-        await RemoveFavoriteSlotAsync(fav);
-    }
-
     private void ClearFavoriteSlot(Favorite favorite)
     {
-        if (!ApplyFavoriteSlotClear(_favorites, favorite))
+        if (!_favorites.Contains(favorite) || !TryFavoriteCommand(() => _favoriteCommands.Clear(favorite)))
         {
             return;
         }
 
-        _saveFavorites(_favorites);
         HideFavoriteEditor();
         RefreshFavoritesList(selectedFavoriteId: favorite.Id);
     }
@@ -969,7 +913,8 @@ public partial class MainWindow
         bool confirm = _confirmOverride is not null
             ? await _confirmOverride(title, message, "Remove Slot", "Cancel")
             : await ShowConfirmAsync(title, message, "Remove Slot", "Cancel");
-        if (!ApplyFavoriteSlotRemoval(_favorites, favorite, confirm))
+        if (!confirm || !_favorites.Contains(favorite) ||
+            !TryFavoriteCommand(() => _favoriteCommands.Remove(favorite)))
         {
             return;
         }
@@ -980,7 +925,6 @@ public partial class MainWindow
     private void CompleteFavoriteSlotRemoval(Favorite favorite, int? removedSlot = null)
     {
         int slot = removedSlot ?? favorite.Slot;
-        _saveFavorites(_favorites);
         HideFavoriteEditor();
         int? selectedSlot = _favorites.Count == 0 ? null : Math.Min(slot, _favorites.Count);
         RefreshFavoritesList(selectedSlot: selectedSlot);

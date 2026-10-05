@@ -1,0 +1,34 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build with analyzers
+        run: dotnet build PresetMaestro.slnx --configuration Release
+      - name: Regression tests and coverage
+        run: dotnet test PresetMaestro.slnx --configuration Release --no-build --collect:"XPlat Code Coverage" --logger trx --results-directory TestResults
+      - name: Formatting and code style
+        run: dotnet format PresetMaestro.slnx --verify-no-changes --no-restore
+      - name: Build without optional Preset Index
+        run: dotnet build PresetMaestro/PresetMaestro.csproj --configuration Release -p:EnableFractalIndex=false --artifacts-path build_test/no-index
+      - name: Retain test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
+          if-no-files-found: ignore
