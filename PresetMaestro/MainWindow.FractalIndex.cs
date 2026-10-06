@@ -1,5 +1,4 @@
 #if FRACTAL_INDEX
-using Avalonia.Automation;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -83,7 +82,6 @@ public partial class MainWindow
                 ToolTip.SetTip(_indexDeviceLabel, $"Device library assigned to profile '{_settings.ActiveProfile}': {assignment}. Change the assignment in Config.");
             }
             if (_indexAssignmentLabel is not null) { _indexAssignmentLabel.Text = $"{_settings.ActiveProfile} → {assignment}"; }
-            if (_indexMatchThreshold is not null) { _indexMatchThreshold.Value = _indexProfile.PresetMatchThresholdPercent; }
             if (_indexAvailableDevices is not null && _profileStore is not null)
             {
                 var devices = AvailableIndexDevices();
@@ -159,42 +157,9 @@ public partial class MainWindow
         var manage = IndexButton("Manage library", "ManageLibraries");
         manage.Click += (_, _) => _showManageLibraries?.Invoke();
         content.Children.Add(manage);
-        _indexMatchThreshold = new CompactNumericUpDown
-        {
-            Name = "IndexMatchThreshold",
-            Minimum = 1,
-            Maximum = 100,
-            Increment = 1,
-            FormatString = "0",
-            Value = _indexProfile.PresetMatchThresholdPercent,
-            Width = 100
-        };
-        AutomationProperties.SetName(_indexMatchThreshold, "Preset match threshold percent");
-        _indexMatchThreshold.ValueChanged += (_, _) =>
-        {
-            if (_refreshingIndex || _indexScanning || _indexChecking || _changingProfile || _indexMatchThreshold.Value is not decimal value) { return; }
-            int rounded = (int)decimal.Round(value, 0, MidpointRounding.AwayFromZero);
-            if (SaveIndexProfile(profile => profile.PresetMatchThresholdPercent = rounded)) { RefreshLibraryMatchStatus(); }
-            if (_indexMatchThreshold.Value != _indexProfile.PresetMatchThresholdPercent)
-            {
-                _refreshingIndex = true;
-                try { _indexMatchThreshold.Value = _indexProfile.PresetMatchThresholdPercent; }
-                finally { _refreshingIndex = false; }
-            }
-        };
-        content.Children.Add(new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Children =
-        {
-            new TextBlock { Text = "Preset match threshold (%)", VerticalAlignment = VerticalAlignment.Center, Foreground = TextBrush },
-            _indexMatchThreshold,
-        }
-        });
         content.Children.Add(new TextBlock
         {
-            Text = "For this profile. Empty slots are excluded. A match suggests the library belongs to this device; it cannot identify a physical unit.",
+            Text = "Library checks compare saved presets with the connected device. Any difference is shown for review. A match suggests the library belongs to this device; it cannot identify a physical unit.",
             FontSize = 12,
             Foreground = SecondaryBrush,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap
@@ -230,7 +195,6 @@ public partial class MainWindow
         _indexCancelButton!.IsVisible = _indexScanning || _indexChecking;
         _indexProgressPanel!.IsVisible = _indexScanning || _indexChecking;
         if (_indexCheckButton is not null) { _indexCheckButton.IsEnabled = ready && !_connectionLibrarySetupRequired && _indexCache?.Committed is not null; }
-        if (_indexMatchThreshold is not null) { _indexMatchThreshold.IsEnabled = !_indexScanning && !_indexChecking && !_changingProfile; }
         RefreshLibraryMatchStatus();
         RefreshIndexConnectionSyncCompletion();
         UpdateLibraryManagementButtons();
@@ -249,7 +213,6 @@ public partial class MainWindow
         // Every new read uses this connection's reported firmware, including null
         // on failure. Never carry a previous connection's version into a new scan.
         cache.Device = cache.Device with { Firmware = _detectedDevice.Firmware };
-        int threshold = _indexProfile.PresetMatchThresholdPercent;
         var baseline = cache.Committed;
         using var cancellation = new CancellationTokenSource();
         _presetNamesCts = cancellation;
@@ -276,7 +239,7 @@ public partial class MainWindow
             {
                 _indexProgressText!.Text = "Checking saved reads before resuming…";
                 var check = await LibraryMatch.CheckSampleAsync(_fractalIndexReader, cache, partial, deviceName, cancellation.Token);
-                if (!check.MeetsThreshold(threshold))
+                if (!check.IsConsistent)
                 {
                     resume = false;
                     _indexProgressText.Text = "Previous reads could not be confirmed. Starting a fresh scan…";
@@ -300,7 +263,7 @@ public partial class MainWindow
             if (match is not null)
             {
                 RememberLibraryMatch(cache, match);
-                if ((!match.MeetsThreshold(threshold) || cache.Imported) && !await ConfirmLibraryUpdateAsync(cache, match))
+                if ((!match.IsConsistent || cache.Imported) && !await ConfirmLibraryUpdateAsync(cache, match))
                 { outcome = "Previous library kept. New reads were saved separately; they have not replaced its baseline."; return; }
             }
             cancellation.Token.ThrowIfCancellationRequested();

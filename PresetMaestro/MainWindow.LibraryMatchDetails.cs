@@ -26,7 +26,8 @@ public partial class MainWindow
             ReferenceEquals(_libraryCheckOutcome, _connectionSyncOutcome) &&
             _matchLibraryId == _indexCache?.Device.Id && _matchBaselineId == _indexCache?.Committed?.Id &&
             _matchConnection == _connectionGeneration;
-        var presets = _libraryMatch?.Differences ?? _libraryNameDifferences;
+        // A Quick check also reports name differences found outside its sampled slots.
+        var presets = (_libraryMatch?.Differences ?? []).Concat(_libraryNameDifferences).OrderBy(d => d.Slot).ToArray();
         var metadata = _libraryMatch?.MetadataDifferences ?? [];
         _connectionSyncDifferences.IsVisible = current && (presets.Length > 0 || metadata.Length > 0);
         _connectionSyncDifferences.Children.Clear();
@@ -36,6 +37,10 @@ public partial class MainWindow
         _connectionSyncDifferences.Children.Add(DetailText(date + (_libraryMatch?.IsSample == true
             ? "This check sampled different random slots; a previous sample may have missed these presets."
             : _libraryMatch is null ? "Only preset names were compared; preset content was not read." : "Every preset slot was checked.")));
+        if (_libraryMatch is not null && _libraryNameDifferences.Length > 0)
+        {
+            _connectionSyncDifferences.Children.Add(DetailText("Preset names were read for every slot. Name differences outside the sampled presets are listed too; their content was not read."));
+        }
         if (_libraryMatch?.IncludesLegacyFingerprints == true)
         {
             _connectionSyncDifferences.Children.Add(DetailText("This older library includes bypass in its fingerprint. Review these differences, then Sync library once to enable comparisons that ignore bypass states."));
@@ -69,7 +74,7 @@ public partial class MainWindow
             { details.Children.Add(DetailText("Saved preset data differs; only indexed settings can be shown.")); }
             if (concise && preset.ContentChanged && preset.Changes.Length == 0)
             { details.Children.Add(DetailText("Exact change unavailable. Indexed names, amps and scene channels match.")); }
-            if (preset.ReadError is not null || !concise && _libraryMatch is not null)
+            if (preset.ReadError is not null || !concise && _libraryMatch?.Differences.Contains(preset) == true)
             { details.Children.Add(DetailText(preset.Explanation)); }
             rows.Children.Add(new Border { Child = details, Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new(1), CornerRadius = new(6), Padding = new(12) });
         }

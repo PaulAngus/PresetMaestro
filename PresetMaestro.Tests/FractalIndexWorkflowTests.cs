@@ -307,7 +307,6 @@ public sealed class FractalIndexWorkflowTests : IDisposable
                 Assert.Equal(!full, confirmation.IsSample);
                 Assert.Equal(full ? 512 : 16, confirmation.Compared);
                 Assert.Equal(confirmation.Compared, confirmation.Matched);
-                Assert.Equal(99, confirmation.ThresholdPercent);
                 Assert.True(confirmation.CheckedAt >= baseline.FinishedAt);
                 Assert.Equal(confirmation, saved.LastAttempt!.FirmwareConfirmation);
                 Assert.Equal("12.00", repaired.EffectiveFirmware);
@@ -339,7 +338,14 @@ public sealed class FractalIndexWorkflowTests : IDisposable
                     Assert.Equal("Library check passed; device setup incomplete", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
                     Assert.Contains("Reconnect", Find<TextBlock>(dialog, "ConnectionSyncNext").Text);
                 }
-                if (outcome is "names differ" or "cancelled") { Assert.Empty(source.FullReads); }
+                if (outcome == "cancelled") { Assert.Empty(source.FullReads); }
+                if (outcome == "names differ")
+                {
+                    // Name differences no longer skip the content check; they prevent confirmation instead.
+                    Assert.Equal(full ? 512 : 16, source.FullReads.Count);
+                    Assert.Equal("Library check needs review", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+                    Assert.Contains("other preset names differ", Find<TextBlock>(dialog, "ConnectionSyncStatus").Text);
+                }
             }
             var unaltered = IndexJson.Clone(repaired); unaltered.FirmwareConfirmation = null;
             Assert.Equal(originalScan, JsonSerializer.Serialize(unaltered, IndexJson.Options));
@@ -453,14 +459,13 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         Assert.False(result.IsSample);
         Assert.Equal(41, result.Compared);
         Assert.Equal(39, result.Matched);
-        Assert.False(result.MeetsThreshold(99));
+        Assert.False(result.IsConsistent);
         Assert.Equal(new LibraryMatchProgress(512, 512, 0), progress[^1]);
         Assert.False(cache.Committed.Presets[10].NameOnlyEmpty);
         Assert.True(cache.Committed.Presets[511].NameOnlyEmpty);
     }
 
     [AvaloniaTheory]
-    [InlineData("different")]
     [InlineData("missing")]
     [InlineData("unavailable")]
     public async Task NamePrecheckFailsBeforePresetDumpsAndKeepsSavedNames(string failure)
@@ -487,7 +492,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             {
                 Interlocked.Increment(ref nameReads);
                 if (failure == "unavailable" || failure == "missing" && slot == 220) { throw new TimeoutException(); }
-                return Task.FromResult(new PresetNameResult(slot, failure == "different" ? "Different preset" : cache.Committed!.Presets[slot].Name));
+                return Task.FromResult(new PresetNameResult(slot, cache.Committed!.Presets[slot].Name));
             })
         { Width = 1200, Height = 900, ThruInputRetryDelay = TimeSpan.Zero };
         typeof(MainWindow).GetField("_fractalIndexReader", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
@@ -503,7 +508,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             Assert.Equal("Previous cached name", store.LoadSettings().PresetNameCache[0]);
             Assert.Equal(cache.Committed!.Id, library.Load(cache.Device.Id)!.Committed!.Id);
             var dialog = Assert.Single(window.OwnedWindows);
-            Assert.Equal(failure switch { "different" => "Preset names differ from this library", "missing" => "Preset-name check incomplete", _ => "Library check unavailable" }, Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Equal(failure == "missing" ? "Preset-name check incomplete" : "Library check unavailable", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
             Assert.False(Find<Grid>(dialog, "ConnectionSyncCheckChoices").IsVisible);
             Assert.True(Find<Button>(dialog, "ConnectionSyncLibrary").IsEnabled);
             Assert.True(Find<Button>(dialog, "ConnectionSyncShowChecks").IsEffectivelyVisible);
@@ -513,12 +518,11 @@ public sealed class FractalIndexWorkflowTests : IDisposable
     }
 
     [AvaloniaTheory]
-    [InlineData(99, false, false, true, false)]
-    [InlineData(100, false, false, false, false)]
-    [InlineData(100, true, false, true, false)]
-    [InlineData(99, false, true, false, false)]
-    [InlineData(100, true, false, false, true)]
-    public async Task LibraryCheckAndSyncRespectThresholdAndPreserveBaselineUntilConfirmed(int threshold, bool approve, bool renamed, bool publishes, bool disconnect)
+    [InlineData(false, false, false, false)]
+    [InlineData(true, false, true, false)]
+    [InlineData(false, true, false, false)]
+    [InlineData(true, false, false, true)]
+    public async Task LibraryCheckAndSyncAskAboutAnyDifferenceAndPreserveBaselineUntilConfirmed(bool approve, bool renamed, bool publishes, bool disconnect)
     {
         var source = new NameSource(slot => slot < 100 ? "Populated" : "<EMPTY>");
         var reader = new PresetIndexReader(source, AmpModelCatalogRegistry.CreateStarter());
@@ -532,7 +536,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         var library = new IndexLibrary(Path.Combine(_directory, "FractalIndex")); library.Save(cache);
         var settings = store.LoadSettings(); settings.Theme = "Light";
         settings.MidiInputPort = "FM9"; settings.MidiOutputPort = "FM9";
-        settings.FractalIndex = IndexJson.ToElement(new IndexProfile { Devices = [cache.Device], SelectedDeviceId = cache.Device.Id, PresetMatchThresholdPercent = threshold });
+        settings.FractalIndex = IndexJson.ToElement(new IndexProfile { Devices = [cache.Device], SelectedDeviceId = cache.Device.Id });
         store.SaveSettings(settings);
         var midi = new DeviceMidi();
         midi.Send = request =>
@@ -578,7 +582,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             Assert.Contains(renamed ? "Your saved copy has not been updated" : "All 512 preset names were refreshed automatically", Find<TextBlock>(syncDialog, "ConnectionSyncStatus").Text);
             Assert.Contains(renamed ? "Manage libraries" : "Use saved library to continue", Find<TextBlock>(syncDialog, "ConnectionSyncNext").Text);
             string? dialogOutput = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
-            if (dialogOutput is not null && threshold == 99)
+            if (dialogOutput is not null && !approve)
             {
                 Directory.CreateDirectory(dialogOutput);
                 syncDialog.UpdateLayout(); Dispatcher.UIThread.RunJobs(); AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -591,7 +595,8 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             await window.SyncIndexAsync(); Dispatcher.UIThread.RunJobs();
             var saved = library.Load(cache.Device.Id)!;
             Assert.Equal(publishes, baselineId != saved.Committed!.Id);
-            Assert.Equal(threshold == 100 || renamed ? 1 : 0, confirmations);
+            // A single changed preset is enough to ask; there is no tolerance percentage.
+            Assert.Equal(1, confirmations);
             Assert.Equal("Complete", saved.LastAttempt!.Status);
             Assert.Contains(disconnect ? "connect the device" : "99 of 100 populated", Find<TextBlock>(window, "IndexMatchStatus").Text!);
             if (publishes)
@@ -603,13 +608,10 @@ public sealed class FractalIndexWorkflowTests : IDisposable
                 Assert.All(store.LoadSettings().SceneNameCaches.Values.Single()[511].Names, name => Assert.Equal("", name));
             }
             string? output = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
-            if (output is not null && threshold == 99 && !renamed)
+            if (output is not null && !approve && !renamed)
             {
                 Directory.CreateDirectory(output);
                 using var screenshot = window.CaptureRenderedFrame(); screenshot!.Save(Path.Combine(output, "preset-library-match.png"));
-                Click(Find<Button>(window, "NavConfig")); Dispatcher.UIThread.RunJobs();
-                Find<NumericUpDown>(window, "IndexMatchThreshold").BringIntoView(); Dispatcher.UIThread.RunJobs();
-                using var config = window.CaptureRenderedFrame(); config!.Save(Path.Combine(output, "preset-library-match-config.png"));
             }
         }
         finally { window.Close(); }
@@ -679,7 +681,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         var result = await LibraryMatch.CheckSampleAsync(reader, cache, cache.Committed!, null, default);
         Assert.Equal(3, attempts);
         Assert.Equal(16, result.Failed);
-        Assert.False(result.MeetsThreshold(1));
+        Assert.False(result.IsConsistent);
     }
 
     [Fact]
@@ -861,13 +863,12 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         var settings = store.LoadSettings();
         var cache = Cache();
         new IndexLibrary(Path.Combine(_directory, "FractalIndex")).Save(cache);
-        var profile = new IndexProfile { Devices = [cache.Device], SelectedDeviceId = cache.Device.Id, PresetMatchThresholdPercent = 97 };
+        var profile = new IndexProfile { Devices = [cache.Device], SelectedDeviceId = cache.Device.Id };
         profile.GetOrCreate(cache.Device.Id, cache.Committed!.Presets[125], "12.00").SceneTags[2] = ["Lead"];
         profile.Reattach(profile.Annotations.Single().Id, cache.Committed.Presets[126], "12.00", new Dictionary<int, int> { [2] = 4 });
         settings.FractalIndex = IndexJson.ToElement(profile); store.SaveSettings(settings);
         store.Create("Copy", store.LoadProfile("Default"));
         var copied = IndexJson.ReadProfile(store.LoadProfile("Copy").FractalIndex);
-        Assert.Equal(97, copied.PresetMatchThresholdPercent);
         Assert.NotEqual(profile.ProfileId, copied.ProfileId);
         Assert.Equal(cache.Device.Id, copied.Devices.Single().Id);
         store.Rename("Copy", "Renamed");
@@ -877,7 +878,6 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         using (var archive = ZipFile.OpenRead(zip)) { Assert.Equal(2, archive.Entries.Count); }
         string imported = store.Import(zip);
         var portable = IndexJson.ReadProfile(store.LoadProfile(imported).FractalIndex);
-        Assert.Equal(97, portable.PresetMatchThresholdPercent);
         var snapshot = Assert.Single(portable.PortableSnapshots);
         Assert.NotEqual(cache.Device.Id, snapshot.Device.Id);
         Assert.True(snapshot.Imported);
@@ -958,7 +958,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             var sceneSection = Find<StackPanel>(window, "IndexSceneSection");
             var ampSection = Find<StackPanel>(window, "IndexAmpSection");
             Assert.True(ampSection.Bounds.Y >= sceneSection.Bounds.Bottom);
-            Assert.True(Find<Grid>(window, "IndexAmpChannels").Bounds.Height >= 280);
+            AssertAmpModelsFit();
             Assert.Equal("Tags…", Find<Button>(window, "IndexScene3Tags").Content);
             Assert.True(Find<ScrollViewer>(window, "IndexInspectorScroll").Extent.Height > Find<ScrollViewer>(window, "IndexInspectorScroll").Viewport.Height);
             var search = Find<TextBox>(window, "IndexSearchInput");
@@ -1008,6 +1008,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             Assert.True(Find<Grid>(window, "IndexScenes").Bounds.Height >= 576);
             Assert.All(Find<Grid>(window, "IndexScenes").Children, row => Assert.True(row.Bounds.Height >= 60));
             AssertSceneSummariesFit();
+            AssertAmpModelsFit();
             if (output is not null)
             {
                 using var narrow = window.CaptureRenderedFrame(); narrow!.Save(Path.Combine(output, "preset-index-narrow-" + theme.ToLowerInvariant() + ".png"));
@@ -1022,6 +1023,10 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             Assert.True(close.IsEffectivelyVisible);
             Assert.Equal(backPosition, backToScenes.TranslatePoint(default, frame));
             Assert.True(backToScenes.IsEffectivelyVisible);
+            if (output is not null)
+            {
+                using var narrowModels = window.CaptureRenderedFrame(); narrowModels!.Save(Path.Combine(output, "preset-index-amp-models-narrow-" + theme.ToLowerInvariant() + ".png"));
+            }
             backToScenes.Focus();
             window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
             Assert.Equal(0, Find<ScrollViewer>(window, "IndexInspectorScroll").Offset.Y);
@@ -1060,6 +1065,24 @@ public sealed class FractalIndexWorkflowTests : IDisposable
                 Assert.True(position.X + summary.Bounds.Width <= Find<Button>(window, $"IndexScene{scene}Tags").Bounds.X);
             }
         }
+
+        void AssertAmpModelsFit()
+        {
+            var table = Find<Grid>(window, "IndexAmpChannels");
+            var cells = table.Children.OfType<StackPanel>().ToArray();
+            Assert.Equal(8, cells.Length);
+            foreach (var cell in cells)
+            {
+                Assert.True(cell.Bounds.Bottom <= table.Bounds.Height);
+                foreach (var label in cell.Children.OfType<TextBlock>())
+                {
+                    Assert.True(label.Bounds.Bottom <= cell.Bounds.Height);
+                    Assert.True(label.TextLayout.Height <= label.Bounds.Height + 1);
+                }
+                var next = cells.SingleOrDefault(other => Grid.GetColumn(other) == Grid.GetColumn(cell) && Grid.GetRow(other) == Grid.GetRow(cell) + 1);
+                if (next is not null) { Assert.True(cell.Bounds.Bottom <= next.Bounds.Top); }
+            }
+        }
     }
 
     [AvaloniaFact]
@@ -1088,10 +1111,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             Assert.Equal(4, Find<ListBox>(window, "IndexPresetList").ItemCount);
             Click(Find<Button>(window, "NavConfig")); Dispatcher.UIThread.RunJobs();
             var choices = Find<ComboBox>(window, "IndexAvailableDevices");
-            var threshold = Find<NumericUpDown>(window, "IndexMatchThreshold");
-            Assert.Equal(99m, threshold.Value);
-            threshold.Value = 95;
-            Assert.Equal(95, IndexJson.ReadProfile(store.LoadProfile("Default").FractalIndex).PresetMatchThresholdPercent);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<NumericUpDown>(), n => n.Name == "IndexMatchThreshold");
             choices.SelectedItem = choices.Items.OfType<IndexDevice>().Single(d => d.Id == second.Device.Id);
             Dispatcher.UIThread.RunJobs();
             var assigned = IndexJson.ReadProfile(settings.FractalIndex);
@@ -1113,7 +1133,6 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             menu.Hide(); Dispatcher.UIThread.RunJobs();
             Assert.Equal("Second", settings.ActiveProfile);
             Assert.Equal(first.Device.Id, IndexJson.ReadProfile(settings.FractalIndex).AssignedDevice!.Id);
-            Assert.Equal(99, IndexJson.ReadProfile(settings.FractalIndex).PresetMatchThresholdPercent);
             Assert.Equal(4, Find<ListBox>(window, "IndexPresetList").ItemCount);
             Assert.Empty(IndexJson.ReadProfile(settings.FractalIndex).Annotations);
             Assert.Equal(second.Device.Id, IndexJson.ReadProfile(store.LoadProfile("Default").FractalIndex).AssignedDevice!.Id);

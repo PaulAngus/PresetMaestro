@@ -33,6 +33,12 @@ The close X uses a centered 12-pixel vector icon with an 8-pixel gap to its labe
 
 Verification on 2026-10-04 inspected rendered light and dark layouts at 1440×850 and 1000×680. Regression checks cover dismissal after scrolling, Escape and focus return, scene invocation across child boundaries, keyboard invocation and independent embedded button actions. The scene double-click failure was also reproduced in the running Windows app; desktop control was stopped by the user before a live retest of the updated build.
 
+### Amp channel table spacing (reviewed 2026-10-05)
+
+[Fluent 2 layout guidance](https://fluent2.microsoft.design/layout) documents smaller spacing within related content, a flexible spacing ramp and responsive spacing. [Windows content layout and spacing](https://learn.microsoft.com/en-us/windows/apps/design/basics/content-basics) recommends consistent grouping and distinct primary/secondary typography for multi-line lists. Neither specifies a minimum height for these read-only channel rows.
+
+PresetMaestro sizes each channel row to its wrapped model names, removing the 64-pixel cell minimum and reducing vertical cell margins from 8 to 4 pixels. The real amp name and secondary Fractal name retain their existing typography and 4-pixel separation; alternating surfaces and the 12-pixel horizontal margins keep columns easy to scan. The gap before the section is reduced from 20 to 12 pixels. These are product choices in the existing Avalonia theme, with no deliberate deviation from the guidance. Verification covers rendered light and dark views at 1440×850 and 1000×680, including long names and two Amp blocks, plus existing section navigation, dismissal and focus checks.
+
 ### Library update decision (reviewed 2026-10-04)
 
 [Windows dialog guidance](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/dialogs-and-flyouts/dialogs) calls for a simple blocking question, concise specific actions and a safe cancellation choice. [Fluent 2 dialog guidance](https://fluent2.microsoft.design/components/web/react/core/dialog/usage/) documents modal blocking, focus containment and return, persistent headers/footers, and avoiding nested dialogs.

@@ -96,8 +96,31 @@ public partial class FavoriteEditorTests
         finally { window.Close(); }
     }
 
+    [AvaloniaTheory]
+    [InlineData(1440, "Light")]
+    [InlineData(1440, "Dark")]
+    [InlineData(1000, "Light")]
+    [InlineData(1000, "Dark")]
+    public async Task ConfirmationPausesWhileHoveredAndDismissesImmediatelyAfterTwoSecondHover(int width, string theme)
+    {
+        var window = CreateWindow(new FakeMidi { OutputOpen = true }, settings: new() { Theme = theme });
+        window.Width = width; window.Height = 850;
+        try
+        {
+            window.Show(); Invoke(window, "HandleDigit", 8); Invoke(window, "HandleSend"); Dispatcher.UIThread.RunJobs();
+            var feedback = Find<Border>(window, "SendFeedback");
+            window.MouseMove(feedback.TranslatePoint(new Point(20, 20), window)!.Value); Dispatcher.UIThread.RunJobs();
+            await Task.Delay(TimeSpan.FromSeconds(2.2)); Dispatcher.UIThread.RunJobs();
+            Assert.True(feedback.IsVisible);
+            CaptureSendConfirmation(window, $"hover-sent-{width}-{theme}");
+            window.MouseMove(new Point(10, 55)); Dispatcher.UIThread.RunJobs();
+            Assert.False(feedback.IsVisible);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
-    public async Task ConfirmationPausesWhileHoveredAndExpiresAfterLeaving()
+    public async Task ShortHoverRestartsNormalConfirmationTimeout()
     {
         var window = CreateWindow(new FakeMidi { OutputOpen = true });
         try
@@ -105,11 +128,32 @@ public partial class FavoriteEditorTests
             window.Show(); Invoke(window, "HandleDigit", 8); Invoke(window, "HandleSend"); Dispatcher.UIThread.RunJobs();
             var feedback = Find<Border>(window, "SendFeedback");
             window.MouseMove(feedback.TranslatePoint(new Point(20, 20), window)!.Value); Dispatcher.UIThread.RunJobs();
-            await Task.Delay(TimeSpan.FromSeconds(7.2)); Dispatcher.UIThread.RunJobs();
-            Assert.True(feedback.IsVisible);
             window.MouseMove(new Point(10, 55)); Dispatcher.UIThread.RunJobs();
-            await Task.Delay(TimeSpan.FromSeconds(7.2)); Dispatcher.UIThread.RunJobs();
+            Assert.True(feedback.IsVisible);
+            await Task.Delay(TimeSpan.FromSeconds(2.2)); Dispatcher.UIThread.RunJobs();
             Assert.False(feedback.IsVisible);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReplacingHoveredConfirmationResetsHoverDuration(bool warning)
+    {
+        var window = CreateWindow(new FakeMidi { OutputOpen = true });
+        try
+        {
+            window.Show(); Invoke(window, "HandleDigit", 8); Invoke(window, "HandleSend"); Dispatcher.UIThread.RunJobs();
+            var feedback = Find<Border>(window, "SendFeedback");
+            window.MouseMove(feedback.TranslatePoint(new Point(20, 20), window)!.Value); Dispatcher.UIThread.RunJobs();
+            await Task.Delay(TimeSpan.FromSeconds(2.2)); Dispatcher.UIThread.RunJobs();
+            Invoke(window, "ShowSendFeedback", warning ? "Warning" : "SENT", "New message", warning);
+            if (warning) { await Task.Delay(TimeSpan.FromSeconds(2.2)); Dispatcher.UIThread.RunJobs(); }
+            window.MouseMove(new Point(10, 55)); Dispatcher.UIThread.RunJobs();
+            Assert.True(feedback.IsVisible);
+            await Task.Delay(TimeSpan.FromSeconds(2.2)); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(warning, feedback.IsVisible);
         }
         finally { window.Close(); }
     }

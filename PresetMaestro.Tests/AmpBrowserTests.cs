@@ -184,7 +184,7 @@ public sealed class AmpBrowserTests : IDisposable
         var cache = Cache();
         cache.Committed!.Firmware = null;
         Assert.False(AmpBrowserCatalog.Build(cache).HasUsageData);
-        cache.Committed.FirmwareConfirmation = new("12.00", DateTimeOffset.UtcNow, true, 16, 16, 99);
+        cache.Committed.FirmwareConfirmation = new("12.00", DateTimeOffset.UtcNow, true, 16, 16);
         new IndexLibrary(_directory).Save(cache);
         var reopened = new IndexLibrary(_directory).Load(cache.Device.Id)!;
         var portable = IndexJson.Clone(reopened);
@@ -200,16 +200,15 @@ public sealed class AmpBrowserTests : IDisposable
     }
 
     [Theory]
-    [InlineData("not a version", 16, 16, 99)]
-    [InlineData("12.00", 15, 16, 99)]
-    [InlineData("12.00", 17, 16, 99)]
-    [InlineData("12.00", 0, 0, 99)]
-    [InlineData("12.00", 16, 16, 101)]
-    [InlineData("13.00", 16, 16, 99)]
-    public void InvalidCompatibilityConfirmationCannotBeLoaded(string firmware, int matched, int compared, int threshold)
+    [InlineData("not a version", 16, 16)]
+    [InlineData("12.00", 17, 16)]
+    [InlineData("12.00", -1, 16)]
+    [InlineData("12.00", 0, 0)]
+    [InlineData("13.00", 16, 16)]
+    public void InvalidCompatibilityConfirmationCannotBeLoaded(string firmware, int matched, int compared)
     {
         var cache = Cache();
-        cache.Committed!.FirmwareConfirmation = new(firmware, DateTimeOffset.UtcNow, true, matched, compared, threshold);
+        cache.Committed!.FirmwareConfirmation = new(firmware, DateTimeOffset.UtcNow, true, matched, compared);
         Assert.Throws<InvalidDataException>(() => IndexJson.Validate(cache));
     }
 
@@ -515,6 +514,15 @@ public sealed class AmpBrowserTests : IDisposable
             Find<ListBox>(window, "IndexPresetList").SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
             Assert.Contains("Amp 1 / B", Find<TextBlock>(window, "IndexAmpMatches").Text!);
             Capture(window, $"amps-contains-{width}-{theme}");
+            if (Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR") is not null)
+            {
+                window.Height = width == 1000 ? 680 : 850;
+                Dispatcher.UIThread.RunJobs();
+                Click(Find<Button>(window, "IndexShowAmpModels"));
+                Capture(window, $"amps-channel-models-{width}-{theme}");
+                window.Height = 800;
+                Dispatcher.UIThread.RunJobs();
+            }
             Click(Find<Button>(window, "IndexBackToAmps"));
             Assert.Equal("Bassguy", Find<TextBox>(window, "AmpsSearch").Text);
             Assert.True(Find<Button>(window, "AmpsFindPresets").IsFocused);

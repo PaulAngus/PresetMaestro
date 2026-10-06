@@ -8,17 +8,21 @@ public sealed record LibraryMatchResult(bool IsSample, int Matched, int Compared
     public LibraryValueDifference[] MetadataDifferences { get; init; } = [];
     public int[] RequestedSlots { get; init; } = [];
     public bool IncludesLegacyFingerprints { get; init; }
-    public decimal? Percent => Compared == 0 ? null : 100m * Matched / Compared;
-    public bool MeetsThreshold(int threshold) => Compared > 0 && Failed == 0 && Caution is null &&
-        Matched * 100L >= Compared * (long)threshold;
 
-    public string Describe(int threshold)
+    // Exact evidence only: every compared preset must match. Any difference is shown
+    // to the user rather than tolerated by a percentage.
+    public bool IsConsistent => Compared > 0 && Failed == 0 && Caution is null && Matched == Compared;
+
+    /// <param name="otherNameDifferences">Preset-name differences found outside the compared slots.</param>
+    public string Describe(int otherNameDifferences = 0)
     {
         string scope = IsSample ? "Sample" : "Full scan";
         string evidence = Compared == 0 ? "no populated presets to compare" :
-            $"{Matched} of {Compared} {(IsSample ? "sampled" : "populated")} presets match ({Percent:0.##}%)";
-        string decision = MeetsThreshold(threshold) ? "consistent with this library" : "library match unconfirmed";
-        return $"{scope}: {evidence} · threshold {threshold}% · {decision}." +
+            $"{Matched} of {Compared} {(IsSample ? "sampled" : "populated")} presets match";
+        if (otherNameDifferences > 0)
+        { evidence += $" · {otherNameDifferences} other preset {(otherNameDifferences == 1 ? "name differs" : "names differ")}"; }
+        string decision = IsConsistent && otherNameDifferences == 0 ? "consistent with this library" : "library match unconfirmed";
+        return $"{scope}: {evidence} · {decision}." +
             (Failed > 0 ? $" {Failed} reads unavailable." : "") + (Caution is null ? "" : " " + Caution);
     }
 }
@@ -31,17 +35,8 @@ public static class LibraryMatch
     public static bool IsPopulated(IndexedPreset preset) => !preset.NameOnlyEmpty &&
         preset.Name.Trim() != "<EMPTY>" && !string.IsNullOrEmpty(preset.ContentSha256);
 
-    // Names can rule out an obvious mismatch, but cannot prove that contents match.
+    // Names can reveal differences, but cannot prove that contents match.
     // Only freshly read names belong here; a cached fallback is not evidence.
-    public static (int Matched, int Compared) CompareNames(IndexScan baseline, IReadOnlyDictionary<int, string> names)
-    {
-        var slots = baseline.Presets.Values.Where(IsPopulated).Select(p => p.Slot)
-            .Union(names.Where(p => p.Value.Trim() != "<EMPTY>").Select(p => p.Key)).ToArray();
-        int matched = slots.Count(slot => baseline.Presets.TryGetValue(slot, out var previous) && IsPopulated(previous) &&
-            names.TryGetValue(slot, out var name) && string.Equals(previous.Name.Trim(), name.Trim(), StringComparison.Ordinal));
-        return (matched, slots.Length);
-    }
-
     public static LibraryPresetDifference[] NameDifferences(IndexScan baseline, IReadOnlyDictionary<int, string> names) =>
         baseline.Presets.Values.Where(IsPopulated).Select(p => p.Slot)
             .Union(names.Where(p => p.Value.Trim() != "<EMPTY>").Select(p => p.Key)).Order()

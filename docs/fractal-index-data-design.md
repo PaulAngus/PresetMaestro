@@ -44,6 +44,8 @@ For Preset Index search, a preset row represents the union of its own tags and i
 
 ## Rename, move, swap and copy reconciliation
 
+The implementation plan for this section, including fingerprints, stable identities, the reconciler and the review UX, is in [sync-change-detection-plan.md](sync-change-detection-plan.md).
+
 A scan compares committed old and new snapshots for the *whole selected device*, not just each slot against its previous occupant. Exact saved-byte fingerprints and any validated content fingerprint that excludes names are evidence; neither a name nor a slot is identity. Fingerprints are comparable only under supported device/firmware/decoder rules. A quick name sweep cannot resolve moves or swaps. Resolve only annotations/Favorites affected by uncertainty; ordinary untagged inventory changes need no review.
 
 | Change seen after a full scan | Treatment of preset/scene tags |

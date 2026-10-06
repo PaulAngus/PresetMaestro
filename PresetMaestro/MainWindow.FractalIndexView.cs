@@ -495,7 +495,7 @@ public partial class MainWindow
             Children = { IndexSectionHeading("Scenes"), new TextBlock { Text = "A–D identify each Amp block's channel. Off means bypassed. Go to loads this preset and scene on your device.", FontSize = 13, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap }, headings, scenes },
         };
         var ampSection = new StackPanel { Name = "IndexAmpSection" };
-        ampSection.Spacing = 8; ampSection.Margin = new(0, 20, 0, 0);
+        ampSection.Spacing = 8; ampSection.Margin = new(0, 12, 0, 0);
         ampSection.Children.Add(IndexSectionHeading("Amp models by channel"));
         ampSection.Children.Add(BuildIndexAmpTable(preset));
         var showAmps = IndexButton("Amp models ↓", "IndexShowAmpModels"); showAmps.MinHeight = 36; showAmps.FontSize = 13; showAmps.Margin = new(0, 0, 10, 0);
@@ -614,8 +614,7 @@ public partial class MainWindow
                 var text = new StackPanel
                 {
                     Spacing = 4,
-                    MinHeight = 64,
-                    Margin = new(12, 8),
+                    Margin = new(12, 4),
                     Children =
                 {
                     new TextBlock { Text = realAmp, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, TextWrapping = TextWrapping.Wrap },

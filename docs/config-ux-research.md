@@ -20,7 +20,7 @@ The regression fixture reproduces a stale profile reference and verifies both li
 
 [Fluent 2 spin-button guidance](https://fluent2.microsoft.design/components/web/react/core/spin/usage) documents direct typing, arrow-key adjustment, labelled units and disabling the appropriate button at a limit. [Windows number-box guidance](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/number-box) supports inline spin buttons and visible labels.
 
-PresetMaestro retains its existing Avalonia Fluent NumericUpDown input and behavior for Auto-send delay and Preset match threshold. These two controls use 24-pixel-wide buttons with 10×5 chevrons, retaining the Config input height and providing enough text space for 2000 ms and 100%. Their accessible names include units. These dimensions are product choices, not Microsoft requirements.
+PresetMaestro retains its existing Avalonia Fluent NumericUpDown input and behavior for Auto-send delay (the former Preset match threshold control was removed on 2026-10-06). This control and the retired threshold used 24-pixel-wide buttons with 10×5 chevrons, retaining the Config input height and providing enough text space for 2000 ms and 100%. Their accessible names include units. These dimensions are product choices, not Microsoft requirements.
 
 The [Avalonia 11.2.3 Fluent spinner template](https://github.com/AvaloniaUI/Avalonia/blob/11.2.3/src/Avalonia.Themes.Fluent/Controls/ButtonSpinner.xaml) assigns local button and icon widths. A small NumericUpDown subclass sizes those existing template parts after they are applied, preserving standard validation, limit states and keyboard behavior instead of replacing the template. Other numeric inputs keep their existing appearance.
 
@@ -28,4 +28,4 @@ Deliberate deviation: Fluent recommends an ordinary input for large ranges. The 
 
 Rendered light and dark Config views were inspected at 1440×850 and 1000×850 with the maximum values. Regression checks measure actual numeric text against available input space and exercise button increments, keyboard decrements and maximum-bound behavior; these supplement visual inspection.
 
-The grouped Profiles card was visually inspected in light and dark themes at 1440×850 and 1000×850. Library labels and controls remain readable, the threshold stays fully visible, and Appearance follows the complete Profiles card. Existing numeric keyboard and button checks and compact-layout containment checks pass.
+The grouped Profiles card was visually inspected in light and dark themes at 1440×850 and 1000×850. Library labels and controls remain readable, the threshold (since removed) stayed fully visible, and Appearance follows the complete Profiles card. Existing numeric keyboard and button checks and compact-layout containment checks pass.

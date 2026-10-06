@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace PresetMaestro.FractalIndex;
 
 public sealed record LibraryCheckReport(Guid LibraryId, Guid BaselineId, DateTimeOffset BaselineStartedAt,
-    DateTimeOffset CheckedAt, string? ConnectedDeviceName, string? ConnectedFirmware, int ThresholdPercent,
+    DateTimeOffset CheckedAt, string? ConnectedDeviceName, string? ConnectedFirmware,
     LibraryMatchResult? Result, LibraryPresetDifference[] NameDifferences);
 
 /// <summary>Last completed check evidence, kept separate from the saved baseline.</summary>

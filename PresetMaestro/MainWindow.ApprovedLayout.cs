@@ -213,8 +213,20 @@ public partial class MainWindow
             Child = content,
         };
         AutomationProperties.SetLiveSetting(panel, AutomationLiveSetting.Assertive);
-        panel.PointerEntered += (_, _) => _sendFeedbackTimer.Stop();
-        panel.PointerExited += (_, _) => { if (panel.IsVisible) { _sendFeedbackTimer.Start(); } };
+        panel.PointerEntered += (_, _) =>
+        {
+            _sendFeedbackTimer.Stop();
+            _sendFeedbackHover.Restart();
+        };
+        panel.PointerExited += (_, _) =>
+        {
+            bool dismiss = !_sendFeedbackWarning && _sendFeedbackHover.IsRunning
+                && _sendFeedbackHover.Elapsed >= TimeSpan.FromSeconds(2);
+            _sendFeedbackHover.Reset();
+            if (!panel.IsVisible) { return; }
+            if (dismiss) { HideSendFeedback(); }
+            else { _sendFeedbackTimer.Start(); }
+        };
         return panel;
     }
 

@@ -31,9 +31,8 @@ public sealed class ConfigNumericInputTests
         {
             Find<Button>("NavConfig").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
             var delay = Find<NumericUpDown>("AutoSendDelay");
-            var threshold = Find<NumericUpDown>("IndexMatchThreshold");
-            delay.Value = 2000; threshold.Value = 100; Dispatcher.UIThread.RunJobs();
-            foreach (var spinner in new[] { delay, threshold })
+            delay.Value = 2000; Dispatcher.UIThread.RunJobs();
+            foreach (var spinner in new[] { delay })
             {
                 var input = spinner.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "PART_TextBox");
                 var text = new FormattedText(input.Text!, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
@@ -41,15 +40,17 @@ public sealed class ConfigNumericInputTests
                 double available = input.Bounds.Width - input.Padding.Left - input.Padding.Right - input.BorderThickness.Left - input.BorderThickness.Right;
                 Assert.True(available >= text.Width + 2, $"{spinner.Name}: {available} pixels available for {text.Width} pixels of numeric text.");
             }
-            var increase = threshold.GetVisualDescendants().OfType<RepeatButton>().Single(b => b.Name == "PART_IncreaseButton");
+            var increase = delay.GetVisualDescendants().OfType<RepeatButton>().Single(b => b.Name == "PART_IncreaseButton");
             Assert.False(increase.IsEnabled);
-            threshold.Value = 99; Dispatcher.UIThread.RunJobs();
+            delay.Value = 1999; Dispatcher.UIThread.RunJobs();
             increase.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
-            Assert.Equal(100, threshold.Value);
-            var field = threshold.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "PART_TextBox");
+            Assert.Equal(2000, delay.Value);
+            var field = delay.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "PART_TextBox");
             field.Focus(); window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
-            Assert.Equal(99, threshold.Value);
-            threshold.Value = 100; Dispatcher.UIThread.RunJobs(); threshold.BringIntoView(); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1999, delay.Value);
+            delay.Value = 2000; Dispatcher.UIThread.RunJobs();
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<NumericUpDown>(), n => n.Name == "IndexMatchThreshold");
+            delay.BringIntoView(); Dispatcher.UIThread.RunJobs();
             string? output = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
             if (output is not null)
             {

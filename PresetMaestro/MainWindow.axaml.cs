@@ -51,6 +51,8 @@ public partial class MainWindow : Window
     private readonly Func<SceneSelectionWindow, Task<int?>>? _scenePickerOverride;
     private readonly DispatcherTimer _autoSendTimer;
     private readonly DispatcherTimer _sendFeedbackTimer;
+    private readonly System.Diagnostics.Stopwatch _sendFeedbackHover = new();
+    private bool _sendFeedbackWarning;
 
     public MainWindow() : this(new ProfileStore(Path.GetDirectoryName(SettingsManager.SettingsPath)!))
     {
@@ -104,7 +106,7 @@ public partial class MainWindow : Window
 
         _autoSendTimer = new DispatcherTimer();
         _autoSendTimer.Tick += (_, _) => { _autoSendTimer.Stop(); ExecuteSend(); };
-        _sendFeedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
+        _sendFeedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _sendFeedbackTimer.Tick += (_, _) => HideSendFeedback();
 
         InitializeComponent();

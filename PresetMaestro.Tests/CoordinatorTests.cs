@@ -70,8 +70,8 @@ public sealed class CoordinatorTests
             var settings = new AppSettings { FractalIndex = IndexJson.ToElement(profile) };
             string original = settings.FractalIndex!.Value.GetRawText();
             var coordinator = new ProfileLibraryCoordinator(settings, library, _ => throw new IOException("Read only"));
-            Assert.Throws<IOException>(() => coordinator.Update(profile, p => p.PresetMatchThresholdPercent = 50));
-            Assert.Equal(original, settings.FractalIndex!.Value.GetRawText()); Assert.Equal(99, profile.PresetMatchThresholdPercent);
+            Assert.Throws<IOException>(() => coordinator.Update(profile, p => p.SelectedDeviceId = null));
+            Assert.Equal(original, settings.FractalIndex!.Value.GetRawText()); Assert.Equal(device.Id, profile.SelectedDeviceId);
             var loaded = coordinator.Load(true);
             Assert.True(loaded.Cache!.Imported); Assert.Empty(library.ListDevices());
             Assert.Null(library.Load(device.Id));

@@ -267,13 +267,16 @@ public partial class MainWindow
     private void ShowSendFeedback(string title, string detail, bool warning = false)
     {
         _sendFeedbackTimer.Stop();
+        _sendFeedbackHover.Reset();
+        _sendFeedbackWarning = warning;
         string? previous = AutomationProperties.GetName(_sendFeedbackPanel);
         SetSendFeedbackPanel(_sendFeedbackPanel, _sendFeedbackIcon, _sendFeedbackTitle, _sendFeedbackDetail, title, detail, warning);
         string announcement = title + ". " + detail;
         AutomationProperties.SetName(_sendFeedbackPanel, announcement);
         ControlAutomationPeer.CreatePeerForElement(_sendFeedbackPanel).RaisePropertyChangedEvent(AutomationElementIdentifiers.NameProperty, previous, announcement);
-        _sendFeedbackTimer.Interval = TimeSpan.FromSeconds(warning ? 8 : 7);
-        if (!_sendFeedbackPanel.IsPointerOver) { _sendFeedbackTimer.Start(); }
+        _sendFeedbackTimer.Interval = TimeSpan.FromSeconds(warning ? 8 : 2);
+        if (_sendFeedbackPanel.IsPointerOver) { _sendFeedbackHover.Restart(); }
+        else { _sendFeedbackTimer.Start(); }
     }
 
     private static void SetSendFeedbackPanel(Border panel, TextBlock icon, TextBlock titleBlock, TextBlock detailBlock, string title, string detail, bool warning)
@@ -294,6 +297,7 @@ public partial class MainWindow
     private void HideSendFeedback()
     {
         _sendFeedbackTimer.Stop();
+        _sendFeedbackHover.Reset();
         _sendFeedbackPanel.IsVisible = false;
     }
 

@@ -8,7 +8,6 @@ namespace PresetMaestro;
 
 public partial class MainWindow
 {
-    private NumericUpDown? _indexMatchThreshold;
     private TextBlock? _indexMatchStatus;
     private Button? _indexCheckButton;
     private bool _indexChecking;
@@ -23,11 +22,13 @@ public partial class MainWindow
     private long _matchConnection;
     private string? _matchNotice;
 
-    private void RememberLibraryMatch(DeviceIndex cache, LibraryMatchResult? result, string? notice = null)
+    private void RememberLibraryMatch(DeviceIndex cache, LibraryMatchResult? result, string? notice = null,
+        LibraryPresetDifference[]? otherNameDifferences = null)
     {
         _libraryMatch = result;
         _libraryCheckOutcome = null;
-        if (result is not null) { _libraryNameDifferences = []; }
+        // With a content result, name differences are kept only for slots it did not compare.
+        if (result is not null) { _libraryNameDifferences = otherNameDifferences ?? []; }
         _libraryCheckBaselineAt = cache.Committed?.StartedAt;
         _matchLibraryId = cache.Device.Id;
         _matchBaselineId = cache.Committed?.Id;
@@ -46,12 +47,12 @@ public partial class MainWindow
             _indexCache is null ? "Assign a device library in Config to check its presets." :
             _detectedDevice is null ? "Device library check: connect the device to compare saved presets." :
             _indexCache.Device.Variant.ToDeviceModel() != _detectedDevice.Model ? "Device model differs from this library." :
-            current && _libraryMatch is not null ? _libraryMatch.Describe(_indexProfile.PresetMatchThresholdPercent) +
+            current && _libraryMatch is not null ? _libraryMatch.Describe(_libraryNameDifferences.Length) +
                 (_indexCache.Imported ? " Imported library: confirm before updating." : "") :
             current && _matchNotice is not null ? _matchNotice :
             _indexCache.Committed is null ? "No complete baseline yet. The first confirmed sync will establish it." :
             "Device library has not been checked on this connection. Choose Check library or Sync device.";
-        ToolTip.SetTip(_indexMatchStatus, "Matches compare saved preset content at the same slots. A sample is not a full-library percentage. Identical backups can match on different physical units.");
+        ToolTip.SetTip(_indexMatchStatus, "Checks compare saved preset content at the same slots. A Quick check reads a random sample; a Full check reads every slot. Identical backups can match on different physical units.");
     }
 
     internal async Task CheckAssignedLibraryAsync(bool full = false)
@@ -74,6 +75,7 @@ public partial class MainWindow
         string? deviceName = _detectedDevice.DeviceName;
         using var cancellation = new CancellationTokenSource();
         Core.PresetNameReadSession? nameRead = null;
+        LibraryPresetDifference[] nameDifferences = [];
         _connectionSyncOutcome = null;
         _libraryNameDifferences = [];
         _presetNamesCts = cancellation;
@@ -108,17 +110,8 @@ public partial class MainWindow
                         "Check the MIDI connection, then choose Check library again to retry.", needsAttention: true);
                     return;
                 }
-                var names = LibraryMatch.CompareNames(baseline, nameRead.Names);
-                if (names.Compared > 0 && names.Matched * 100L < names.Compared * (long)_indexProfile.PresetMatchThresholdPercent)
-                {
-                    RememberLibraryMatch(cache, null, $"Preset-name check: {names.Matched} of {names.Compared} populated slots match. Preset content was not checked.");
-                    _libraryNameDifferences = LibraryMatch.NameDifferences(baseline, nameRead.Names);
-                    SaveLibraryCheckReport(cache, baseline, null);
-                    SetConnectionSyncOutcome("Preset names differ from this library",
-                        $"{names.Matched} of {names.Compared} populated slots have matching names. The longer preset-and-scene check was skipped. Saved data was kept.",
-                        "If you changed presets on this device, choose Sync library. Otherwise use Manage libraries to select its saved library.", needsAttention: true);
-                    return;
-                }
+                // Name differences never stop the content check; they are reported with its result.
+                nameDifferences = LibraryMatch.NameDifferences(baseline, nameRead.Names);
                 _indexCheckingNames = false;
                 RefreshConnectionSyncOptions();
             }
@@ -136,16 +129,20 @@ public partial class MainWindow
                 : await LibraryMatch.CheckSampleAsync(_fractalIndexReader, cache, baseline, deviceName, cancellation.Token, Report);
             if (profile == _profileGeneration && connection == _connectionGeneration && cache.Device.Id == _indexCache?.Device.Id)
             {
-                RememberLibraryMatch(cache, result);
+                var compared = result.RequestedSlots.ToHashSet();
+                var otherNames = nameDifferences.Where(d => !compared.Contains(d.Slot)).ToArray();
+                RememberLibraryMatch(cache, result, otherNameDifferences: otherNames);
                 SaveLibraryCheckReport(cache, baseline, result);
                 string evidence = result.Compared == 0 ? "No populated saved presets were available to compare."
-                    : $"{result.Matched} of {result.Compared} {(full ? "populated" : "sampled")} presets match ({result.Percent:0.##}%)." +
+                    : $"{result.Matched} of {result.Compared} {(full ? "populated" : "sampled")} presets match." +
                         (result.Failed == 0 ? " Preset content and all eight scenes were compared." : " Available preset content and saved scenes were compared.");
+                if (otherNames.Length > 0)
+                { evidence += $" {otherNames.Length} other preset {(otherNames.Length == 1 ? "name differs" : "names differ")} from the saved library."; }
                 if (result.Failed > 0) { evidence += $" {result.Failed} reads were unavailable."; }
                 if (result.Caution is not null) { evidence += " " + result.Caution; }
                 if (!result.IncludesLegacyFingerprints) { evidence += " Saved bypass states were ignored."; }
                 if (cache.Imported) { evidence += " This imported library needs review before updating."; }
-                bool confirmed = !cache.Imported && result.MeetsThreshold(_indexProfile.PresetMatchThresholdPercent);
+                bool confirmed = !cache.Imported && result.IsConsistent && otherNames.Length == 0;
                 if (confirmed && nameRead is not null)
                 {
                     SavePresetNameRead(nameRead);
@@ -156,8 +153,7 @@ public partial class MainWindow
                     confirmed ? "Choose Use saved library to continue. Sync library below if you want to refresh preset content, scenes and amps."
                         : result.Failed > 0 ? "Check the MIDI connection, then choose Check library again to retry."
                         : "Review the differences above. Run a Full check for the complete picture, or choose Sync library to refresh the saved copy. Use Manage libraries if another library is intended.", needsAttention: !confirmed);
-                if (!cache.Imported && result.MeetsThreshold(_indexProfile.PresetMatchThresholdPercent))
-                { SaveDetectedLibraryFirmware(cache, result); }
+                if (confirmed) { SaveDetectedLibraryFirmware(cache, result); }
                 if (confirmed && _detectedDevice?.Firmware is null && _indexCache?.Committed?.EffectiveFirmware is null)
                 {
                     SetConnectionSyncOutcome("Library check passed; device setup incomplete",
@@ -205,7 +201,7 @@ public partial class MainWindow
         {
             new LibraryCheckReportStore(_indexLibrary.DirectoryPath).Save(new(cache.Device.Id, baseline.Id,
                 baseline.StartedAt, DateTimeOffset.UtcNow, _detectedDevice?.DeviceName, _detectedDevice?.Firmware,
-                _indexProfile.PresetMatchThresholdPercent, result, _libraryNameDifferences));
+                result, _libraryNameDifferences));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         { AppendLog("Could not save library check evidence: " + ex.Message); }
@@ -220,13 +216,13 @@ public partial class MainWindow
         {
             var saved = _indexLibrary.Load(cache.Device.Id) ?? cache;
             bool repaired = false;
-            if (!saved.Imported && confirmedMatch?.MeetsThreshold(_indexProfile.PresetMatchThresholdPercent) == true &&
+            if (!saved.Imported && confirmedMatch?.IsConsistent == true &&
                 saved.Committed is { EffectiveFirmware: null } baseline && baseline.Id == cache.Committed?.Id)
             {
                 // Keep the original scan and tag identity. Record how the missing
                 // compatibility information was established, rather than rewriting history.
                 baseline.FirmwareConfirmation = new(firmware, DateTimeOffset.UtcNow, confirmedMatch.IsSample,
-                    confirmedMatch.Matched, confirmedMatch.Compared, _indexProfile.PresetMatchThresholdPercent);
+                    confirmedMatch.Matched, confirmedMatch.Compared);
                 if (saved.LastAttempt?.Id == baseline.Id && saved.LastAttempt.EffectiveFirmware is null)
                 { saved.LastAttempt.FirmwareConfirmation = baseline.FirmwareConfirmation; }
                 repaired = true;

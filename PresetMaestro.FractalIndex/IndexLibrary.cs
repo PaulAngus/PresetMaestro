@@ -30,8 +30,9 @@ public sealed class IndexScan
     public Dictionary<int, string> Errors { get; set; } = [];
 }
 
+// Older files may also contain a ThresholdPercent value; it is ignored when read.
 public sealed record ScanFirmwareConfirmation(string Firmware, DateTimeOffset CheckedAt, bool IsSample,
-    int Matched, int Compared, int ThresholdPercent);
+    int Matched, int Compared);
 
 public sealed class DeviceIndex
 {
@@ -77,7 +78,6 @@ public sealed class IndexProfile
     // SelectedDeviceId is the single profile assignment; these are not browsing choices.
     public List<IndexDevice> Devices { get; set; } = [];
     public Guid? SelectedDeviceId { get; set; }
-    public int PresetMatchThresholdPercent { get; set; } = 99;
     [System.Text.Json.Serialization.JsonIgnore]
     public IndexDevice? AssignedDevice => Devices.FirstOrDefault(d => d.Id == SelectedDeviceId);
 
@@ -158,7 +158,7 @@ public sealed class IndexProfile
     {
         if (PortableAmpReferences is null) { throw new InvalidDataException("Invalid portable amp references."); }
         PortableAmpReferences = AmpReferenceStore.Validate(PortableAmpReferences);
-        if (SchemaVersion != 1 || PresetMatchThresholdPercent is < 1 or > 100 || ProfileId == Guid.Empty || Devices is null || Annotations is null ||
+        if (SchemaVersion != 1 || ProfileId == Guid.Empty || Devices is null || Annotations is null ||
             ReviewHistory is null || PortableSnapshots is null || Devices.Any(d => d is null) ||
             ReviewHistory.Any(h => h is null || h.Before is null || h.After is null || h.Before.Count is < 1 or > 2 || h.After.Count != 1) ||
             Devices.Select(d => d.Id).Distinct().Count() != Devices.Count ||
@@ -207,8 +207,6 @@ public static class IndexJson
                 (!Version.TryParse(confirmation.Firmware, out _) || confirmation.CheckedAt == default ||
                 confirmation.Compared < 1 || confirmation.Compared > definition.PresetSlots ||
                 confirmation.Matched < 0 || confirmation.Matched > confirmation.Compared ||
-                confirmation.ThresholdPercent is < 1 or > 100 ||
-                confirmation.Matched * 100L < confirmation.Compared * (long)confirmation.ThresholdPercent ||
                 scan.Firmware is not null && !AmpBrowserCatalog.SameFirmware(scan.Firmware, confirmation.Firmware)))
             { throw new InvalidDataException("Invalid saved scan firmware confirmation."); }
             if (scan.Presets is null || scan.Errors is null || scan.Presets.Count > definition.PresetSlots ||
