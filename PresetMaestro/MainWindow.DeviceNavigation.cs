@@ -11,7 +11,7 @@ public partial class MainWindow
         if (_detectedDevice.Model != model) { return "This selection belongs to a different Fractal device model."; }
         if (_connectionCts is not null || _presetNamesCts is not null || _changingProfile) { return "Wait for the current read or profile change to finish."; }
 #if FRACTAL_INDEX
-        if (_connectionLibrarySetupRequired || _connectionLibraryChoiceBusy) { return "Finish the required library sync first."; }
+        if (_connectionLibrarySetupRequired || _connectionLibraryChoiceBusy) { return "Finish the required device sync first."; }
 #endif
         return null;
     }

@@ -3,6 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
+using Avalonia.Input;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PresetMaestro.Core;
@@ -11,12 +13,13 @@ using PresetNameSync.Core;
 
 namespace PresetMaestro.Tests;
 
-public sealed class ConnectionLibrarySetupTests : IDisposable
+public sealed partial class ConnectionLibrarySetupTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-setup-" + Guid.NewGuid().ToString("N"));
     public void Dispose() { if (Directory.Exists(_directory)) { Directory.Delete(_directory, true); } }
     private IndexLibrary Library => new(Path.Combine(_directory, "FractalIndex"));
-    private static T Find<T>(Window window, string name) where T : Control => window.GetVisualDescendants().OfType<T>().Single(c => c.Name == name);
+    private static T Find<T>(Window window, string name) where T : Control => window.GetLogicalDescendants().OfType<T>()
+        .Concat(window.GetVisualDescendants().OfType<T>()).Distinct().Single(c => c.Name == name);
     private static void Click(Button button) { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); }
     private static async Task WaitFor(Func<bool> condition)
     {
@@ -47,7 +50,7 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
     private static string Json(DeviceIndex cache) => System.Text.Json.JsonSerializer.Serialize(cache, IndexJson.Options);
 
     private (MainWindow Window, AppSettings Settings, DeviceMidi Midi, ProfileStore Store) CreateWindow(WaitingSource source, DeviceIndex? existing = null, string theme = "Light",
-        Func<string, string, string, string, Task<bool>>? confirm = null, DeviceModel model = DeviceModel.FM9, bool assigned = false)
+        Func<string, string, string, string, Task<bool>>? confirm = null, DeviceModel model = DeviceModel.FM9, bool assigned = false, int width = 1200)
     {
         var store = new ProfileStore(_directory);
         var settings = store.LoadSettings(); settings.Theme = theme;
@@ -67,7 +70,7 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
         };
         var window = new MainWindow(settings, [new Favorite { Id = 1, Name = "Favorite", Preset = 1, Scene = 2 }], midi, profileStore: store,
             confirm: confirm ?? ((_, _, _, _) => Task.FromResult(true)))
-        { Width = 1200, Height = 900, ThruInputRetryDelay = TimeSpan.Zero };
+        { Width = width, Height = 900, ThruInputRetryDelay = TimeSpan.Zero };
         typeof(MainWindow).GetField("_fractalIndexReader", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(window, new PresetIndexReader(source, AmpModelCatalogRegistry.CreateStarter()));
         window.Show();
@@ -75,7 +78,7 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task AxeFxRequiresTheHardwareVariantBeforeAssigningDefault()
+    public async Task AxeFxAssignsAutomaticLibraryWithoutAnUpfrontRevisionChoice()
     {
         var source = new WaitingSource();
         var (window, _, _, _) = CreateWindow(source, model: DeviceModel.AxeFxIII);
@@ -83,13 +86,9 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
         {
             await window.ConnectAsync(); Dispatcher.UIThread.RunJobs();
             var dialog = Assert.Single(window.OwnedWindows);
-            var variants = Find<ComboBox>(dialog, "ConnectionLibraryVariant");
-            Assert.True(variants.IsEffectivelyVisible);
-            Assert.Empty(Library.ListDevices());
-            Assert.False(Find<Button>(dialog, "ConnectionSyncLibrary").IsEnabled);
-            variants.SelectedItem = variants.Items.Cast<object>().Single(v => v.ToString() == "Axe-Fx III Mark II · 1024 slots");
-            Dispatcher.UIThread.RunJobs();
-            Assert.Equal(FractalDeviceVariant.AxeFxIIIMarkII, Assert.Single(Library.ListDevices()).Variant);
+            var device = Assert.Single(Library.ListDevices());
+            Assert.Equal(FractalDeviceVariant.AxeFxIII, device.Variant);
+            Assert.Null(device.PresetCapacity);
             Assert.True(Find<Button>(dialog, "ConnectionSyncLibrary").IsEnabled);
             Assert.Empty(source.Inner.NameReads);
         }
@@ -117,7 +116,10 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
             Assert.False(Find<Button>(dialog, "ConnectionSyncNames").IsEffectivelyVisible);
             Assert.False(Find<Button>(dialog, "ConnectionSyncScenes").IsEnabled);
             Assert.Equal("Disconnect", Find<Button>(dialog, "ConnectionSyncDone").Content);
-            Assert.Equal("Full library sync required", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Equal("Ready to sync device", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Equal("Device not checked", Find<TextBlock>(dialog, "ConnectionSyncDevice").Text);
+            Assert.Equal($"Profile: {settings.ActiveProfile}", Find<TextBlock>(dialog, "ConnectionSyncProfile").Text);
+            FractalIndexWorkflowTests.AssertConnectionStateDisplayed(window, "Device not checked", "MIDI connected · Device not checked");
             Assert.Empty(source.Inner.NameReads);
             Capture(dialog, "first-connection-default-" + theme.ToLowerInvariant());
 
@@ -125,6 +127,9 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
             await source.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Null(Library.Load(assigned.Id)!.Committed);
             Assert.Single(window.OwnedWindows);
+            Assert.Equal("Checking device…", Find<TextBlock>(dialog, "ConnectionSyncDevice").Text);
+            Assert.DoesNotContain("Firmware", Find<TextBlock>(dialog, "ConnectionSyncProfile").Text);
+            FractalIndexWorkflowTests.AssertConnectionStateDisplayed(window, "Checking device…", "MIDI connected · Checking device…");
             source.Release.SetResult(); await syncing; Dispatcher.UIThread.RunJobs();
             var saved = Library.Load(assigned.Id)!;
             Assert.Equal("Complete", saved.Committed!.Status);
@@ -138,24 +143,35 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
             Assert.Empty(window.OwnedWindows);
             Assert.True(Find<Control>(window, "PresetIndexPage").IsEffectivelyVisible);
             Assert.DoesNotContain(midi.Sent, frame => frame[0] is >= 0xc0 and <= 0xcf);
+            Click(Find<Button>(window, "NavConfig"));
+            Click(Find<Button>(window, "ConfigSyncOptions"));
+            dialog = Assert.Single(window.OwnedWindows);
+            Assert.Equal("Device reports: FM9 · Stage", Find<TextBlock>(dialog, "ConnectionSyncDevice").Text);
+            Assert.Contains("Firmware: 12.00", Find<TextBlock>(dialog, "ConnectionSyncProfile").Text);
+            FractalIndexWorkflowTests.AssertConnectionStateDisplayed(window, "FM9 · Stage", "FM9 · Stage", confirmed: true);
         }
         finally { window.Close(); }
     }
 
-    [AvaloniaFact]
-    public async Task OccupiedDefaultOffersNewLibraryAndDoesNotOverwriteIt()
+    [AvaloniaTheory]
+    [InlineData("Light", 650)]
+    [InlineData("Light", 480)]
+    [InlineData("Dark", 650)]
+    [InlineData("Dark", 480)]
+    public async Task OccupiedDefaultOffersNewLibraryAndDoesNotOverwriteIt(string theme, int width)
     {
         var original = OccupiedDefault(); var source = new WaitingSource();
-        var (window, _, _, _) = CreateWindow(source, original);
+        var (window, _, _, _) = CreateWindow(source, original, theme);
         try
         {
             await window.ConnectAsync(); Dispatcher.UIThread.RunJobs();
             var dialog = Assert.Single(window.OwnedWindows);
-            Assert.Equal("Choose a library for this device", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            dialog.Width = width;
+            Assert.Equal("Choose where to save this device", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
             Assert.True(Find<Button>(dialog, "ConnectionLibraryCreate").IsEffectivelyVisible);
             Assert.True(Find<Button>(dialog, "ConnectionLibraryOverwrite").IsEnabled);
             Assert.False(Find<Button>(dialog, "ConnectionSyncLibrary").IsEnabled);
-            Capture(dialog, "first-connection-default-occupied");
+            Capture(dialog, $"first-connection-default-occupied-{width}-{theme}");
             Find<TextBox>(dialog, "ConnectionLibraryName").Text = "default";
             Click(Find<Button>(dialog, "ConnectionLibraryCreate"));
             Assert.Contains("already exists", Find<TextBlock>(dialog, "ConnectionLibrarySetupMessage").Text);
@@ -181,7 +197,7 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
         int confirmations = 0;
         var (window, settings, _, store) = CreateWindow(source, original, confirm: (title, message, _, _) =>
         {
-            Assert.Equal("Overwrite Default library", title); Assert.Contains("Other", message);
+            Assert.Equal("Overwrite Default device", title); Assert.Contains("Other", message);
             confirmations++; return Task.FromResult(true);
         });
         var shared = new IndexProfile { Devices = [original.Device], SelectedDeviceId = original.Device.Id, PortableSnapshots = [IndexJson.Clone(original)] };
@@ -230,7 +246,10 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
             else { Click(Find<Button>(dialog, "ConnectionSyncCancel")); }
             await WaitFor(() => Find<Button>(dialog, "ConnectionSyncLibrary").IsEnabled);
             Assert.Equal(Json(original), Json(Library.Load(original.Device.Id)!));
-            Assert.Equal("Library sync needs attention", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Equal("Sync incomplete — 512 slots remaining", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Equal("Device not checked", Find<TextBlock>(dialog, "ConnectionSyncDevice").Text);
+            Assert.DoesNotContain("Firmware", Find<TextBlock>(dialog, "ConnectionSyncProfile").Text);
+            FractalIndexWorkflowTests.AssertConnectionStateDisplayed(window, "Device not checked", "MIDI connected · Device not checked");
             Assert.False(Find<Button>(dialog, "ConnectionSyncNames").IsEnabled);
             Assert.Equal("Disconnect", Find<Button>(dialog, "ConnectionSyncDone").Content);
             Assert.True(Find<Button>(dialog, "ConnectionSyncResume").IsEnabled);
@@ -264,6 +283,85 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
     }
 
     [AvaloniaTheory]
+    [InlineData(false, "Light", 650)]
+    [InlineData(true, "Light", 480)]
+    [InlineData(false, "Dark", 480)]
+    [InlineData(true, "Dark", 650)]
+    public async Task AssignedPartialScanResumesItsDestinationWithoutAnotherLibraryChoice(bool imported, string theme, int width)
+    {
+        var source = new WaitingSource();
+        var original = OccupiedDefault(); original.Imported = imported;
+        var partial = new IndexScan { Status = "Partial", Firmware = "12.00", ConnectedDeviceName = "Stage", FinishedAt = DateTimeOffset.UtcNow };
+        var reader = new PresetIndexReader(source.Inner, AmpModelCatalogRegistry.CreateStarter());
+        foreach (int slot in Enumerable.Range(0, 512).Where(s => s != 58))
+        { partial.Presets[slot] = await reader.ReadAsync(FractalDeviceDefinition.For(FractalDeviceVariant.FM9), new Version(12, 0), slot, default); }
+        partial.Errors[58] = "device query 0x03 timed out.";
+        original.LastAttempt = partial;
+        source.Inner.NameReads.Clear(); source.Inner.FullReads.Clear();
+        var (window, _, _, _) = CreateWindow(source, original, theme, assigned: true);
+        window.Height = width == 480 ? 640 : 900;
+        try
+        {
+            await window.ConnectAsync(); Dispatcher.UIThread.RunJobs();
+            var dialog = Assert.Single(window.OwnedWindows); dialog.Width = width;
+            Assert.Equal("Sync incomplete — 1 slot remaining", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Contains("511 of 512 slots saved to “Default”", Find<TextBlock>(dialog, "ConnectionSyncStatus").Text);
+            Assert.False(Find<Button>(dialog, "ConnectionLibraryCreate").IsEffectivelyVisible);
+            Assert.False(Find<Button>(dialog, "ConnectionSyncLibrary").IsEffectivelyVisible);
+            Assert.False(Find<Border>(dialog, "ConnectionSyncNextPanel").IsEffectivelyVisible);
+            var resume = Find<Button>(dialog, "ConnectionSyncResume");
+            Assert.True(resume.IsEnabled); Assert.True(resume.IsEffectivelyVisible);
+            Capture(dialog, $"sync-recovery-{width}-{theme}");
+            // Recovery remains available after disconnecting and reconnecting.
+            dialog.Close(); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(partial.Id, Library.Load(original.Device.Id)!.LastAttempt!.Id);
+            await window.ConnectAsync(); Dispatcher.UIThread.RunJobs();
+            dialog = Assert.Single(window.OwnedWindows); dialog.Width = width;
+            resume = Find<Button>(dialog, "ConnectionSyncResume");
+            Assert.True(resume.IsEnabled);
+            resume.Focus(); dialog.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+            await source.Started.Task.WaitAsync(TimeSpan.FromSeconds(5)); Dispatcher.UIThread.RunJobs();
+            Assert.False(Find<Button>(dialog, "ConnectionLibraryCreate").IsEffectivelyVisible);
+            Assert.False(Find<Expander>(dialog, "ConnectionSyncOtherOptions").IsEffectivelyVisible);
+            Assert.True(Find<Button>(dialog, "ConnectionSyncCancel").IsEffectivelyVisible);
+            Assert.Equal("Stop sync", Find<Button>(dialog, "ConnectionSyncCancel").Content);
+            Assert.Equal(original.Committed!.Id, Library.Load(original.Device.Id)!.Committed!.Id);
+            Capture(dialog, $"sync-running-{width}-{theme}");
+            source.Release.SetResult(); await WaitFor(() => !window.OwnedWindows.Any());
+            var saved = Library.Load(original.Device.Id)!;
+            Assert.False(saved.Imported); Assert.Equal("Complete", saved.Committed!.Status);
+            Assert.Equal(partial.Id, saved.Committed.Id);
+            Assert.Equal(512, saved.Committed.Presets.Count); Assert.Empty(saved.Committed.Errors);
+            Assert.Single(source.Inner.FullReads); // Only the sample read; saved populated content was retained.
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task AssignedImportedLibraryKeepsItsDestinationWhenStartingFreshSync()
+    {
+        var source = new WaitingSource();
+        var original = OccupiedDefault(); original.Imported = true;
+        var (window, _, _, _) = CreateWindow(source, original, assigned: true);
+        try
+        {
+            await window.ConnectAsync(); Dispatcher.UIThread.RunJobs();
+            var dialog = Assert.Single(window.OwnedWindows);
+            Assert.Equal(original.Device.Id, Assert.Single(Library.ListDevices()).Id);
+            Assert.True(Find<Button>(dialog, "ConnectionSyncLibrary").IsEnabled);
+            Assert.True(Find<Button>(dialog, "ConnectionSyncLibrary").IsEffectivelyVisible);
+            Assert.False(Find<Button>(dialog, "ConnectionLibraryCreate").IsEffectivelyVisible);
+            Assert.Equal("Ready to sync device", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            var syncing = window.SyncIndexAsync(); await source.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(original.Committed!.Id, Library.Load(original.Device.Id)!.Committed!.Id);
+            source.Release.SetResult(); await syncing;
+            Assert.False(Library.Load(original.Device.Id)!.Imported);
+            Assert.Equal(original.Device.Id, Assert.Single(Library.ListDevices()).Id);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task EmptyDefaultAssignedToAnotherProfileStillRequiresAnExplicitChoice(bool activeAlsoAssigned)
@@ -275,7 +373,7 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
         {
             await window.ConnectAsync(); Dispatcher.UIThread.RunJobs();
             var dialog = Assert.Single(window.OwnedWindows);
-            Assert.Equal("Choose a library for this device", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Equal("Choose where to save this device", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
             Assert.True(Find<Button>(dialog, "ConnectionLibraryOverwrite").IsEnabled);
             Assert.Equal(Json(empty), Json(Library.Load(empty.Device.Id)!));
         }
@@ -307,12 +405,16 @@ public sealed class ConnectionLibrarySetupTests : IDisposable
         Assert.Equal(Json(original), Json(Library.Load(original.Device.Id)!));
     }
 
-    private sealed class WaitingSource : IStoredPresetNameSource, IStoredPresetImageSource
+    private sealed class WaitingSource(bool withAmp = true) : IStoredPresetNameSource, IStoredPresetImageSource, IPresetCapacitySource
     {
-        public FractalIndexWorkflowTests.NameSource Inner { get; } = new(s => s == 0 ? "Fixture 0" : "<EMPTY>", withAmp: true);
+        public FractalIndexWorkflowTests.NameSource Inner { get; } = new(s => s == 0 ? "Fixture 0" : "<EMPTY>", withAmp: withAmp);
+        public int? Capacity { get; init; }
+        public int CapacityChecks { get; private set; }
+        public Task<int?> DetectPresetCapacityAsync(FractalDeviceDefinition device, CancellationToken token)
+        { CapacityChecks++; return Task.FromResult(Capacity); }
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public bool Fail { get; init; }
+        public bool Fail { get; set; }
         public async Task<string?> ReadStoredPresetNameAsync(int slot, FractalDeviceDefinition device, CancellationToken token)
         {
             Started.TrySetResult(); await Release.Task.WaitAsync(token);

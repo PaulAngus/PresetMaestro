@@ -11,7 +11,7 @@ public sealed record LibraryPresetDifference(int Slot, string? SavedName, string
     public string? SavedComparisonFingerprint { get; init; }
     public string? ConnectedComparisonFingerprint { get; init; }
     public string Explanation => ReadError is not null ? ReadError : ContentChanged
-        ? "The saved preset image differs. This library keeps a fingerprint rather than the full image, so other effect parameters and image data cannot be compared individually."
+        ? "The saved preset image differs. The saved device data contains a fingerprint rather than the full image, so other effect parameters and image data cannot be compared individually."
         : "The decoded saved settings differ.";
 
     internal static LibraryPresetDifference Between(int slot, IndexedPreset? saved, IndexedPreset current)

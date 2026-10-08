@@ -29,6 +29,7 @@ public sealed class FavoriteJsonConverter : JsonConverter<Favorite>
             Slot = legacy.Slot,
             Name = legacy.Name,
             Tags = tags,
+            SceneTagSourceId = legacy.SceneTagSourceId,
             Preset = legacy.Preset,
             Scene = legacy.Scene
         };
@@ -42,6 +43,7 @@ public sealed class FavoriteJsonConverter : JsonConverter<Favorite>
         writer.WriteString(nameof(Favorite.Name), value.Name);
         writer.WritePropertyName(nameof(Favorite.Tags));
         JsonSerializer.Serialize(writer, value.Tags, options);
+        if (value.SceneTagSourceId is Guid source) { writer.WriteString(nameof(Favorite.SceneTagSourceId), source); }
         writer.WriteNumber(nameof(Favorite.Preset), value.Preset);
         writer.WriteNumber(nameof(Favorite.Scene), value.Scene);
         writer.WriteEndObject();
@@ -54,6 +56,7 @@ public sealed class FavoriteJsonConverter : JsonConverter<Favorite>
         public string Name { get; set; } = "";
         public string? Category { get; set; }
         public List<string> Tags { get; set; } = [];
+        public Guid? SceneTagSourceId { get; set; }
         public int Preset { get; set; }
         public int Scene { get; set; } = 1;
     }

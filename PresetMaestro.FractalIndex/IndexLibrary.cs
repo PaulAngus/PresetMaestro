@@ -1,13 +1,19 @@
 using System.Text.Json;
 
+using PresetNameSync.Core;
+
 namespace PresetMaestro.FractalIndex;
 
 public sealed record IndexDevice(Guid Id, string Name, FractalDeviceVariant Variant, string? Firmware = null)
 {
+    // Null on legacy revision-specific libraries, or an automatic library awaiting sync.
+    public int? PresetCapacity { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool NeedsCapacityDetection => Variant == FractalDeviceVariant.AxeFxIII && PresetCapacity is null;
     public override string ToString() => Name;
 }
 
-public sealed record IndexLibrarySummary(IndexDevice Device, DevicePresetMapping? PresetMapping);
+public sealed record IndexLibrarySummary(IndexDevice Device, DevicePresetMapping? PresetMapping, bool Imported = false);
 
 public sealed record DevicePresetMapping(int MidiChannel = 1, int DisplayOffset = 0, int SceneCc = 34)
 {
@@ -164,7 +170,8 @@ public sealed class IndexProfile
             Devices.Select(d => d.Id).Distinct().Count() != Devices.Count ||
             SelectedDeviceId is Guid selected && Devices.All(d => d.Id != selected) ||
             Devices.Any(d => d.Id == Guid.Empty || string.IsNullOrWhiteSpace(d.Name) || !Enum.IsDefined(d.Variant) ||
-                d.Firmware is not null && !Version.TryParse(d.Firmware, out _)) ||
+                d.Firmware is not null && !Version.TryParse(d.Firmware, out _) ||
+                d.PresetCapacity is not null && (d.Variant != FractalDeviceVariant.AxeFxIII || d.PresetCapacity is not (512 or 1024))) ||
             Annotations.Concat(ReviewHistory.SelectMany(h => h.Before.Concat(h.After))).Any(a => a is null || a.Tags is null || a.SceneTags is null ||
                 a.SceneNames is null || a.ContentSha256 is null || a.Tags.Any(t => t is null) || Devices.All(d => d.Id != a.DeviceId) ||
                 a.SceneTags.Any(p => p.Key is < 0 or > 7 || p.Value is null || p.Value.Any(t => t is null))))
@@ -173,7 +180,7 @@ public sealed class IndexProfile
         {
             IndexJson.Validate(snapshot);
             if (Devices.All(d => d.Id != snapshot.Device.Id || d.Variant != snapshot.Device.Variant))
-            { throw new InvalidDataException("An exported snapshot does not match this profile's device libraries."); }
+            { throw new InvalidDataException("An exported snapshot does not match this profile's devices."); }
         }
     }
 }
@@ -198,9 +205,11 @@ public static class IndexJson
         if (cache is null || cache.SchemaVersion != 1 || cache.Device is null || cache.Device.Id == Guid.Empty ||
             !Enum.IsDefined(cache.Device.Variant) || string.IsNullOrWhiteSpace(cache.Device.Name) ||
             cache.Device.Firmware is not null && !Version.TryParse(cache.Device.Firmware, out _) ||
-            cache.PresetMapping is { IsValid: false })
+            cache.PresetMapping is { IsValid: false } ||
+            cache.Device.PresetCapacity is not null && (cache.Device.Variant != FractalDeviceVariant.AxeFxIII || cache.Device.PresetCapacity is not (512 or 1024)) ||
+            cache.Device.NeedsCapacityDetection && (cache.Committed is not null || cache.LastAttempt is not null))
         { throw new InvalidDataException("Unsupported device index."); }
-        var definition = FractalDeviceDefinition.For(cache.Device.Variant);
+        var definition = FractalDeviceDefinition.For(cache.Device);
         foreach (var scan in new[] { cache.Committed, cache.LastAttempt }.OfType<IndexScan>())
         {
             if (scan.FirmwareConfirmation is { } confirmation &&
@@ -252,7 +261,7 @@ public sealed class IndexLibrary(string directory)
             entry.Created == file.CreationTimeUtc && entry.Length == file.Length) { return entry.Summary; }
         var cache = Load(id);
         if (cache is null) { _summaries.TryRemove(id, out _); return null; }
-        var summary = new IndexLibrarySummary(cache.Device, cache.PresetMapping);
+        var summary = new IndexLibrarySummary(cache.Device, cache.PresetMapping, cache.Imported);
         // Record the stamp from before the read. A concurrent replacement will
         // invalidate the next lookup rather than caching old data with a new stamp.
         _summaries[id] = (file.LastWriteTimeUtc, file.CreationTimeUtc, file.Length, summary);
@@ -271,13 +280,13 @@ public sealed class IndexLibrary(string directory)
     {
         string name = device.Name.Trim();
         if (name.Length is 0 or > 80 || name.Any(char.IsControl))
-        { throw new ArgumentException("Enter a library name of 1–80 characters without control characters."); }
+        { throw new ArgumentException("Enter a device name of 1–80 characters without control characters."); }
         var cache = Load(device.Id);
         if ((cache is null || !string.Equals(cache.Device.Name.Trim(), name, StringComparison.OrdinalIgnoreCase)) &&
             ListDevices().Any(d => d.Id != device.Id && string.Equals(d.Name.Trim(), name, StringComparison.OrdinalIgnoreCase)))
-        { throw new ArgumentException($"A library named '{name}' already exists. Select it from the list or choose a different name."); }
+        { throw new ArgumentException($"A device named '{name}' already exists. Select it from the list or choose a different name."); }
         if (cache is not null && cache.Device.Variant != device.Variant)
-        { throw new InvalidOperationException("Create a new library for a different device model."); }
+        { throw new InvalidOperationException("Add a device with the correct model."); }
         device = device with { Name = name };
         cache ??= new DeviceIndex { Device = device };
         cache.Device = device;
@@ -320,7 +329,7 @@ public sealed class IndexLibrary(string directory)
         var scan = cache.LastAttempt ?? throw new InvalidOperationException("No scan is active.");
         if (scan.Status != "Scanning") { throw new InvalidOperationException("Only a running scan can append a checkpoint."); }
         var checkpoint = new Checkpoint(scan.Id, slot, scan.Presets.GetValueOrDefault(slot), scan.Errors.GetValueOrDefault(slot));
-        if (slot < 0 || slot >= FractalDeviceDefinition.For(cache.Device.Variant).PresetSlots ||
+        if (slot < 0 || slot >= FractalDeviceDefinition.For(cache.Device).PresetSlots ||
             checkpoint.Preset is { } preset && preset.Slot != slot ||
             (checkpoint.Preset is null) == (checkpoint.Error is null))
         { throw new InvalidDataException("A checkpoint must contain exactly one valid slot result."); }
@@ -345,7 +354,7 @@ public sealed class IndexLibrary(string directory)
                 ?? throw new InvalidDataException("Invalid scan checkpoint.");
             start = end + 1;
             if (checkpoint.ScanId != scan.Id) { continue; }
-            if (checkpoint.Slot < 0 || checkpoint.Slot >= FractalDeviceDefinition.For(cache.Device.Variant).PresetSlots ||
+            if (checkpoint.Slot < 0 || checkpoint.Slot >= FractalDeviceDefinition.For(cache.Device).PresetSlots ||
                 checkpoint.Preset is { } preset && preset.Slot != checkpoint.Slot ||
                 (checkpoint.Preset is null) == (checkpoint.Error is null))
             { throw new InvalidDataException("Invalid scan checkpoint."); }
@@ -357,14 +366,18 @@ public sealed class IndexLibrary(string directory)
     }
 }
 
-public sealed record IndexScanProgress(int Read, int Total, int Failed, int Slot, int EmptySkipped = 0);
+public sealed record IndexScanProgress(int Read, int Total, int Failed, int Slot, int EmptySkipped = 0)
+{
+    public bool Retrying { get; init; }
+}
 
 public sealed class IndexScanner(PresetIndexReader reader, IndexLibrary library)
 {
     public async Task ScanAsync(DeviceIndex cache, bool resume, Action<IndexScanProgress>? progress, CancellationToken token,
         bool publish = true, string? connectedDeviceName = null)
     {
-        var device = FractalDeviceDefinition.For(cache.Device.Variant);
+        if (cache.Device.NeedsCapacityDetection) { throw new InvalidOperationException("Determine preset capacity before syncing this device."); }
+        var device = FractalDeviceDefinition.For(cache.Device);
         Version? firmware = string.IsNullOrWhiteSpace(cache.Device.Firmware) ? null : Version.Parse(cache.Device.Firmware);
         var scan = resume && cache.LastAttempt is { Status: not "Complete" } previous && previous.Firmware == cache.Device.Firmware
             ? previous : new IndexScan { Firmware = cache.Device.Firmware };
@@ -372,7 +385,8 @@ public sealed class IndexScanner(PresetIndexReader reader, IndexLibrary library)
         scan.ConnectedDeviceName = connectedDeviceName;
         scan.FinishedAt = null;
         cache.LastAttempt = scan;
-        library.Save(cache);
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        ReadDiagnostics.Measure("scan.save", null, () => { library.Save(cache); return true; });
         int consecutiveFailures = 0;
         try
         {
@@ -384,7 +398,10 @@ public sealed class IndexScanner(PresetIndexReader reader, IndexLibrary library)
                 scan.Presets.Remove(slot);
                 try
                 {
-                    scan.Presets[slot] = await reader.ReadAsync(device, firmware, slot, token).ConfigureAwait(false);
+                    scan.Presets[slot] = await reader.ReadAsync(device, firmware, slot, token, () =>
+                        progress?.Invoke(new(scan.Presets.Count, device.PresetSlots, scan.Errors.Count, slot,
+                            scan.Presets.Values.Count(p => p.NameOnlyEmpty))
+                        { Retrying = true })).ConfigureAwait(false);
                     scan.Errors.Remove(slot);
                     consecutiveFailures = 0;
                 }
@@ -393,7 +410,7 @@ public sealed class IndexScanner(PresetIndexReader reader, IndexLibrary library)
                     scan.Errors[slot] = ex.Message;
                     consecutiveFailures++;
                 }
-                library.SaveCheckpoint(cache, slot);
+                ReadDiagnostics.Measure("scan.checkpoint", slot, () => { library.SaveCheckpoint(cache, slot); return true; });
                 progress?.Invoke(new(scan.Presets.Count, device.PresetSlots, scan.Errors.Count, slot, scan.Presets.Values.Count(p => p.NameOnlyEmpty)));
                 if (consecutiveFailures >= 3) { throw new IOException("Index sync stopped after three consecutive failed reads."); }
             }
@@ -405,9 +422,11 @@ public sealed class IndexScanner(PresetIndexReader reader, IndexLibrary library)
         catch { scan.Status = "Failed"; throw; }
         finally
         {
+            ReadDiagnostics.Record("scan.read-loop", null, System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+                scan.Status == "Complete" ? "complete" : scan.Status.ToLowerInvariant());
             scan.FinishedAt = DateTimeOffset.UtcNow;
             if (scan.Status == "Complete" && publish) { cache.Committed!.FinishedAt = scan.FinishedAt; }
-            library.Save(cache);
+            ReadDiagnostics.Measure("scan.save", null, () => { library.Save(cache); return true; });
         }
     }
 }

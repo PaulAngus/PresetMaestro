@@ -28,7 +28,7 @@ public class FractalConnectionTests
             await window.ConnectAsync();
             pending.SetResult(new([], []));
             await check;
-            Assert.True(midi.InputOpen && midi.OutputOpen); Assert.Equal("FM9", Header(window).Text);
+            Assert.True(midi.InputOpen && midi.OutputOpen); Assert.Equal("Device not checked", Header(window).Text);
         }
         finally { pending.TrySetResult(new([], [])); window.Close(); }
     }
@@ -139,7 +139,8 @@ public class FractalConnectionTests
             Assert.Equal(expected, settings.DeviceModel);
             Assert.Equal(maximum + settings.DisplayOffset, spinner.Maximum);
             Assert.Equal(maximum + settings.DisplayOffset, settings.MaxDisplayedPreset);
-            Assert.Contains(expected switch { DeviceModel.AxeFxIII => "Axe-Fx III", DeviceModel.FM3 => "FM3", _ => "FM9" }, Header(window).Text);
+            Assert.Equal(expected, window.ConnectionState.Device!.Model);
+            Assert.Equal("Device not checked", Header(window).Text);
             // Loading a profile must not override the connected device's identity.
             settings.DeviceModel = expected == DeviceModel.AxeFxIII ? DeviceModel.FM9 : DeviceModel.AxeFxIII;
             Invoke(window, "ApplyProfileSettingsToUI");
@@ -172,6 +173,8 @@ public class FractalConnectionTests
             var sync = window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ConfigSyncOptions");
             Assert.True(sync.IsEnabled);
             var dialog = Assert.Single(window.OwnedWindows);
+            dialog.GetVisualDescendants().OfType<Expander>().Single(e => e.Name == "ConnectionSyncOtherOptions").IsExpanded = true;
+            dialog.UpdateLayout(); Dispatcher.UIThread.RunJobs();
             var names = dialog.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ConnectionSyncNames");
             Assert.False(names.IsEnabled);
             Assert.Contains("FM9 only", ToolTip.GetTip(names)?.ToString());
@@ -241,13 +244,17 @@ public class FractalConnectionTests
             midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9"));
             await pending;
             Assert.True(sync.IsEnabled);
-            Assert.True(Assert.Single(window.OwnedWindows).GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ConnectionSyncNames").IsEnabled);
+            var syncDialog = Assert.Single(window.OwnedWindows);
+            syncDialog.GetVisualDescendants().OfType<Expander>().Single(e => e.Name == "ConnectionSyncOtherOptions").IsExpanded = true;
+            syncDialog.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+            Assert.True(syncDialog.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ConnectionSyncNames").IsEnabled);
             var header = Header(window);
             foreach (string page in new[] { "PresetSender", "Favorites", "Config" })
             {
                 window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "Nav" + page).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Same(header, Header(window));
-                Assert.Equal("FM9 · PM-TEST", header.Text);
+                Assert.Equal("Device not checked", header.Text);
+                Assert.Equal("FM9 · PM-TEST", window.ConnectionState.Device!.Label);
             }
             Assert.Empty(errors);
             Invoke(window, "Disconnect");
@@ -312,7 +319,7 @@ public class FractalConnectionTests
             await window.ConnectAsync();
 
             Assert.True(midi.InputOpen && midi.OutputOpen);
-            Assert.Equal("FM9", Header(window).Text);
+            Assert.Equal("Device not checked", Header(window).Text);
             Assert.Empty(errors);
         }
         finally { window.Close(); }
@@ -349,7 +356,7 @@ public class FractalConnectionTests
         try
         {
             await window.ConnectAsync();
-            Assert.Equal("FM9", Header(window).Text);
+            Assert.Equal("Device not checked", Header(window).Text);
             if (removed) { midi.Removed = true; await Task.Delay(1200); }
             else { midi.FailTransport(); Dispatcher.UIThread.RunJobs(); }
             Assert.Equal("Not connected", Header(window).Text);
@@ -372,11 +379,11 @@ public class FractalConnectionTests
             await window.CheckConnectedDevicesAsync("FM9", "FM9");
             await window.CheckConnectedDevicesAsync("FM9", "FM9");
             Assert.True(midi.InputOpen && midi.OutputOpen);
-            Assert.Equal("FM9", Header(window).Text);
+            Assert.Equal("Device not checked", Header(window).Text);
 
             midi.OutputEnumerationError = null;
             await window.CheckConnectedDevicesAsync("FM9", "FM9");
-            Assert.Equal("FM9", Header(window).Text);
+            Assert.Equal("Device not checked", Header(window).Text);
 
             midi.OutputRemoved = true;
             await window.CheckConnectedDevicesAsync("FM9", "FM9");

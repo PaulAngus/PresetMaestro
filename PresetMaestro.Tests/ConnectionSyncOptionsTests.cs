@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PresetMaestro.Core;
@@ -23,7 +24,8 @@ public sealed class ConnectionSyncOptionsTests
         return midi;
     }
 
-    private static T Find<T>(Window window, string name) where T : Control => window.GetVisualDescendants().OfType<T>().Single(c => c.Name == name);
+    private static T Find<T>(Window window, string name) where T : Control => window.GetLogicalDescendants().OfType<T>()
+        .Concat(window.GetVisualDescendants().OfType<T>()).Distinct().Single(c => c.Name == name);
     private static void Click(Button button) { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); }
 
     private static async Task WaitFor(Func<bool> condition)

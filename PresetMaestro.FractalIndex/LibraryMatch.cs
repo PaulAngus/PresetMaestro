@@ -21,7 +21,7 @@ public sealed record LibraryMatchResult(bool IsSample, int Matched, int Compared
             $"{Matched} of {Compared} {(IsSample ? "sampled" : "populated")} presets match";
         if (otherNameDifferences > 0)
         { evidence += $" · {otherNameDifferences} other preset {(otherNameDifferences == 1 ? "name differs" : "names differ")}"; }
-        string decision = IsConsistent && otherNameDifferences == 0 ? "consistent with this library" : "library match unconfirmed";
+        string decision = IsConsistent && otherNameDifferences == 0 ? "consistent with this device" : "device match unconfirmed";
         return $"{scope}: {evidence} · {decision}." +
             (Failed > 0 ? $" {Failed} reads unavailable." : "") + (Caution is null ? "" : " " + Caution);
     }
@@ -123,7 +123,7 @@ public static class LibraryMatch
         IndexScan baseline, string? connectedDeviceName, bool sample, Action<LibraryMatchProgress>? progress,
         CancellationToken token)
     {
-        var device = FractalDeviceDefinition.For(cache.Device.Variant);
+        var device = FractalDeviceDefinition.For(cache.Device);
         var firmware = Version.TryParse(cache.Device.Firmware, out var version) ? version : null;
         var slots = sample ? SampleSlots(baseline) : Enumerable.Range(0, device.PresetSlots).ToArray();
         var observed = new Dictionary<int, IndexedPreset>();

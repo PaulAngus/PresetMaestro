@@ -2,7 +2,7 @@
 
 This optional project decodes the saved, programmed Amp data for a preset. It has separate FM3, FM9 and Axe-Fx III device definitions and a catalog registry that selects names by family, optional hardware variant and firmware. It does not interpret Scene Ignore or claim that a saved scene equals the effective live state.
 
-The FM9 body offsets were checked against a connected FM9 running firmware 12.00. The FM3 and Axe-Fx III body layouts and shared saved-dump envelope are candidate rules from the reviewed open implementation; neither device has been tested on hardware here. Axe-Fx III callers must select Original (512 slots), Mark II (1024) or Mark II Turbo (1024) explicitly. A generic Axe-Fx III identity reply does not establish that revision.
+The FM9 body offsets were checked against a connected FM9 running firmware 12.00. The FM3 and Axe-Fx III body layouts and shared saved-dump envelope are candidate rules from the reviewed open implementation; neither device has been tested on hardware here. New Axe-Fx III libraries use the detected family without guessing a hardware revision. Before the first scan, a correlated upper-slot name reply establishes 1024 slots. A missing reply leaves capacity unknown and the host asks for 512 or 1024 slots. IndexDevice.PresetCapacity saves the result; IndexScanner refuses an unresolved library. Legacy revision-specific libraries retain their existing limits. This boundary behaviour has synthetic coverage but has not been checked on Axe-Fx III hardware.
 
 | Definition | MIDI model | Slots | Maximum Amp blocks | Grid size used by decoder | Amp record / model field |
 |---|---|---|---|---|---|

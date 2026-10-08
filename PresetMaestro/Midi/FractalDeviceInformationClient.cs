@@ -158,7 +158,7 @@ public sealed class FractalDeviceInformationClient
                 TryParseFirmwareResponse(frame, identity[4], out _), redact: false).ConfigureAwait(false);
             string? firmware = null;
             if (firmwareResponse is not null) { TryParseFirmwareResponse(firmwareResponse, identity[4], out firmware); }
-            if (firmware is null) { _log("FRACTAL: firmware read unavailable; no version will be inferred from the model or library."); }
+            if (firmware is null) { _log("FRACTAL: firmware read unavailable; no version will be inferred from the model or device."); }
             else { _log($"FRACTAL: detected firmware {firmware}."); }
             var identified = new FractalDeviceInformation(model, null, firmware);
             if (identity[4] != 0x12)

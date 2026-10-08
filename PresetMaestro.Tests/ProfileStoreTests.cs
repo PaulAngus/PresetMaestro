@@ -69,7 +69,8 @@ public sealed class ProfileStoreTests : IDisposable
         string importedName = store.Import(archive, "Imported");
         var imported = PresetMaestro.FractalIndex.IndexJson.ReadProfile(store.LoadProfile(importedName).FractalIndex);
         Assert.Equal(2, imported.Devices.Count);
-        Assert.Equal("Saved", Assert.Single(imported.PortableSnapshots).Device.Name);
+        Assert.Empty(imported.PortableSnapshots);
+        Assert.Equal(saved.Id, imported.SelectedDeviceId);
         Assert.Contains(imported.Devices, device => device.Name == "Historical");
         Assert.Single(library.ListDevices());
     }
@@ -309,7 +310,8 @@ public sealed class ProfileStoreTests : IDisposable
             Assert.DoesNotContain("ActiveProfile", json);
             Assert.DoesNotContain("\"Profiles\"", json);
         }
-        string imported = store.Import(archivePath);
+        string imported = store.Import(archivePath, "Default (2)");
+        Assert.Throws<InvalidOperationException>(() => store.Import(archivePath, "Default"));
         Assert.Equal("Default (2)", imported);
         Assert.Equal(8, store.LoadProfile(imported).MidiChannel);
         Assert.Equal(DeviceModel.AxeFxIII, store.LoadProfile(imported).DeviceModel);

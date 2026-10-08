@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Automation;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -15,42 +16,39 @@ public partial class MainWindow
     private bool _refreshingProfiles;
     private bool _changingProfile;
     private int _profileGeneration;
+    private bool _profileFileScanning;
+    private readonly List<Button> _profileScanButtons = [];
+    private readonly List<Control> _profileScanCommands = [];
+    internal Func<Task<(List<string> Names, int Skipped)>>? ProfileFileScanner { get; set; }
+    internal Task? ProfileScanTask { get; private set; }
+    private const string ProfileScanPurpose = "Find saved profiles on this PC from matching settings and favorites files. To read device presets, use Sync device.";
 
-    private Button BuildHeaderProfileSelector()
+    private Button ProfileScanButton(string name)
     {
-        var choices = new MenuFlyout();
-        choices.Opening += (_, _) =>
+        var button = ProfileCommand(name, "Scan profile files");
+        ToolTip.SetTip(button, $"Look for matching <name>-settings.json and <name>-favorites.json files in {_profileStore?.DirectoryPath}");
+        AutomationProperties.SetHelpText(button, ProfileScanPurpose);
+        button.Click += async (_, _) => await (ProfileScanTask = RunProfileActionAsync("rescan", ""));
+        _profileScanButtons.Add(button);
+        return button;
+    }
+
+    private Control ProfileScanDescription(string name, bool showFolder = false)
+    {
+        var description = new StackPanel { Spacing = 4 };
+        description.Children.Add(new TextBlock { Name = name, Text = ProfileScanPurpose, FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap });
+        if (showFolder)
         {
-            choices.Items.Clear();
-            foreach (string name in _profileStore?.ListProfiles() ?? [_settings.ActiveProfile])
-            {
-                var item = new MenuItem { Header = name, IsEnabled = name != _settings.ActiveProfile && !_changingProfile && _presetNamesCts is null };
-                item.Click += async (_, _) => await RunProfileActionAsync("select", name);
-                choices.Items.Add(item);
-            }
-        };
-        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        content.Children.Add(_activeProfileLabel);
-        var arrow = new TextBlock { Text = "▾", FontSize = 12, Foreground = SecondaryBrush, Margin = new Avalonia.Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(arrow, 1); content.Children.Add(arrow);
-        var selector = new Button
-        {
-            Name = "HeaderProfileSelector",
-            Content = content,
-            Flyout = choices,
-            MinHeight = 28,
-            Height = 28,
-            MaxWidth = 175,
-            Padding = new Avalonia.Thickness(6, 1),
-            IsEnabled = _profileStore is not null,
-        };
-        Avalonia.Automation.AutomationProperties.SetName(selector, "Select active profile");
-        return selector;
+            description.Children.Add(new TextBlock { Name = name + "Folder", Text = "Folder: " + _profileStore?.DirectoryPath, FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap });
+        }
+        return description;
     }
 
     private Control BuildProfileCard(Action showProfiles)
     {
-        var card = ApprovedCard("Profiles", "Favorites, device library assignment and cached names", compact: true);
+        _profileScanButtons.Clear();
+        _profileScanCommands.Clear();
+        var card = ApprovedCard("Profiles", "Favorites, device assignment and cached names", compact: true);
         var stack = new StackPanel { Spacing = 8, IsEnabled = _profileStore is not null };
         _profileCombo = new ComboBox { Name = "ProfileSelector", HorizontalAlignment = HorizontalAlignment.Stretch };
         _profileCombo.SelectionChanged += async (_, _) =>
@@ -62,12 +60,13 @@ public partial class MainWindow
         };
         var selection = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         selection.Children.Add(_profileCombo);
-        var rescan = new Button { Name = "ProfileRescan", Content = "Rescan", Margin = new Avalonia.Thickness(8, 0, 0, 0) };
-        ToolTip.SetTip(rescan, "Find profile file pairs in " + _profileStore?.DirectoryPath);
-        rescan.Click += async (_, _) => await RunProfileActionAsync("rescan", "");
+        var rescan = ProfileScanButton("ProfileRescan");
+        rescan.Height = rescan.MinHeight = 32;
+        rescan.Margin = new Avalonia.Thickness(8, 0, 0, 0);
         Grid.SetColumn(rescan, 1);
         selection.Children.Add(rescan);
         stack.Children.Add(CompactField("Active profile", selection));
+        stack.Children.Add(ProfileScanDescription("ProfileScanPurpose"));
         var manage = new Button { Name = "ManageProfiles", Content = "Manage Profiles", HorizontalAlignment = HorizontalAlignment.Left };
         manage.Click += (_, _) => showProfiles();
         stack.Children.Add(manage);
@@ -103,14 +102,34 @@ public partial class MainWindow
         }
 
         _changingProfile = true;
+        Dictionary<Control, bool>? scanControls = null;
         try
         {
             if (action == "rescan")
             {
                 SaveSettingsFromUI();
                 _saveFavorites(_favorites);
-                var result = _profileStore.Rescan(_settings);
-                _profileStatus.Text = $"Rescan complete: {result.Added} new profiles; {result.Skipped} incomplete or unreadable pairs skipped.";
+                _profileFileScanning = true;
+                scanControls = _profileScanCommands.Concat(_profileScanButtons).Concat(_managedDataActions)
+                    .Append(_profileCombo).Append(_useProfileButton).Append(_darkThemeRadio).Append(_lightThemeRadio)
+                    .Distinct().ToDictionary(control => control, control => control.IsEnabled);
+                _profileNoticeOrigin = FocusManager?.GetFocusedElement();
+                _profileStatus.Text = "Scanning saved profile files…";
+                ShowProfileNotice("Scanning saved profile files…", "Looking for matching settings and favorites files in " + _profileStore.DirectoryPath, checking: true);
+                foreach (var control in scanControls.Keys) { control.IsEnabled = false; }
+                foreach (var button in _profileScanButtons) { button.Content = "Scanning…"; }
+                _profileNoticeProgress.IsVisible = false;
+                using var progressDelay = Avalonia.Threading.DispatcherTimer.RunOnce(
+                    () => _profileNoticeProgress.IsVisible = true, TimeSpan.FromSeconds(1));
+                AutomationProperties.SetName(_profileNoticeProgress, "Scanning saved profile files");
+                UpdatePresetSyncButtons();
+                var scan = await (ProfileFileScanner?.Invoke() ?? _profileStore.ScanProfileFilesAsync());
+                var result = _profileStore.ApplyProfileScan(_settings, scan);
+                string summary = $"{scan.Names.Count} saved {(scan.Names.Count == 1 ? "profile" : "profiles")} found; " +
+                    $"{result.Added} new {(result.Added == 1 ? "profile" : "profiles")}; " +
+                    $"{result.Skipped} incomplete or unreadable {(result.Skipped == 1 ? "pair" : "pairs")} skipped.";
+                _profileStatus.Text = "Profile scan complete: " + summary;
+                ShowProfileNotice("Profile scan complete", summary);
                 return;
             }
             if (_presetNamesCts is not null)
@@ -162,6 +181,7 @@ public partial class MainWindow
                 if (!await ConfirmProfileDeviceMatchAsync(name, candidate))
                 {
                     _profileStatus.Text = "Profile switch cancelled. Active profile: " + previous + ".";
+                    ShowProfileNotice("Profile switch cancelled", $"'{previous}' is still active. Its favorites remain displayed.");
                     return;
                 }
             }
@@ -209,34 +229,7 @@ public partial class MainWindow
 
             var profile = _profileStore.LoadProfile(name);
             var favorites = _profileStore.LoadFavorites(name);
-            // Persist the selected profile before replacing any in-memory data.
-            var oldProfile = ProfileSettings.From(_settings);
-            profile.ApplyTo(_settings);
-            _settings.ActiveProfile = name;
-            try { _saveSettings(_settings); }
-            catch { oldProfile.ApplyTo(_settings); _settings.ActiveProfile = previous; throw; }
-
-            _profileGeneration++;
-            StopSceneTracking();
-            _autoSendTimer.Stop();
-            HideFavoriteEditor();
-            _favorites.Clear();
-            _favorites.AddRange(favorites);
-            _enteredDigits = "";
-            _currentPreset = _lastPreset = null;
-            _currentFavoriteName = null;
-            _currentFavoriteScene = null;
-            ResetFavoriteSearch();
-            _favFilterSelectionId = null;
-            _favSearchBox.Text = "";
-            ApplyProfileSettingsToUI();
-            RefreshFavoritesList();
-            UpdateDisplay();
-            _syncReadCompleted = 0;
-            if (CanReadDeviceNames && _midi.InputOpen && _midi.OutputOpen)
-            {
-                _scenePoll.Start();
-            }
+            ActivateLoadedProfile(name, profile, favorites);
 
             if (action == "delete")
             {
@@ -250,16 +243,60 @@ public partial class MainWindow
                 "copy" => $"Copied {target} to {name}. Active profile: {name}.",
                 _ => $"Active profile: {name}.",
             };
+            int favoriteCount = favorites.Count(favorite => !favorite.IsEmpty);
+            ShowProfileNotice($"Profile '{name}' is active", $"{ProfileFavoriteCount(favoriteCount)} {(favoriteCount == 1 ? "is" : "are")} ready in Favorites.");
         }
-        catch (Exception ex) { _profileStatus.Text = ex.Message; }
+        catch (Exception ex)
+        {
+            _profileStatus.Text = ex.Message;
+            ShowProfileNotice("Profile action could not finish", ex.Message,
+                action: "Try again", command: () => RunProfileActionAsync(action, name, targetProfile));
+        }
         finally
         {
+            if (action == "rescan") { _profileFileScanning = false; }
+            if (scanControls is not null)
+            {
+                foreach (var (control, enabled) in scanControls) { control.IsEnabled = enabled; }
+                foreach (var button in _profileScanButtons) { button.Content = "Scan profile files"; }
+            }
             RefreshProfileList();
             UpdateActiveProfileIndicator();
             RefreshIndexContext();
             _changingProfile = false;
             UpdatePresetSyncButtons();
         }
+    }
+
+    private void ActivateLoadedProfile(string name, ProfileSettings profile, List<Favorite> favorites, bool persist = true)
+    {
+        // Persist a switch before replacing favorites. An overwrite of the active profile
+        // has already committed its pair and keeps the same machine-level active name.
+        string previous = _settings.ActiveProfile;
+        var oldProfile = ProfileSettings.From(_settings);
+        profile.ApplyTo(_settings);
+        _settings.ActiveProfile = name;
+        try { if (persist) { _saveSettings(_settings); } }
+        catch { oldProfile.ApplyTo(_settings); _settings.ActiveProfile = previous; throw; }
+
+        _profileGeneration++;
+        StopSceneTracking();
+        _autoSendTimer.Stop();
+        HideFavoriteEditor();
+        _favorites.Clear();
+        _favorites.AddRange(favorites);
+        _enteredDigits = "";
+        _currentPreset = _lastPreset = null;
+        _currentFavoriteName = null;
+        _currentFavoriteScene = null;
+        ResetFavoriteSearch();
+        _favFilterSelectionId = null;
+        _favSearchBox.Text = "";
+        ApplyProfileSettingsToUI();
+        RefreshFavoritesList();
+        UpdateDisplay();
+        _syncReadCompleted = 0;
+        if (CanReadDeviceNames && _midi.InputOpen && _midi.OutputOpen) { _scenePoll.Start(); }
     }
 
     private async Task TransferProfileAsync(bool export)
@@ -273,12 +310,6 @@ public partial class MainWindow
         try
         {
             string target = _selectedProfileName ?? _settings.ActiveProfile;
-            string? importedName = null;
-            if (!export)
-            {
-                importedName = await PromptProfileNameAsync("import", "");
-                if (importedName is null) { return; }
-            }
             string? path = await PickProfileFileAsync(export);
             if (path is null)
             {
@@ -298,18 +329,57 @@ public partial class MainWindow
             }
             else
             {
-                string name = _profileStore.Import(path, importedName);
+                var data = ProfileStore.ReadImport(path);
+                var choice = await PromptProfileImportAsync(data);
+                if (choice is null) { return; }
+                string name = _profileStore.ListProfiles().FirstOrDefault(existing => string.Equals(existing, choice.Name, StringComparison.OrdinalIgnoreCase)) ?? choice.Name;
+                bool active = name == _settings.ActiveProfile;
+                if (active)
+                {
+                    if (_presetNamesCts is not null) { throw new InvalidOperationException("Wait for name synchronization to finish, or cancel it, before overwriting the active profile."); }
+                    if (_favEditingId is not null && !await ConfirmProfileAsync("Overwrite active profile?", "Discard unsaved favorite edits and replace the active profile?", "Overwrite")) { return; }
+                    if (!await ConfirmProfileDeviceMatchAsync(name, data.Settings))
+                    {
+                        _profileStatus.Text = "Import cancelled. Active profile: " + name + ".";
+                        ShowProfileNotice("Import cancelled", $"'{name}' and its favorites were preserved.");
+                        return;
+                    }
+                    if (_presetNamesCts is not null) { throw new InvalidOperationException("Wait for name synchronization to finish before overwriting the active profile."); }
+                    SaveSettingsFromUI();
+                    _saveFavorites(_favorites);
+                }
+                name = _profileStore.Import(data, name, choice.Overwrite, choice.LibraryId, choice.KeepImportedLibrary);
+                if (active) { ActivateLoadedProfile(name, _profileStore.LoadProfile(name), _profileStore.LoadFavorites(name), persist: false); }
                 _selectedProfileName = name;
-                _profileStatus.Text = $"Imported {name}.";
+                int count = data.Favorites.Count(favorite => !favorite.IsEmpty);
+                string libraryOutcome = "";
+                DescribeProfileImportLibrary(_profileStore.LoadProfile(name), ref libraryOutcome);
+                _profileStatus.Text = active
+                    ? $"Imported {name}: {ProfileFavoriteCount(count)}. This profile is active."
+                    : $"Imported {name}: {ProfileFavoriteCount(count)}. Choose Use profile to show them; '{_settings.ActiveProfile}' is still active.";
+                ShowProfileNotice($"Imported profile '{name}'", active
+                    ? $"{ProfileFavoriteCount(count)} {(count == 1 ? "is" : "are")} ready in Favorites. The previous profile was backed up." + libraryOutcome
+                    : $"{ProfileFavoriteCount(count)} imported. Choose Use profile to show them; '{_settings.ActiveProfile}' is still active." + libraryOutcome,
+                    action: active ? null : "Use profile", command: active ? null : () => RunProfileActionAsync("select", name));
             }
         }
-        catch (Exception ex) { _profileStatus.Text = ex.Message; }
+        catch (Exception ex)
+        {
+            _profileStatus.Text = ex.Message;
+            ShowProfileNotice(export ? "Export could not finish" : "Import could not finish", ex.Message,
+                action: "Try again", command: () => TransferProfileAsync(export));
+        }
         finally
         {
             RefreshProfileList();
+            UpdateActiveProfileIndicator();
+            RefreshIndexContext();
             _changingProfile = false;
+            UpdatePresetSyncButtons();
         }
     }
+
+    partial void DescribeProfileImportLibrary(ProfileSettings settings, ref string description);
 
     private async Task<string?> PickProfileFileAsync(bool export)
     {

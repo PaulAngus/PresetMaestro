@@ -13,7 +13,9 @@
     <Product>Preset Maestro</Product>
     <Title>Preset Maestro</Title>
     <ApplicationIcon>preset_maestro.ico</ApplicationIcon>
-    <AppVersionFile>$(MSBuildProjectDirectory)\Version.txt</AppVersionFile>
+    <_RequestedPublishVersion>$(PublishVersion)</_RequestedPublishVersion>
+    <_RequestedPublishVersion Condition="'$(_RequestedPublishVersion)' == '' and '$(Version)' != ''">$(Version)</_RequestedPublishVersion>
+    <AppVersionFile Condition="'$(AppVersionFile)' == ''">$(MSBuildProjectDirectory)\Version.txt</AppVersionFile>
     <AppVersion>$([System.IO.File]::ReadAllText('$(AppVersionFile)').Trim())</AppVersion>
     <Version>$(AppVersion)</Version>
     <InformationalVersion>$(AppVersion)</InformationalVersion>
@@ -43,5 +45,7 @@
   <PropertyGroup Condition="'$(EnableFractalIndex)' == 'true'">
     <DefineConstants>$(DefineConstants);FRACTAL_INDEX</DefineConstants>
   </PropertyGroup>
+
+  <Import Project="..\scripts\PublishVersion.targets" />
 
 </Project>

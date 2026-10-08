@@ -10,7 +10,7 @@ using PresetMaestro.FractalIndex;
 
 namespace PresetMaestro.Tests;
 
-public sealed class LibraryManagementTests : IDisposable
+public sealed partial class LibraryManagementTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-libraries-" + Guid.NewGuid().ToString("N"));
     public void Dispose() { if (Directory.Exists(_directory)) { Directory.Delete(_directory, true); } }
@@ -56,12 +56,12 @@ public sealed class LibraryManagementTests : IDisposable
             Assert.Equal(saved.Id, Assert.Single(choices.Items.OfType<IndexDevice>()).Id);
             Assert.Equal(saved.Id, ((IndexDevice)choices.SelectedItem!).Id);
             choices.IsDropDownOpen = true; Dispatcher.UIThread.RunJobs();
-            FavoriteEditorTests.CaptureSendConfirmation(window, $"saved-library-choices-{width}-{theme}");
+            FavoriteEditorTests.CaptureSendConfirmation(window, $"saved-device-choices-{width}-{theme}");
             choices.IsDropDownOpen = false; Dispatcher.UIThread.RunJobs();
             Click(window, "ManageLibraries");
             var list = Find<ListBox>(window, "ManagedLibraries");
             Assert.Equal(saved.Id, (Guid)Assert.Single(list.Items.OfType<ListBoxItem>()).Tag!);
-            FavoriteEditorTests.CaptureSendConfirmation(window, $"saved-library-manager-{width}-{theme}");
+            FavoriteEditorTests.CaptureSendConfirmation(window, $"saved-device-manager-{width}-{theme}");
 
             Click(window, "IndexCreateDevice");
             Find<TextBox>(window, "IndexDeviceName").Text = "Studio";
@@ -231,7 +231,7 @@ public sealed class LibraryManagementTests : IDisposable
                 Click(window, "IndexUpdateDevice");
                 Assert.Equal(new DevicePresetMapping(5, 0, 34), library.Load(device.Id)!.PresetMapping);
                 Assert.Equal(5, settings.MidiChannel); Assert.Equal(0, settings.DisplayOffset); Assert.Equal(34, settings.SceneCc);
-                Assert.NotEqual("Library changes saved.", Find<TextBlock>(window, "LibraryManagementStatus").Text);
+                Assert.NotEqual("Device changes saved.", Find<TextBlock>(window, "LibraryManagementStatus").Text);
                 Assert.Equal(8, Find<ComboBox>(window, "MidiChannel").SelectedIndex);
             }
             Click(window, "IndexUpdateDevice");
@@ -268,7 +268,7 @@ public sealed class LibraryManagementTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void ManagerSeparatesCreateSaveAndAssignAndDeletesUnusedLibrariesOnlyAfterConfirmation()
+    public async Task ManagerSeparatesCreateSaveAndAssignAndDeletesUnusedLibrariesOnlyAfterConfirmation()
     {
         var store = new ProfileStore(_directory);
         var settings = store.LoadSettings(); settings.Theme = "Light";
@@ -321,8 +321,7 @@ public sealed class LibraryManagementTests : IDisposable
             Assert.Equal(2, library.ListDevices().Count);
             Assert.Empty(IndexJson.ReadProfile(settings.FractalIndex).Annotations);
             Select(list, second.Id);
-            Find<TextBox>(window, "IndexDeviceName").Text = "Studio FM9";
-            Click(window, "IndexUpdateDevice");
+            await RenameLibrary(window, "Studio FM9");
             Assert.Equal("Studio FM9", library.Load(second.Id)!.Device.Name);
             Assert.Equal(created.Id, IndexJson.ReadProfile(settings.FractalIndex).SelectedDeviceId);
             Assert.Empty(midi.Sent);
@@ -352,7 +351,7 @@ public sealed class LibraryManagementTests : IDisposable
         library.Save(cache); library.Save(cache);
         var profile = new IndexProfile { Devices = [device], PortableSnapshots = [cache] };
         var tagged = profile.GetOrCreate(device.Id, FractalIndexWorkflowTests.Preset(0), null);
-        tagged.Tags = ["Remove with library"];
+        tagged.Tags = ["Remove with device"];
         profile.Reattach(tagged.Id, FractalIndexWorkflowTests.Preset(1), null, new Dictionary<int, int>());
         // Keep an explicit different assignment so the legacy single-library fallback does not assign this one.
         var other = device with { Id = Guid.NewGuid(), Name = "Keep" };
@@ -419,15 +418,17 @@ public sealed class LibraryManagementTests : IDisposable
             Find<TextBlock>(window, "IndexFirmware").Text = "99.00";
             Find<TextBox>(window, "IndexDeviceName").Text = "Renamed";
             Click(window, "IndexUpdateDevice");
+            Assert.Equal("Default", library.Load(device.Id)!.Device.Name);
+            await RenameLibrary(window, "Renamed");
             var saved = library.Load(device.Id)!.Device;
             Assert.Equal("Renamed", saved.Name);
             Assert.Equal(FractalDeviceVariant.FM9, saved.Variant); Assert.Equal("12.00", saved.Firmware);
             Click(window, "IndexCreateDevice");
             Assert.False(choices.IsVisible); Assert.False(choices.IsEnabled);
             Assert.Single(choices.Items);
-            Find<TextBox>(window, "IndexDeviceName").Text = "New connected library";
+            Find<TextBox>(window, "IndexDeviceName").Text = "New connected device";
             Click(window, "IndexUpdateDevice");
-            var created = library.ListDevices().Single(d => d.Name == "New connected library");
+            var created = library.ListDevices().Single(d => d.Name == "New connected device");
             Assert.Equal(FractalDeviceVariant.FM9, created.Variant); Assert.Equal("12.00", created.Firmware);
             string? output = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
             if (output is not null)

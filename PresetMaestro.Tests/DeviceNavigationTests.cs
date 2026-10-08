@@ -12,7 +12,7 @@ using PresetMaestro.FractalIndex;
 
 namespace PresetMaestro.Tests;
 
-public sealed class DeviceNavigationTests : IDisposable
+public sealed partial class DeviceNavigationTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-navigation-" + Guid.NewGuid().ToString("N"));
     public void Dispose() { if (Directory.Exists(_directory)) { Directory.Delete(_directory, true); } }
@@ -25,30 +25,34 @@ public sealed class DeviceNavigationTests : IDisposable
     }
     private static void DoubleClick(Window window, Point first, Point second)
     {
+        // Render the new viewport after opening a dock before headless hit testing.
+        window.CaptureRenderedFrame()?.Dispose();
         window.MouseDown(first, MouseButton.Left); window.MouseUp(first, MouseButton.Left); Dispatcher.UIThread.RunJobs();
+        window.CaptureRenderedFrame()?.Dispose();
         window.MouseMove(second);
         window.MouseDown(second, MouseButton.Left); window.MouseUp(second, MouseButton.Left); Dispatcher.UIThread.RunJobs();
     }
-    private (MainWindow Window, DeviceMidi Midi) Window(int channel = 5, int width = 1440, string theme = "Light")
+    private (MainWindow Window, DeviceMidi Midi) Window(int channel = 5, int width = 1440, string theme = "Light", int capacity = 512, int displayOffset = 1, int height = 850)
     {
         var store = new ProfileStore(_directory); var settings = store.LoadSettings();
         settings.Theme = theme; settings.MidiInputPort = settings.MidiOutputPort = "FM9";
-        var device = new IndexDevice(Guid.NewGuid(), "Default", FractalDeviceVariant.FM9, "12.00");
+        var device = new IndexDevice(Guid.NewGuid(), "Default", capacity == 1024 ? FractalDeviceVariant.AxeFxIII : FractalDeviceVariant.FM9, "12.00")
+        { PresetCapacity = capacity == 1024 ? capacity : null };
         new IndexLibrary(Path.Combine(_directory, "FractalIndex")).Save(new DeviceIndex
         {
             Device = device,
-            PresetMapping = new(channel, 1, 77),
-            Committed = new IndexScan { Status = "Complete", FinishedAt = DateTimeOffset.UtcNow, Firmware = "12.00", Presets = Enumerable.Range(0, 512).ToDictionary(slot => slot, slot => FractalIndexWorkflowTests.Preset(slot)) },
+            PresetMapping = new(channel, displayOffset, 77),
+            Committed = new IndexScan { Status = "Complete", FinishedAt = DateTimeOffset.UtcNow, Firmware = "12.00", Presets = Enumerable.Range(0, capacity).ToDictionary(slot => slot, slot => FractalIndexWorkflowTests.Preset(slot, device.Variant)) },
         });
         settings.FractalIndex = IndexJson.ToElement(new IndexProfile { Devices = [device], SelectedDeviceId = device.Id }); store.SaveSettings(settings);
         var midi = new DeviceMidi { AllowWrites = true };
         midi.Send = request =>
         {
-            if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Capture("identity-fm9")); }
-            if (request[5] == 8) { midi.Reply(FractalDeviceInformationTests.Frame(0x12, 8, [12, 0, 0, 1])); }
+            if (request[5] == 0) { midi.Reply(FractalDeviceInformationTests.Frame(capacity == 1024 ? (byte)0x10 : (byte)0x12, 0x64, [0, 0])); }
+            if (request[5] == 8) { midi.Reply(FractalDeviceInformationTests.Frame(capacity == 1024 ? (byte)0x10 : (byte)0x12, 8, [12, 0, 0, 1])); }
             if (request[5] == 1) { midi.Reply(FractalDeviceInformationTests.SyntheticName("Stage")); }
         };
-        var window = new MainWindow(settings, [], midi, profileStore: store) { Width = width, Height = 850, ThruInputRetryDelay = TimeSpan.Zero };
+        var window = new MainWindow(settings, [], midi, profileStore: store) { Width = width, Height = height, ThruInputRetryDelay = TimeSpan.Zero };
         window.Show(); return (window, midi);
     }
 
@@ -87,6 +91,7 @@ public sealed class DeviceNavigationTests : IDisposable
             Find<TextBox>(window, "IndexSearchInput").Text = "Plexis+ACs"; Dispatcher.UIThread.RunJobs();
             var item = (ListBoxItem)Assert.Single(Find<ListBox>(window, "IndexPresetList").Items)!;
             DoubleClick(window, item);
+            Assert.Same(item, Find<ListBox>(window, "IndexPresetList").SelectedItem);
             Assert.Equal(("Preset", 0, 125, 0, 0, 5), Assert.Single(midi.Writes));
             Assert.True(Find<Border>(window, "SendFeedback").IsVisible);
             Assert.Equal("Sent preset 126.", Find<TextBlock>(window, "SendFeedbackDetail").Text);
@@ -163,7 +168,9 @@ public sealed class DeviceNavigationTests : IDisposable
             await window.ConnectAsync(); Assert.Single(window.OwnedWindows).Close(); Click(Find<Button>(window, "NavPresetIndex"));
             Find<ListBox>(window, "IndexPresetList").SelectedIndex = 260; Dispatcher.UIThread.RunJobs();
             var row = Find<Grid>(window, "IndexScene2Row");
-            var title = row.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text!.StartsWith("2   ", StringComparison.Ordinal));
+            row.BringIntoView(); Dispatcher.UIThread.RunJobs();
+            window.CaptureRenderedFrame()?.Dispose();
+            var title = Find<TextBlock>(window, "IndexScene2Name");
             var first = title.TranslatePoint(new Point(-1, title.Bounds.Height / 2), window)!.Value;
             var second = title.TranslatePoint(new Point(1, title.Bounds.Height / 2), window)!.Value;
             window.MouseDown(first, MouseButton.Left); window.MouseUp(first, MouseButton.Left); Dispatcher.UIThread.RunJobs();
@@ -184,6 +191,8 @@ public sealed class DeviceNavigationTests : IDisposable
             await window.ConnectAsync(); Assert.Single(window.OwnedWindows).Close(); Click(Find<Button>(window, "NavPresetIndex"));
             Find<ListBox>(window, "IndexPresetList").SelectedIndex = 260; Dispatcher.UIThread.RunJobs();
             var row = Find<Grid>(window, "IndexScene2Row");
+            row.BringIntoView(); Dispatcher.UIThread.RunJobs();
+            window.CaptureRenderedFrame()?.Dispose();
             var point = row.TranslatePoint(new Point(5, 14), window)!.Value;
             window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left); Dispatcher.UIThread.RunJobs();
             Assert.Empty(midi.Writes);

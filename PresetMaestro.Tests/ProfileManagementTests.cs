@@ -305,21 +305,23 @@ public partial class FavoriteEditorTests
     }
 
     [AvaloniaFact]
-    public void ImportSelectsWithoutActivationAndRescanRetainsOrRecoversSelection()
+    public async Task ImportSelectsWithoutActivationAndRescanRetainsOrRecoversSelection()
     {
         using var fixture = new ManagedProfileFixture();
         var window = fixture.Window;
         fixture.Store.Export("Session", fixture.ArchivePath);
         OpenProfileManagement(window);
-        fixture.NameResult = "Session";
+        fixture.NameResult = "Session (2)";
         Click(Find<Button>(window, "ProfileImport")); Dispatcher.UIThread.RunJobs();
         Assert.Equal("Session (2)", Find<TextBlock>(window, "ManagedProfile").Text);
         Assert.Equal("Default", fixture.Settings.ActiveProfile);
         Assert.Equal("Default", fixture.Store.LoadSettings().ActiveProfile);
         Click(Find<Button>(window, "ProfileManagementRescan")); Dispatcher.UIThread.RunJobs();
+        await window.ProfileScanTask!.WaitAsync(TimeSpan.FromSeconds(5)); Dispatcher.UIThread.RunJobs();
         Assert.Equal("Session (2)", Find<TextBlock>(window, "ManagedProfile").Text);
         File.Move(Path.Combine(fixture.DirectoryPath, "Session (2)-settings.json"), Path.Combine(fixture.DirectoryPath, "removed-settings.bak"));
         Click(Find<Button>(window, "ProfileManagementRescan")); Dispatcher.UIThread.RunJobs();
+        await window.ProfileScanTask!.WaitAsync(TimeSpan.FromSeconds(5)); Dispatcher.UIThread.RunJobs();
         Assert.Equal("Default", Find<TextBlock>(window, "ManagedProfile").Text);
         Assert.Contains("1 incomplete or unreadable", Find<TextBlock>(window, "ProfileManagementStatus").Text);
         fixture.NameResult = null;
@@ -355,7 +357,7 @@ public partial class FavoriteEditorTests
     }
 
     [AvaloniaFact]
-    public void ActiveDeleteSkipsUnreadableAlternativesAndKeepsTheLastProfile()
+    public async Task ActiveDeleteSkipsUnreadableAlternativesAndKeepsTheLastProfile()
     {
         using var fixture = new ManagedProfileFixture();
         var window = fixture.Window;
@@ -371,6 +373,7 @@ public partial class FavoriteEditorTests
         Assert.Contains("Spare", fixture.Store.ListProfiles());
         fixture.Store.Delete("Session");
         Click(Find<Button>(window, "ProfileManagementRescan")); Dispatcher.UIThread.RunJobs();
+        await window.ProfileScanTask!.WaitAsync(TimeSpan.FromSeconds(5)); Dispatcher.UIThread.RunJobs();
         Assert.False(Find<Button>(window, "ProfileDelete").IsEnabled);
         Click(Find<Button>(window, "ProfileDelete"));
         Assert.Contains("Keep at least one profile", Find<TextBlock>(window, "ProfileManagementStatus").Text);
@@ -446,7 +449,7 @@ public partial class FavoriteEditorTests
     [InlineData(1200, 800, "Light")]
     [InlineData(1000, 640, "Dark")]
     [InlineData(1200, 800, "Dark")]
-    public void ManagementMeasuresReferenceSizesAndScrollsLongNames(int width, int height, string theme)
+    public async Task ManagementMeasuresReferenceSizesAndScrollsLongNames(int width, int height, string theme)
     {
         using var fixture = new ManagedProfileFixture(theme);
         var window = fixture.Window;
@@ -474,6 +477,7 @@ public partial class FavoriteEditorTests
         fixture.Store.Create(longName);
         for (int i = 0; i < 18; i++) { fixture.Store.Create($"Workshop {i:00}"); }
         Click(Find<Button>(window, "ProfileManagementRescan")); Dispatcher.UIThread.RunJobs();
+        await window.ProfileScanTask!.WaitAsync(TimeSpan.FromSeconds(5)); Dispatcher.UIThread.RunJobs();
         SelectManagedProfile(window, longName);
         Assert.Equal(longName, ToolTip.GetTip(Find<TextBlock>(window, "ManagedProfile")));
         AssertContainedHorizontally(Find<Border>(window, "ProfileDetails"), window);

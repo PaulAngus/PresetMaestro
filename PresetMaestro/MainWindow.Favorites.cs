@@ -59,7 +59,7 @@ public partial class MainWindow
         _favPresetPickerButton.Click += async (_, _) => await SelectFavoritePresetAsync();
         field.Children.Add(_favPresetPickerButton);
 
-        _favPresetSpinner.ValueChanged += (_, _) => UpdateFavoritePresetDisplay();
+        _favPresetSpinner.ValueChanged += (_, _) => { UpdateFavoritePresetDisplay(); if (!_favInitializingEditor) { FavoriteTagTargetChanged(); } };
         UpdateFavoritePresetDisplay();
     }
 
@@ -78,7 +78,7 @@ public partial class MainWindow
 
         int displayed = (int)value;
         int slot = displayed - _settings.DisplayOffset;
-        string name = slot >= 0 && slot < DevicePresets.Capacity(PickerDeviceModel) &&
+        string name = slot >= 0 && slot < PickerCapacity &&
                       _settings.PresetNameCache.TryGetValue(slot, out string? cachedName) &&
                       !string.IsNullOrWhiteSpace(cachedName)
             ? cachedName.Trim()
@@ -90,10 +90,10 @@ public partial class MainWindow
     {
         int offset = _settings.DisplayOffset;
         _favPresetSpinner.Maximum = EffectiveMaximum;
-        int currentSlot = Math.Clamp((int)(_favPresetSpinner.Value ?? offset) - offset, 0, DevicePresets.Capacity(PickerDeviceModel) - 1);
+        int currentSlot = Math.Clamp((int)(_favPresetSpinner.Value ?? offset) - offset, 0, PickerCapacity - 1);
         var model = PickerDeviceModel;
         var dialog = new PresetSelectionWindow(_settings.PresetNameCache, currentSlot, _settings.DisplayOffset, model,
-            slot => GoToDevice(slot, null, model), () => DeviceNavigationUnavailable(model))
+            slot => GoToDevice(slot, null, model), () => DeviceNavigationUnavailable(model), PickerCapacity)
         { Icon = Icon };
         int? slot = _presetPickerOverride is not null
             ? await _presetPickerOverride(dialog)
@@ -129,6 +129,9 @@ public partial class MainWindow
     private Border _favTagsEditor = null!;
     private WrapPanel _favTagsPanel = null!;
     private TextBox _favTagInput = null!;
+    private bool _favInitializingEditor;
+    partial void LoadFavoriteSceneTags();
+    partial void FavoriteTagTargetChanged();
 
     private IEnumerable<Favorite> GetFilteredFavorites()
     {
@@ -319,7 +322,7 @@ public partial class MainWindow
         }
 
         int slot = favorite.Preset - _settings.DisplayOffset;
-        string presetName = slot >= 0 && slot < DevicePresets.Capacity(PickerDeviceModel) &&
+        string presetName = slot >= 0 && slot < PickerCapacity &&
                             _settings.PresetNameCache.TryGetValue(slot, out string? cachedPresetName)
             ? cachedPresetName.Trim()
             : string.Empty;
@@ -378,6 +381,7 @@ public partial class MainWindow
         if (removable)
         {
             var remove = new Button { Content = "\u00D7", FontSize = 13, Foreground = TagRemoveBrush, Background = Brushes.Transparent, BorderThickness = new Thickness(0), MinHeight = 20, MinWidth = 18, Padding = new Thickness(2, 0), VerticalContentAlignment = VerticalAlignment.Center };
+            AutomationProperties.SetName(remove, "Remove tag " + tag);
             remove.Click += (_, _) => { _favEditingTags.Remove(tag); RefreshFavoriteTagEditor(); _favTagInput.Focus(); };
             content.Children.Add(remove);
         }
@@ -462,8 +466,11 @@ public partial class MainWindow
     {
 
         _favEditingId = isNew ? 0 : fav.Id;
+        _favInitializingEditor = true;
         _favEditorTitle.Text = isNew ? "New Favorite" : $"Edit: {(fav.IsEmpty ? "— Empty —" : fav.Name)}";
         _favNameBox.Text = fav.Name;
+        AutomationProperties.SetName(_favTagInput, "Add favorite tag");
+        ToolTip.SetTip(_favTagsEditor, "Tags for this favorite");
         _favEditingTags.Clear();
         _favEditingTags.AddRange(fav.Tags.Distinct(StringComparer.OrdinalIgnoreCase));
         _favTagInput.Text = string.Empty;
@@ -476,6 +483,8 @@ public partial class MainWindow
         _favSceneSpinner.Value = isNew
             ? _activeScene is int activeScene ? Math.Clamp(activeScene, 1, 8) : null
             : Math.Clamp(fav.Scene == 0 ? 1 : fav.Scene, 1, 8);
+        _favInitializingEditor = false;
+        LoadFavoriteSceneTags();
         _favDeleteBtn.IsVisible = !isNew;
         _favDeleteBtn.IsEnabled = !isNew;
 
@@ -738,9 +747,29 @@ public partial class MainWindow
         CommitFavoriteTag();
         var tags = _favEditingTags.ToList();
 
-        if (!TryFavoriteCommand(() => _favoriteCommands.Save(_favEditingId.Value, name, (int)preset, (int)scene, tags))) { return; }
+        if (!TryFavoriteCommand(() => SaveFavoriteTags(_favEditingId.Value, name, (int)preset, (int)scene, tags))) { return; }
         HideFavoriteEditor();
         RefreshFavoritesList();
+    }
+
+    private void SaveFavoriteTags(int id, string name, int preset, int scene, List<string> tags)
+    {
+#if FRACTAL_INDEX
+        if (_profileStore is not null && _indexError is null &&
+            SharedSceneTags.Resolve(_indexProfile, _indexCache, _settings.DisplayOffset, preset, scene) is { } target)
+        {
+            var updated = PresetMaestro.FractalIndex.IndexJson.Clone(_indexProfile);
+            SharedSceneTags.Set(updated, target, tags);
+            new FavoriteCommands(_favorites, favorites =>
+            {
+                SharedSceneTags.Reconcile(updated, _indexCache, favorites, _settings.DisplayOffset, importLegacy: false);
+                PersistSharedSceneTags(updated);
+            }).Save(id, name, preset, scene, tags);
+            RenderIndexResults();
+            return;
+        }
+#endif
+        _favoriteCommands.Save(id, name, preset, scene, tags);
     }
 
     private void OnFavDelete(object? sender, RoutedEventArgs e)

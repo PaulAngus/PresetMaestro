@@ -27,10 +27,11 @@ public partial class FavoriteEditorTests
         public Func<int, CancellationToken, Task<PresetScenes>> SceneQuery { get; set; } =
             (slot, _) => Task.FromResult(new PresetScenes(slot, "Preset " + slot, ["Clean", "Solo"]));
 
-        public ProfileValidationFixture(bool realDialogs = false)
+        public ProfileValidationFixture(bool realDialogs = false, string theme = "Light")
         {
             Store = new ProfileStore(DirectoryPath);
             Settings = Store.LoadSettings();
+            Settings.Theme = theme;
             Store.SaveFavorites("Default", [Clone(Sample)]);
             Store.Create("Target", new ProfileSettings
             {

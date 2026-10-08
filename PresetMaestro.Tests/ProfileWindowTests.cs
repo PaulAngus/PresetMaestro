@@ -9,7 +9,7 @@ namespace PresetMaestro.Tests;
 public partial class FavoriteEditorTests
 {
     [AvaloniaFact]
-    public void ProfileRescanImportExportButtonsUpdateRegistryAndKeepSelectionUntilChanged()
+    public async Task ProfileRescanImportExportButtonsUpdateRegistryAndKeepSelectionUntilChanged()
     {
         string directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-profile-transfer-" + Guid.NewGuid().ToString("N"));
         string profileName = "";
@@ -51,9 +51,10 @@ public partial class FavoriteEditorTests
             Click(Find<Button>(window, "ProfilesBackToConfig"));
             Dispatcher.UIThread.RunJobs();
             Click(Find<Button>(window, "ProfileRescan"));
+            await window.ProfileScanTask!.WaitAsync(TimeSpan.FromSeconds(5)); Dispatcher.UIThread.RunJobs();
             Assert.Contains("External", settings.Profiles);
             Assert.Equal("Default", settings.ActiveProfile);
-            Assert.Contains("1 new profiles", Find<TextBlock>(window, "ProfileStatus").Text);
+            Assert.Contains("1 new profile", Find<TextBlock>(window, "ProfileStatus").Text);
             Find<ComboBox>(window, "ProfileSelector").SelectedItem = "External";
             Assert.Equal("External", new ProfileStore(directory).LoadSettings().ActiveProfile);
             Assert.Equal("Transfer preset", settings.PresetNameCache[4]);

@@ -23,6 +23,8 @@ jobs:
         run: dotnet test PresetMaestro.slnx --configuration Release --no-build --collect:"XPlat Code Coverage" --logger trx --results-directory TestResults
       - name: Formatting and code style
         run: dotnet format PresetMaestro.slnx --verify-no-changes --no-restore
+      - name: Publish version regression checks
+        run: ./scripts/Test-PublishVersion.ps1 -ResultsDirectory TestResults/publish-version
       - name: Build without optional Preset Index
         run: dotnet build PresetMaestro/PresetMaestro.csproj --configuration Release -p:EnableFractalIndex=false --artifacts-path build_test/no-index
       - name: Retain test results

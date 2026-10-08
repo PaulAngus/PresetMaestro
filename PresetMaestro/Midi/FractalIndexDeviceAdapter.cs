@@ -10,7 +10,7 @@ internal static class FractalIndexDeviceAdapter
     {
         FractalDeviceVariant.FM9 => DeviceModel.FM9,
         FractalDeviceVariant.FM3 => DeviceModel.FM3,
-        FractalDeviceVariant.AxeFxIIIOriginal or
+        FractalDeviceVariant.AxeFxIII or FractalDeviceVariant.AxeFxIIIOriginal or
         FractalDeviceVariant.AxeFxIIIMarkII or
         FractalDeviceVariant.AxeFxIIIMarkIITurbo => DeviceModel.AxeFxIII,
         _ => throw new ArgumentOutOfRangeException(nameof(variant)),

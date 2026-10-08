@@ -14,8 +14,8 @@ public enum PresetNavigation { Left, Right, Up, Down, Home, End, First, Last, Pa
 
 public static class PresetSelection
 {
-    public static IReadOnlyList<PresetChoice> CreateCatalog(IReadOnlyDictionary<int, string> names, int displayOffset = 0, DeviceModel deviceModel = DeviceModel.FM9) =>
-        Enumerable.Range(0, DevicePresets.Capacity(deviceModel)).Select(slot => new PresetChoice(slot,
+    public static IReadOnlyList<PresetChoice> CreateCatalog(IReadOnlyDictionary<int, string> names, int displayOffset = 0, DeviceModel deviceModel = DeviceModel.FM9, int? capacity = null) =>
+        Enumerable.Range(0, capacity ?? DevicePresets.Capacity(deviceModel)).Select(slot => new PresetChoice(slot,
             names.TryGetValue(slot, out var name) && !string.IsNullOrWhiteSpace(name)
                 ? name.Trim() : "(name unavailable)", displayOffset)).ToArray();
 

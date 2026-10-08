@@ -16,9 +16,9 @@ visible by default. Unknown IDs appear under **Unmapped**; Fractal originals
 have their own group.
 
 Preset-name sync collects names only. Amp usage requires saved preset data from
-**Preset Index → Sync device** with firmware matching the library. Until that
+**Config → MIDI Connection → Sync options… → Sync device** with firmware matching the library. Until that
 data exists, **Used in my presets** is disabled and cleared, the catalogue stays
-visible, and the page explains which sync is needed with an Open Preset Index
+visible, and the page explains which sync is needed with an Open Config
 button. Find presets is also disabled without compatible usage data. Partial
 compatible scans can supply observed matches while keeping usage labelled unknown.
 

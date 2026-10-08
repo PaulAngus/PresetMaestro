@@ -43,7 +43,7 @@ public static class FavoritesManager
 
     internal static void MutateAndSave(List<Favorite> favorites, Action change, Action<List<Favorite>> save)
     {
-        var before = favorites.Select(f => (Favorite: f, f.Id, f.Slot, f.Name, Tags: f.Tags.ToList(), f.Preset, f.Scene)).ToArray();
+        var before = favorites.Select(f => (Favorite: f, f.Id, f.Slot, f.Name, Tags: f.Tags.ToList(), f.SceneTagSourceId, f.Preset, f.Scene)).ToArray();
         try { change(); save(favorites); }
         catch
         {
@@ -53,7 +53,8 @@ public static class FavoritesManager
             {
                 var favorite = entry.Favorite;
                 favorite.Id = entry.Id; favorite.Slot = entry.Slot; favorite.Name = entry.Name;
-                favorite.Tags = entry.Tags; favorite.Preset = entry.Preset; favorite.Scene = entry.Scene;
+                favorite.Tags = entry.Tags; favorite.SceneTagSourceId = entry.SceneTagSourceId;
+                favorite.Preset = entry.Preset; favorite.Scene = entry.Scene;
                 favorites.Add(favorite);
             }
             throw;
@@ -91,6 +92,7 @@ public static class FavoritesManager
 
         favorite.Name = string.Empty;
         favorite.Tags = [];
+        favorite.SceneTagSourceId = null;
         favorite.Preset = 0;
         favorite.Scene = 0;
         return true;

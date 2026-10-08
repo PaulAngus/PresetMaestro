@@ -12,6 +12,7 @@ internal sealed class FavoriteTablesPanel : Panel, INavigableContainer
 {
     internal const double HeadingHeight = 30;
     internal int Columns { get; private set; } = 2;
+    internal double MinimumTableWidth { get; init; } = FavoriteTableLayout.MinimumWidth;
     internal Action<int, double, double[]>? LayoutChanged { get; init; }
     internal IBrush Outline { get; set; } = Brushes.Gray;
     private double _width;
@@ -23,10 +24,12 @@ internal sealed class FavoriteTablesPanel : Panel, INavigableContainer
         // A ScrollViewer can retain the same arranged extent after a measure with
         // a different viewport. Our distribution depends on that viewport too.
         InvalidateArrange();
-        Columns = FavoriteTableLayout.TableCount(width);
+        // Count the same two border pixels reserved below, so adding a table
+        // cannot make the extent wider than the viewport at a resize threshold.
+        Columns = FavoriteTableLayout.TableCount(width, MinimumTableWidth + 2);
         // Tables grow to fill the viewport, but never shrink below the minimum width
         // that determined the current column count.
-        double minRequired = Columns * (FavoriteTableLayout.MinimumWidth + 2) + (Columns - 1) * FavoriteTableLayout.Gap;
+        double minRequired = Columns * (MinimumTableWidth + 2) + (Columns - 1) * FavoriteTableLayout.Gap;
         _width = Math.Max(width, minRequired);
         double cell = (_width - (Columns - 1) * FavoriteTableLayout.Gap) / Columns;
         _heights = new double[Columns];

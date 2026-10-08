@@ -929,7 +929,7 @@ public partial class FavoriteEditorTests
             ShowEditor(window, favorite);
             await window.SyncPresetNamesAsync();
 
-            Assert.Equal(Enumerable.Range(0, 512), requested);
+            Assert.Equal(Enumerable.Range(0, 512).Append(101), requested);
             Assert.Equal(512, settings.PresetNameCache.Count);
             Assert.Equal("Previously cached preset", settings.PresetNameCache[101]);
             Assert.Equal("Refreshed preset 102", settings.PresetNameCache[102]);

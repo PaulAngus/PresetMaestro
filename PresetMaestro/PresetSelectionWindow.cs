@@ -29,10 +29,10 @@ public sealed class PresetSelectionWindow : Window
     private bool _filtering;
 
     public PresetSelectionWindow(IReadOnlyDictionary<int, string> names, int currentSlot, int displayOffset = 0, DeviceModel deviceModel = DeviceModel.FM9,
-        Func<int, bool>? goTo = null, Func<string?>? navigationUnavailable = null)
+        Func<int, bool>? goTo = null, Func<string?>? navigationUnavailable = null, int? capacity = null)
     {
-        _catalog = PresetSelection.TrimExplicitEmptyEdges(PresetSelection.CreateCatalog(names, displayOffset, deviceModel));
-        _preferredSlot = Math.Clamp(currentSlot, 0, DevicePresets.Capacity(deviceModel) - 1);
+        _catalog = PresetSelection.TrimExplicitEmptyEdges(PresetSelection.CreateCatalog(names, displayOffset, deviceModel, capacity));
+        _preferredSlot = Math.Clamp(currentSlot, 0, (capacity ?? DevicePresets.Capacity(deviceModel)) - 1);
         Title = "Select Preset";
         Width = 1280; Height = 780; MinWidth = 640; MinHeight = 420;
         CanResize = true;

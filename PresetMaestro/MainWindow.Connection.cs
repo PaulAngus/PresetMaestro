@@ -7,7 +7,18 @@ namespace PresetMaestro;
 public partial class MainWindow
 {
     private Core.DeviceModel PickerDeviceModel => _detectedDevice?.Model ?? _settings.DeviceModel;
-    private int EffectiveMaximum => Core.DevicePresets.Capacity(PickerDeviceModel) - 1 + _settings.DisplayOffset;
+    private int PickerCapacity
+    {
+        get
+        {
+#if FRACTAL_INDEX
+            if (_indexCache is { } cache && cache.Device.Variant.ToDeviceModel() == PickerDeviceModel && !cache.Device.NeedsCapacityDetection)
+            { return FractalIndex.FractalDeviceDefinition.For(cache.Device).PresetSlots; }
+#endif
+            return Core.DevicePresets.Capacity(PickerDeviceModel);
+        }
+    }
+    private int EffectiveMaximum => PickerCapacity - 1 + _settings.DisplayOffset;
     private bool CanReadDeviceNames => _detectedDevice?.Model is null or Core.DeviceModel.FM9;
     private const string UnsupportedNameReads = "Preset and scene name reads are currently verified for FM9 only. Preset sending remains available.";
 

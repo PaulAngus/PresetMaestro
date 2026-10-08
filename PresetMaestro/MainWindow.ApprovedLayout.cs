@@ -98,15 +98,17 @@ public partial class MainWindow
         RestoreIndexPage(host);
         InitializeLibraryManagement(host, ShowConfig);
         SetMode(_mode);
-        var root = new Grid { RowDefinitions = new RowDefinitions("48,*") };
+        var root = new Grid { RowDefinitions = new RowDefinitions("48,Auto,*") };
         root.Children.Add(ApprovedHeader(host, sender, favorites, config));
-        Grid.SetRow(host, 1);
+        var profileNotice = BuildProfileNotice();
+        Grid.SetRow(profileNotice, 1); root.Children.Add(profileNotice);
+        Grid.SetRow(host, 2);
         root.Children.Add(host);
         _sendFeedbackPanel = BuildSendFeedbackPanel();
-        Grid.SetRow(_sendFeedbackPanel, 1);
+        Grid.SetRow(_sendFeedbackPanel, 2);
         root.Children.Add(_sendFeedbackPanel);
         var deleteSlotDialog = BuildDeleteSlotDialog();
-        Grid.SetRowSpan(deleteSlotDialog, 2);
+        Grid.SetRowSpan(deleteSlotDialog, 3);
         root.Children.Add(deleteSlotDialog);
         Content = root;
         SetStatus(_statusText, _statusKind);
@@ -116,6 +118,7 @@ public partial class MainWindow
     private Control ApprovedHeader(ContentControl host, Control sender, Control favorites, Control config)
     {
         var header = new Border { Name = "ApplicationHeader", Padding = new Thickness(16, 0), Background = AppBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(0, 0, 0, 1) };
+        header.SizeChanged += (_, e) => UpdateIndexHeader(e.NewSize.Width);
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
         var identity = new StackPanel { Name = "AppIdentity", Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         identity.Children.Add(new Image { Name = "AppLogo", Source = AppLogo, Width = 24, Height = 24, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center });
@@ -130,6 +133,8 @@ public partial class MainWindow
             var button = new Button { Name = $"Nav{label.Replace(" ", string.Empty)}", Content = label, Width = width, Height = 32, MinHeight = 32, Padding = new Thickness(10, 0), FontSize = 14, FontWeight = FontWeight.Medium, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(0), Background = active ? AccentBrush : Brushes.Transparent, Foreground = active ? Brushes.White : TextBrush };
             button.Click += (_, _) =>
             {
+                bool changingIndexPage = _currentPage != pageKind && (_currentPage == AppPage.PresetIndex || pageKind == AppPage.PresetIndex);
+                if (changingIndexPage) { _autoSendTimer.Stop(); _enteredDigits = string.Empty; }
                 _currentPage = pageKind;
                 host.Content = page;
                 UpdateIndexButtons();
@@ -137,6 +142,7 @@ public partial class MainWindow
                 {
                     SetMode(entryMode.Value);
                 }
+                if (changingIndexPage) { UpdateDisplay(); }
 
                 foreach (var child in nav.Children.OfType<Button>()) { child.Background = Brushes.Transparent; child.Foreground = TextBrush; }
                 button.Background = AccentBrush;
@@ -151,13 +157,13 @@ public partial class MainWindow
         var navigation = new Border { Height = 40, Margin = new Thickness(12, 0), Padding = new Thickness(3), Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = nav };
         Grid.SetColumn(navigation, 1); grid.Children.Add(navigation);
         _headerStatusLabel = new TextBlock { Name = "HeaderConnectionStatus", FontSize = 13, MaxWidth = 140, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
-        _connectionDot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Background = SuccessBrush, VerticalAlignment = VerticalAlignment.Center, IsVisible = true };
+        _connectionDot = new Border { Name = "ConnectionStatusDot", Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Background = SuccessBrush, VerticalAlignment = VerticalAlignment.Center, IsVisible = true };
         var statusContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         statusContent.Children.Add(_connectionDot);
         statusContent.Children.Add(_headerStatusLabel);
         var state = new Border { Height = 28, VerticalAlignment = VerticalAlignment.Center, Child = statusContent };
         _activeProfileLabel = new TextBlock { Name = "HeaderActiveProfile", FontSize = 13, Foreground = TextBrush, MaxWidth = 140, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
-        _activeProfileBadge = new Border { Name = "HeaderActiveProfileBadge", Height = 28, Padding = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Child = BuildHeaderProfileSelector() };
+        _activeProfileBadge = new Border { Name = "HeaderActiveProfileBadge", Height = 28, Padding = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Child = _activeProfileLabel };
         UpdateActiveProfileIndicator();
         var indicators = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Children = { state, _activeProfileBadge } };
         AddIndexHeader(indicators);
@@ -167,6 +173,7 @@ public partial class MainWindow
     private void UpdateActiveProfileIndicator()
     {
         _activeProfileLabel.Text = $"Profile: {_settings.ActiveProfile}";
+        AutomationProperties.SetName(_activeProfileLabel, $"Active profile: {_settings.ActiveProfile}");
         ToolTip.SetTip(_activeProfileBadge, $"Active profile: {_settings.ActiveProfile}");
         AutomationProperties.SetName(_activeProfileBadge, $"Active profile: {_settings.ActiveProfile}");
     }
@@ -174,7 +181,7 @@ public partial class MainWindow
     private Control BuildApprovedSender()
     {
         var page = new Grid { Margin = new Thickness(24), ColumnDefinitions = new ColumnDefinitions("390,16,*"), RowDefinitions = new RowDefinitions("Auto,16,170,16,Auto") };
-        _senderStatusLabel = new TextBlock { Foreground = SecondaryBrush };
+        _senderStatusLabel = new TextBlock { Name = "SenderConnectionStatus", Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap };
         Grid.SetColumnSpan(_senderStatusLabel, 3);
         page.Children.Add(_senderStatusLabel);
         var display = ApprovedDisplay();
@@ -410,10 +417,40 @@ public partial class MainWindow
         var layout = new Grid { RowDefinitions = new RowDefinitions("*,Auto") };
         _logTextBox = CreateSelectableLog("Cascadia Mono", 12);
         layout.Children.Add(_logTextBox);
-        var clear = new Button { Name = "ClearMidiLog", Content = "Clear Log", HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
+        var footer = new StackPanel { Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
+        _syncTimingToggle = new ToggleSwitch
+        {
+            Name = "DetailedSyncTiming",
+            Content = "Detailed sync timing",
+            IsChecked = _settings.DetailedSyncTiming
+        };
+        AutomationProperties.SetName(_syncTimingToggle, "Detailed sync timing");
+        _syncTimingToggle.IsCheckedChanged += (_, _) =>
+        {
+            _settings.DetailedSyncTiming = _syncTimingToggle.IsChecked == true;
+            try { _saveSettings(_settings); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            { AppendLog("SYNC LOG: could not save the timing setting — " + ex.Message); }
+        };
+        footer.Children.Add(_syncTimingToggle);
+        footer.Children.Add(new TextBlock
+        {
+            Text = "Applies to the next sync or check. Logs stay on this PC.",
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = SecondaryBrush,
+            FontSize = 12
+        });
+        var actions = new WrapPanel { Orientation = Orientation.Horizontal };
+        var open = new Button { Name = "OpenSyncLogs", Content = "Open sync logs", Margin = new Thickness(0, 0, 8, 0) };
+        ToolTip.SetTip(open, Core.SyncDiagnosticLog.DefaultDirectory);
+        open.Click += (_, _) => OpenSyncLogs();
+        actions.Children.Add(open);
+        var clear = new Button { Name = "ClearMidiLog", Content = "Clear Log" };
         clear.Click += (_, _) => ClearLog();
-        Grid.SetRow(clear, 1);
-        layout.Children.Add(clear);
+        actions.Children.Add(clear);
+        footer.Children.Add(actions);
+        Grid.SetRow(footer, 1);
+        layout.Children.Add(footer);
         SetApprovedCardContent(card, layout);
         return card;
     }
@@ -715,10 +752,11 @@ public partial class MainWindow
 
     private Control BuildApprovedConnection(Action showDiagnostics)
     {
-        var card = ApprovedCard("MIDI Connection", "Hardware and routing", compact: true);
+        var card = ApprovedCard("MIDI Connection", compact: true);
         card.Name = "MidiConnectionCard";
         var stack = new StackPanel { Spacing = 8 };
-        _statusLabel = new TextBlock { Text = "Not connected", Foreground = SecondaryBrush, FontWeight = FontWeight.Bold };
+        _statusLabel = new TextBlock { Name = "MidiConnectionStatus", Text = "Not connected", Foreground = SecondaryBrush, FontWeight = FontWeight.Bold, TextWrapping = TextWrapping.Wrap };
+        AutomationProperties.SetLiveSetting(_statusLabel, AutomationLiveSetting.Polite);
         stack.Children.Add(_statusLabel);
 
         _inputPortCombo = new ComboBox { Name = "MidiInput", HorizontalAlignment = HorizontalAlignment.Stretch };

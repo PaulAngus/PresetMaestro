@@ -135,7 +135,7 @@ public partial class MainWindow
         _favoriteUseCurrentButton.Click += async (_, _) => await UseCurrentFavoriteStateAsync();
         _favPickerActions.Children.Add(_favoriteUseCurrentButton);
 
-        _favSceneSpinner.ValueChanged += (_, _) => UpdateFavoriteSceneDisplay();
+        _favSceneSpinner.ValueChanged += (_, _) => { UpdateFavoriteSceneDisplay(); if (!_favInitializingEditor) { FavoriteTagTargetChanged(); } };
         _favPresetSpinner.ValueChanged += (_, _) => PopulateFavoriteScenes();
         PopulateFavoriteScenes();
     }
@@ -315,6 +315,8 @@ public partial class MainWindow
         }
 
         _pollBusy = true;
+        var timings = new List<PresetNameSync.Core.ReadTiming>();
+        using var timingCapture = PresetNameSync.Core.ReadDiagnostics.Capture(timings.Add);
         using var cts = new CancellationTokenSource(); _scenePollCts = cts;
         int generation = _sceneGeneration;
         try
@@ -335,7 +337,8 @@ public partial class MainWindow
                 await RefreshScenesAsync(preset.Slot);
             }
             int sceneGeneration = _sceneGeneration;
-            var scene = await _presetNameClient.CurrentSceneAsync(cts.Token);
+            var scene = await PresetNameSync.Core.ReadDiagnostics.MeasureAsync("state.scene", null,
+                () => _presetNameClient.CurrentSceneAsync(cts.Token));
             if (!cts.IsCancellationRequested && sceneGeneration == _sceneGeneration && _sceneSlot == preset.Slot)
             {
                 _activeScene = scene.Index + 1;
@@ -349,6 +352,7 @@ public partial class MainWindow
         {
             if (!_sceneClosing)
             {
+                RecordBackgroundReadFailure("scene-status", ex, timings);
                 AppendLog($"SCENE STATUS: {ex.Message}");
             }
         }

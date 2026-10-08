@@ -56,8 +56,8 @@ public static class AmpBrowserCatalog
 
     public static AmpBrowserDirectory Build(DeviceIndex? cache)
     {
-        if (cache is null) { return new(CatalogVersion, "Assign a device library in Config to browse its amp catalogue.", false, []); }
-        var device = FractalDeviceDefinition.For(cache.Device.Variant);
+        if (cache is null) { return new(CatalogVersion, "Assign a device in Config to browse its amp catalogue.", false, []); }
+        var device = FractalDeviceDefinition.For(cache.Device);
         string? firmware = cache.Device.Firmware;
         bool preview = cache.Device.Variant == FractalDeviceVariant.FM9 && string.IsNullOrWhiteSpace(firmware);
         bool candidates = preview || HasCandidateRoster(cache.Device.Variant, firmware);
@@ -101,14 +101,14 @@ public static class AmpBrowserCatalog
                 [], "Real amplifier mapping has not been reviewed.", "unmapped", [id]), [Variant(id, name)]));
         }
         string coverage = preview
-            ? "FM9 12.00 reference catalogue preview · Library firmware is missing. Preset usage and matching are unavailable until firmware is recorded and a matching scan is saved."
+            ? "FM9 12.00 reference catalogue preview · Device firmware is missing. Preset usage and matching are unavailable until firmware is recorded and a matching scan is saved."
             : candidates
             ? $"FM9 12.00 · {Roster.Length} device-confirmed amp names. Reference amplifier details retain their source qualifications."
-            : $"Catalogue incomplete · No validated roster for {device.CatalogFamily} {firmware ?? "unknown firmware"}. Showing models observed in this library only.";
+            : $"Catalogue incomplete · No validated roster for {device.CatalogFamily} {firmware ?? "unknown firmware"}. Showing models observed in this device only.";
         if (!preview && !compatibleScan && scan is not null)
-        { coverage += string.IsNullOrWhiteSpace(scan.EffectiveFirmware) ? " Check this library with the connected device to show saved amp usage." : " Scan firmware differs; sync again to check usage."; }
+        { coverage += string.IsNullOrWhiteSpace(scan.EffectiveFirmware) ? " Check the connected device against its saved data to show saved amp usage." : " Scan firmware differs; sync again to check usage."; }
         if (compatibleScan && scan?.FirmwareConfirmation is { } confirmation)
-        { coverage += $" Saved amp data confirmed by a {(confirmation.IsSample ? "quick" : "full")} library check ({confirmation.Matched} of {confirmation.Compared} presets matched)."; }
+        { coverage += $" Saved amp data confirmed by a {(confirmation.IsSample ? "quick" : "full")} device check ({confirmation.Matched} of {confirmation.Compared} presets matched)."; }
         return new(CatalogVersion, coverage, candidates && !preview, families.OrderBy(f => f.Family.Manufacturer == "Unmapped" ? 2 : f.Family.Manufacturer == "Fractal originals" ? 1 : 0)
             .ThenBy(f => f.Family.Manufacturer, StringComparer.OrdinalIgnoreCase).ThenBy(f => f.Family.Name, StringComparer.OrdinalIgnoreCase).ToArray(), preview, presets.Length > 0, candidates);
 
@@ -120,8 +120,8 @@ public static class AmpBrowserCatalog
             AmpDetail? detail = candidates ? Details.GetValueOrDefault(id) : null;
             string specific = detail?.SpecificModel ?? name;
             return new($"{device.CatalogFamily}:{(preview ? "12.00" : firmware ?? "unknown")}:{id}", id, name, specific,
-                preview ? "FM9 12.00 reference only; not matched to this library's unknown firmware. " + RosterSource :
-                verified.IsKnown ? verified.Evidence : candidates ? "FM9 12.00 reference identity; this library's firmware has not been confirmed. " + RosterSource : "Saved scan identity; mapping needs review.", !preview && verified.IsKnown,
+                preview ? "FM9 12.00 reference only; not matched to this device's unknown firmware. " + RosterSource :
+                verified.IsKnown ? verified.Evidence : candidates ? "FM9 12.00 reference identity; this device's firmware has not been confirmed. " + RosterSource : "Saved scan identity; mapping needs review.", !preview && verified.IsKnown,
                 detail is null ? "Real amplifier attribution has not been joined to this identity." :
                     $"{detail.Relationship}. {detail.Notes}\nManufacturer/model sources (shared lineage): {detail.MappingEvidence}",
                 candidates && WikiSections.TryGetValue(name, out var section) ? Wiki + "#" + Uri.EscapeDataString(section) : null);

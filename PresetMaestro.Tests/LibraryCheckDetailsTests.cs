@@ -58,15 +58,15 @@ public sealed class LibraryCheckDetailsTests
             source.Changed = true;
             await window.CheckAssignedLibraryAsync(); Dispatcher.UIThread.RunJobs();
             var dialog = Assert.Single(window.OwnedWindows);
-            Assert.Equal("Library check needs review", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Equal("Device check needs review", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
             Assert.Contains("15 of 16", Find<TextBlock>(dialog, "ConnectionSyncStatus").Text);
             var details = Find<StackPanel>(dialog, "ConnectionSyncDifferences");
             Assert.True(details.IsEffectivelyVisible);
             Assert.Equal("001  Fixture 1", Find<TextBlock>(dialog, "ConnectionSyncDifferencePreset").Text);
             var labels = details.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToArray();
-            Assert.Contains(labels, text => text?.Contains("Saved library:", StringComparison.Ordinal) == true);
+            Assert.Contains(labels, text => text?.Contains("Saved device data:", StringComparison.Ordinal) == true);
             Assert.Contains(labels, text => text?.Contains("previous sample", StringComparison.Ordinal) == true);
-            Assert.Contains(labels, text => text?.Contains(legacy ? "older library includes bypass" : "saved preset image differs", StringComparison.OrdinalIgnoreCase) == true);
+            Assert.Contains(labels, text => text?.Contains(legacy ? "older saved device data includes bypass" : "saved preset image differs", StringComparison.OrdinalIgnoreCase) == true);
             if (!legacy)
             {
                 Assert.Contains("Scene 1 name", labels);

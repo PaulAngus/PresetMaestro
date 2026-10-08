@@ -22,14 +22,14 @@ public partial class MainWindow
         if (match.MetadataDifferences.Length > 0)
         { summary += " " + string.Join(" ", match.MetadataDifferences.Select(difference => difference.Setting + " differs.")); }
         if (_confirmOverride is not null)
-        { return await _confirmOverride("Confirm library update", summary, "Update library", "Cancel"); }
+        { return await _confirmOverride("Confirm device data update", summary, "Update device data", "Cancel"); }
 
         var owner = _connectionSyncDialog is { IsVisible: true } sync ? sync : this;
-        var source = owner == this ? _indexSyncButton : _connectionSyncLibrary;
+        var source = owner == this ? FocusManager?.GetFocusedElement() as Control : _connectionSyncLibrary;
         var dialog = new Window
         {
             Name = "LibraryUpdateDialog",
-            Title = "Confirm library update",
+            Title = "Confirm device data update",
             Width = Math.Min(580, Math.Max(360, owner.Bounds.Width - 48)),
             SizeToContent = SizeToContent.Height,
             CanResize = false,
@@ -53,22 +53,22 @@ public partial class MainWindow
         {
             Margin = new(20, 20, 20, 12),
             Spacing = 6,
-            Children = { heading, DetailText($"{(cache.Imported ? "Imported library" : "Library")}: {cache.Device.Name}") },
+            Children = { heading, DetailText($"{(cache.Imported ? "Imported device" : "Device")}: {cache.Device.Name}") },
         };
         var decision = new StackPanel { Name = "LibraryUpdateDecision", Margin = new(20, 0, 20, 20), Spacing = 12 };
         var view = IndexButton("View differences", "LibraryUpdateViewDifferences");
-        var update = IndexButton("Update library", "LibraryUpdateAccept");
+        var update = IndexButton("Update device data", "LibraryUpdateAccept");
         var cancel = IndexButton("Cancel", "LibraryUpdateCancel");
         decision.Children.Add(ActionRow(view, "See what changed."));
         decision.Children.Add(ActionRow(update, "Replace saved copy with device data."));
         decision.Children.Add(ActionRow(cancel, "Keep current saved copy."));
         view.IsEnabled = match.Differences.Length > 0 || match.MetadataDifferences.Length > 0 || match.IncludesLegacyFingerprints;
         AutomationProperties.SetName(view, "View differences. See what changed.");
-        AutomationProperties.SetName(update, "Update library. Replace saved copy with device data.");
+        AutomationProperties.SetName(update, "Update device data. Replace saved copy with device data.");
         AutomationProperties.SetName(cancel, "Cancel. Keep current saved copy.");
 
         var details = new StackPanel { Name = "LibraryUpdateDifferences", Spacing = 12, Margin = new(20, 0, 20, 16) };
-        if (cache.Committed is { } baseline) { details.Children.Add(DetailText($"Saved library: {baseline.StartedAt.LocalDateTime:g}")); }
+        if (cache.Committed is { } baseline) { details.Children.Add(DetailText($"Saved device data: {baseline.StartedAt.LocalDateTime:g}")); }
         if (match.IncludesLegacyFingerprints)
         { details.Children.Add(DetailText("Older saved data includes bypass states. Updating enables checks that ignore bypass.")); }
         details.Children.Add(BuildLibraryDifferenceRows(match.Differences, match.MetadataDifferences, "LibraryUpdate", concise: true));
@@ -82,7 +82,7 @@ public partial class MainWindow
         AutomationProperties.SetName(scroll, "Presets and settings that do not match");
         var back = IndexButton("Back", "LibraryUpdateBack");
         back.HorizontalAlignment = HorizontalAlignment.Left;
-        AutomationProperties.SetName(back, "Back to library update decision");
+        AutomationProperties.SetName(back, "Back to device update decision");
         var footer = new Border
         {
             Name = "LibraryUpdateReviewFooter",
@@ -103,7 +103,7 @@ public partial class MainWindow
         void ShowReview(bool review)
         {
             decision.IsVisible = !review; scroll.IsVisible = review; footer.IsVisible = review;
-            dialog.Title = review ? "Library differences" : "Confirm library update";
+            dialog.Title = review ? "Device differences" : "Confirm device data update";
             (review ? back : view).Focus();
         }
         view.Click += (_, _) => ShowReview(true);

@@ -8,6 +8,7 @@ internal sealed class FavoriteCommands(List<Favorite> favorites, Action<List<Fav
         var favorite = id == 0 ? new Favorite { Id = FavoritesManager.NextId(favorites), Slot = favorites.Count + 1 }
             : favorites.Single(f => f.Id == id);
         favorite.Name = name; favorite.Preset = preset; favorite.Scene = scene; favorite.Tags = tags.ToList();
+        favorite.SceneTagSourceId = null;
         if (id == 0) { favorites.Add(favorite); }
         FavoritesManager.RenumberSlots(favorites);
     });

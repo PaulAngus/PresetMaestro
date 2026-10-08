@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     partial void AddIndexConfiguration(StackPanel panel);
     partial void AddIndexNavigation(StackPanel nav, Func<string, Control, AppPage, EntryMode?, Button> create);
     partial void AddIndexHeader(StackPanel indicators);
+    partial void UpdateIndexHeader(double width);
     partial void RestoreIndexPage(ContentControl host);
     private enum StatusKind { NotConnected, ConnectedBoth, InputOnly, OutputOnly, Disconnected, DeviceError }
 
@@ -58,7 +59,9 @@ public partial class MainWindow : Window
     {
     }
 
-    private MainWindow(ProfileStore profiles) : this(profiles.LoadSettings(), [], new MidiManager(), profileStore: profiles) { }
+    private MainWindow(ProfileStore profiles) : this(profiles.LoadSettings(), [], new MidiManager(), profileStore: profiles,
+        syncLogDirectory: Path.Combine(profiles.DirectoryPath, "Logs"))
+    { }
 
     internal MainWindow(
         AppSettings settings,
@@ -73,9 +76,13 @@ public partial class MainWindow : Window
         ProfileStore? profileStore = null,
         Func<bool, Task<string?>>? profileFilePicker = null,
         Func<string, string, Task<string?>>? profileNamePrompt = null,
-        Func<int, CancellationToken, Task<PresetScenes>>? queryStoredScenesAsync = null)
+        Func<int, CancellationToken, Task<PresetScenes>>? queryStoredScenesAsync = null,
+        string? syncLogDirectory = null)
     {
         _settings = settings;
+        // The real app supplies its profile-store log folder. Injected test windows
+        // have no file logger unless the test explicitly supplies an isolated folder.
+        _syncLogDirectory = syncLogDirectory;
         _favorites = favorites;
         _profileStore = profileStore;
         _profileFilePickerOverride = profileFilePicker;
@@ -133,6 +140,7 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_profileNotice.IsKeyboardFocusWithin) { return; }
         if (_currentPage == AppPage.Favorites && _settings.KeyboardEntryEnabled &&
             !e.Handled && FocusManager?.GetFocusedElement() is not TextBox && !FavoriteSearchHasFocus &&
             e.Key is Key.Up or Key.Down or Key.Left or Key.Right)
@@ -145,7 +153,7 @@ public partial class MainWindow : Window
         // Buttons and list controls consume Enter before the window's bubbling handler sees it.
         // Once a command has been entered, Enter should send it regardless of which non-editor
         // control currently owns keyboard focus.
-        if (_currentPage is not (AppPage.ManageProfiles or AppPage.PresetIndex or AppPage.ManageLibraries or AppPage.Amps) && _settings.KeyboardEntryEnabled &&
+        if (_currentPage is not (AppPage.ManageProfiles or AppPage.ManageLibraries or AppPage.Amps) && _settings.KeyboardEntryEnabled &&
             e.Key == Key.Enter &&
             _enteredDigits.Length > 0 &&
             FocusManager?.GetFocusedElement() is not TextBox && !FavoriteSearchHasFocus)
@@ -159,7 +167,7 @@ public partial class MainWindow : Window
     {
         base.OnKeyDown(e);
 
-        if (_currentPage is AppPage.ManageProfiles or AppPage.PresetIndex or AppPage.ManageLibraries or AppPage.Amps || !_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
+        if (_profileNotice.IsKeyboardFocusWithin || _currentPage is AppPage.ManageProfiles or AppPage.ManageLibraries or AppPage.Amps || !_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
         {
             return;
         }
@@ -199,12 +207,12 @@ public partial class MainWindow : Window
             HandleBackspace();
             e.Handled = true;
         }
-        else if (e.Key == Key.Left)
+        else if (e.Key == Key.Left && _currentPage != AppPage.PresetIndex)
         {
             HandlePrev();
             e.Handled = true;
         }
-        else if (e.Key == Key.Right)
+        else if (e.Key == Key.Right && _currentPage != AppPage.PresetIndex)
         {
             HandleNext();
             e.Handled = true;

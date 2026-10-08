@@ -6,6 +6,7 @@ namespace PresetMaestro;
 public partial class MainWindow
 {
     private CancellationTokenSource? _profileValidationCts;
+    private bool _profileValidationCancelled;
 
     private bool ProfileDeviceConnected => _detectedDevice is not null && _connectionCts is null && _midi.InputOpen && _midi.OutputOpen;
 
@@ -14,6 +15,7 @@ public partial class MainWindow
 
     private async Task<bool> ConfirmProfileDeviceMatchAsync(string name, ProfileSettings profile)
     {
+        _profileValidationCancelled = false;
         if (!ProfileDeviceConnected) { return await ConfirmUncheckedProfileAsync(name); }
 
         var device = _detectedDevice!;
@@ -60,7 +62,7 @@ public partial class MainWindow
                     foreach (var group in scenes)
                     {
                         cancellation.Token.ThrowIfCancellationRequested();
-                        _profileStatus.Text = $"Checking scene names for preset {group.Key + profile.DisplayOffset:000} in '{name}'…";
+                        ShowProfileCheckProgress(name, $"Checking scene names for preset {group.Key + profile.DisplayOffset:000}…");
                         var actual = await _queryStoredScenesAsync(group.Key, cancellation.Token);
                         if (actual.Slot != group.Key) { throw new InvalidDataException("The device returned a different preset."); }
                         stored[group.Key] = actual;
@@ -89,7 +91,7 @@ public partial class MainWindow
                     foreach (var entry in profile.PresetNameCache.OrderBy(entry => entry.Key))
                     {
                         cancellation.Token.ThrowIfCancellationRequested();
-                        _profileStatus.Text = $"Checking preset name {entry.Key + profile.DisplayOffset:000} in '{name}'…";
+                        ShowProfileCheckProgress(name, $"Checking preset name {entry.Key + profile.DisplayOffset:000}…");
                         string actualName;
                         if (stored.TryGetValue(entry.Key, out var actual)) { actualName = actual.PresetName; }
                         else
@@ -108,9 +110,16 @@ public partial class MainWindow
                 if (presetMismatches > 0) { warnings.Add($"Preset names: {presetMismatches} saved names do not match the connected device."); }
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { interrupted = true; }
-            finally { _profileValidationCts = null; }
+            finally
+            {
+                _profileValidationCts = null;
+                _profileNoticeProgress.IsVisible = false;
+                _profileNoticeAction.IsVisible = false;
+                _profileNoticeClose.IsVisible = true;
+            }
         }
 
+        if (_profileValidationCancelled) { return false; }
         if (_sceneClosing) { return false; }
         if (interrupted || !ProfileDeviceConnected || connectionGeneration != _connectionGeneration)
         {
@@ -118,6 +127,7 @@ public partial class MainWindow
         }
         if (warnings.Count == 0) { return true; }
         _profileStatus.Text = "Profile check complete; waiting for confirmation.";
+        ShowProfileNotice("Profile check needs your decision", $"Review the device differences before switching to '{name}'.");
         bool confirmed = await ConfirmProfileAsync("Profile does not fully match",
             $"Profile '{name}' does not fully match the connected device:\n\n" + string.Join("\n", warnings.Select(warning => "• " + warning)) +
             "\n\nSelect OK to continue switching to this profile anyway, or Cancel to keep the current profile.", "OK");

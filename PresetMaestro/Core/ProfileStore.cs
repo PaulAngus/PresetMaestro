@@ -8,7 +8,8 @@ public sealed partial class ProfileStore(string directory)
 {
     static partial void PrepareIndexCopy(ProfileSettings settings);
     partial void PrepareIndexExport(ProfileSettings settings);
-    static partial void PrepareIndexImport(ProfileSettings settings);
+    static partial void ValidateIndexImport(ProfileSettings settings);
+    partial void PrepareIndexImport(ProfileSettings settings, string profileName, Guid? libraryId, bool keepImportedLibrary);
     partial void ApplyLibraryMapping(ProfileSettings settings);
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private List<string>? _profiles;
@@ -70,8 +71,16 @@ public sealed partial class ProfileStore(string directory)
 
     public (int Added, int Skipped) Rescan(AppSettings settings)
     {
+        return ApplyProfileScan(settings, ScanProfiles());
+    }
+
+    // Discovery only reads files on the worker. Publish the catalog and settings
+    // on the caller's UI thread so other settings writes cannot race the commit.
+    internal Task<(List<string> Names, int Skipped)> ScanProfileFilesAsync() => Task.Run(ScanProfiles);
+
+    internal (int Added, int Skipped) ApplyProfileScan(AppSettings settings, (List<string> Names, int Skipped) scan)
+    {
         var previous = ListProfiles();
-        var scan = ScanProfiles();
         int added = scan.Names.Except(previous, StringComparer.OrdinalIgnoreCase).Count();
         PersistCatalog(scan.Names);
         settings.Profiles = ListProfiles();
@@ -192,6 +201,34 @@ public sealed partial class ProfileStore(string directory)
 
     public void SaveFavorites(string name, List<Favorite> favorites) => WriteJson(FavoritesPath(name), favorites);
 
+    internal void SaveSettingsAndFavorites(AppSettings settings, List<Favorite> favorites)
+    {
+        string[] paths = [SettingsPath(settings.ActiveProfile), FavoritesPath(settings.ActiveProfile), MachinePath];
+        var originals = paths.Select(path => (Path: path, Contents: File.Exists(path) ? File.ReadAllText(path) : null)).ToArray();
+        try
+        {
+            SaveFavorites(settings.ActiveProfile, favorites);
+            SaveSettings(settings);
+        }
+        catch (Exception error)
+        {
+            var recoveryErrors = new List<Exception>();
+            foreach (var original in originals)
+            {
+                try
+                {
+                    // A failed write may have left this file untouched (and locked).
+                    if (original.Contents is null) { if (File.Exists(original.Path)) { File.Delete(original.Path); } }
+                    else if (!File.Exists(original.Path) || File.ReadAllText(original.Path) != original.Contents) { WriteText(original.Path, original.Contents); }
+                }
+                catch (Exception recovery) { recoveryErrors.Add(recovery); }
+            }
+            if (recoveryErrors.Count > 0)
+            { throw new IOException("Scene tags could not be saved and some profile files could not be restored.", new AggregateException(new[] { error }.Concat(recoveryErrors))); }
+            throw;
+        }
+    }
+
     private void SaveMachine(AppSettings settings)
     {
         settings.Profiles = ListProfiles();
@@ -204,6 +241,8 @@ public sealed partial class ProfileStore(string directory)
         json.Remove("CategoryOrder");
         WriteJson(MachinePath, json);
     }
+
+    public bool ContainsName(string name) => Exists(name) || ListProfiles().Contains(name, StringComparer.OrdinalIgnoreCase);
 
     private bool Exists(string name) => File.Exists(SettingsPath(name)) || File.Exists(FavoritesPath(name));
 
@@ -331,7 +370,13 @@ public sealed partial class ProfileStore(string directory)
         }
     }
 
-    public string Import(string path, string? preferredName = null)
+    public sealed record ImportData(string SourceName, ProfileSettings Settings, List<Favorite> Favorites);
+
+    public string Import(string path, string? preferredName = null, bool overwrite = false,
+        Guid? libraryId = null, bool keepImportedLibrary = false) =>
+        Import(ReadImport(path), preferredName, overwrite, libraryId, keepImportedLibrary);
+
+    public static ImportData ReadImport(string path)
     {
         string sourceName;
         string settingsJson;
@@ -373,10 +418,61 @@ public sealed partial class ProfileStore(string directory)
         }
         var settings = ReadProfileSettings(settingsJson);
         var favorites = ValidateFavorites(favoritesJson);
-        PrepareIndexImport(settings);
-        string name = AvailableName(string.IsNullOrWhiteSpace(preferredName) ? sourceName : preferredName);
-        Create(name, settings, favorites);
+        ValidateIndexImport(settings);
+        return new ImportData(sourceName, settings, favorites);
+    }
+
+    public string Import(ImportData data, string? preferredName = null, bool overwrite = false,
+        Guid? libraryId = null, bool keepImportedLibrary = false)
+    {
+        string name = ValidateName(preferredName ?? data.SourceName);
+        name = ListProfiles().FirstOrDefault(existing => string.Equals(existing, name, StringComparison.OrdinalIgnoreCase)) ?? name;
+        bool exists = ContainsName(name);
+        if (exists && !overwrite) { throw new InvalidOperationException("A profile with that name already exists. Choose a different name or overwrite it."); }
+        // Prepare a fresh copy after the user chooses a name and library. Reading an
+        // export must retain its library identities so we can recognise local data.
+        var importedSettings = ReadProfileSettings(JsonSerializer.Serialize(data.Settings, JsonOptions));
+        PrepareIndexImport(importedSettings, name, libraryId, keepImportedLibrary);
+        if (!exists)
+        {
+            Create(name, importedSettings, data.Favorites);
+            return name;
+        }
+
+        // Preserve the original pair before replacing either file. Restore any changed file
+        // if the second write or catalog save fails, so a failed import cannot mix profiles.
+        string backup = Path.Combine(directory, "OverwrittenProfiles", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(backup);
+        string settingsPath = SettingsPath(name), favoritesPath = FavoritesPath(name);
+        string settingsBackup = Path.Combine(backup, Path.GetFileName(settingsPath));
+        string favoritesBackup = Path.Combine(backup, Path.GetFileName(favoritesPath));
+        if (File.Exists(settingsPath)) { File.Copy(settingsPath, settingsBackup); }
+        if (File.Exists(favoritesPath)) { File.Copy(favoritesPath, favoritesBackup); }
+        bool settingsWritten = false, favoritesWritten = false;
+        try
+        {
+            WriteJson(settingsPath, importedSettings); settingsWritten = true;
+            WriteJson(favoritesPath, data.Favorites); favoritesWritten = true;
+            PersistCatalog(ListProfiles().Append(name));
+        }
+        catch (Exception error)
+        {
+            try
+            {
+                if (settingsWritten) { Restore(settingsPath, settingsBackup); }
+                if (favoritesWritten) { Restore(favoritesPath, favoritesBackup); }
+            }
+            catch (Exception recovery)
+            { throw new IOException("Import failed and the previous profile could not be restored. Its files are preserved in " + backup + ".", new AggregateException(error, recovery)); }
+            throw;
+        }
         return name;
+
+        static void Restore(string path, string backupPath)
+        {
+            if (File.Exists(backupPath)) { File.Copy(backupPath, path, true); }
+            else { File.Delete(path); }
+        }
     }
 
     private static string ReadImportJson(Stream stream)

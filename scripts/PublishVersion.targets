@@ -1,0 +1,57 @@
+<Project>
+  <PropertyGroup>
+    <_RequestedPublishAssemblyVersion>$(AssemblyVersion)</_RequestedPublishAssemblyVersion>
+    <_RequestedPublishFileVersion>$(FileVersion)</_RequestedPublishFileVersion>
+  </PropertyGroup>
+  <!-- Prepare before compilation so the About text and executable metadata agree.
+       The second hook also prevents publishing an old build with a new version. -->
+  <Target Name="PreparePublishVersion" BeforeTargets="PrepareForBuild;PrepareForPublish"
+          Condition="'$(_IsPublishing)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(IsPublishable)' != 'false'">
+    <Error Condition="'$(NoBuild)' == 'true'" Text="Publishing requires a build to stamp the new version. Remove --no-build." />
+    <PropertyGroup>
+      <_PreviousPublishVersion>$([System.IO.File]::ReadAllText('$(AppVersionFile)').Trim())</_PreviousPublishVersion>
+      <_BasePublishVersion>$(_PreviousPublishVersion)</_BasePublishVersion>
+      <_BasePublishVersion Condition="'$(_RequestedPublishVersion)' != ''">$(_RequestedPublishVersion)</_BasePublishVersion>
+    </PropertyGroup>
+    <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(_BasePublishVersion)', '^(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})(\.(0|[1-9][0-9]{0,4}))?$'))"
+           Text="Invalid version '$(_BasePublishVersion)'. Use numeric major.minor.patch (the saved legacy major.minor version is also supported)." />
+    <Error Condition="'$(_RequestedPublishVersion)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(_RequestedPublishVersion)', '^[0-9]+\.[0-9]+\.[0-9]+$'))"
+           Text="An explicit publish version must have three components, for example -p:PublishVersion=1.3.0." />
+    <PropertyGroup>
+      <_PublishMajor>$([System.Version]::Parse('$(_BasePublishVersion)').Major)</_PublishMajor>
+      <_PublishMinor>$([System.Version]::Parse('$(_BasePublishVersion)').Minor)</_PublishMinor>
+      <_PublishPatch>$([System.Version]::Parse('$(_BasePublishVersion)').Build)</_PublishPatch>
+      <_PublishPatch Condition="$(_PublishPatch) &lt; 0">0</_PublishPatch>
+      <_PublishPatch Condition="'$(_RequestedPublishVersion)' == ''">$([MSBuild]::Add($(_PublishPatch), 1))</_PublishPatch>
+    </PropertyGroup>
+    <Error Condition="$(_PublishMajor) &gt; 65534 or $(_PublishMinor) &gt; 65534 or $(_PublishPatch) &gt; 65534"
+           Text="Version components must be at most 65534 for .NET assembly metadata. Specify a new major/minor version when the patch limit is reached." />
+    <PropertyGroup>
+      <_PublishedAppVersion>$(_PublishMajor).$(_PublishMinor).$(_PublishPatch)</_PublishedAppVersion>
+    </PropertyGroup>
+    <Error Condition="('$(_RequestedPublishAssemblyVersion)' != '' and '$(_RequestedPublishAssemblyVersion)' != '$(_PublishedAppVersion).0') or ('$(_RequestedPublishFileVersion)' != '' and '$(_RequestedPublishFileVersion)' != '$(_PublishedAppVersion).0')"
+           Text="Conflicting version overrides. Specify only -p:PublishVersion=major.minor.patch (or -p:Version=major.minor.patch)." />
+    <PropertyGroup>
+      <AppVersion>$(_PublishedAppVersion)</AppVersion>
+      <Version>$(_PublishedAppVersion)</Version>
+      <InformationalVersion>$(_PublishedAppVersion)</InformationalVersion>
+      <AssemblyVersion>$(_PublishedAppVersion).0</AssemblyVersion>
+      <FileVersion>$(_PublishedAppVersion).0</FileVersion>
+      <_PublishVersionPrepared>true</_PublishVersionPrepared>
+    </PropertyGroup>
+    <Error Condition="'$(AppVersion)' != '$(_PublishedAppVersion)' or '$(Version)' != '$(_PublishedAppVersion)' or '$(InformationalVersion)' != '$(_PublishedAppVersion)' or '$(AssemblyVersion)' != '$(_PublishedAppVersion).0' or '$(FileVersion)' != '$(_PublishedAppVersion).0'"
+           Text="Conflicting version overrides. Specify only -p:PublishVersion=major.minor.patch (or -p:Version=major.minor.patch)." />
+    <Message Importance="High" Text="Publishing Preset Maestro $(_PublishedAppVersion) (previous published version: $(_PreviousPublishVersion))." />
+  </Target>
+
+  <Target Name="RequirePreparedPublishVersion" BeforeTargets="PrepareForPublish">
+    <Error Condition="'$(_PublishVersionPrepared)' != 'true'"
+           Text="Publish through dotnet publish or Publish-App.ps1 so the version is prepared before building. Publishing an existing build is not supported." />
+  </Target>
+
+  <!-- This runs only after the SDK's complete Publish target succeeds. -->
+  <Target Name="SavePublishedVersion" AfterTargets="Publish" Condition="'$(_PublishVersionPrepared)' == 'true'">
+    <WriteLinesToFile File="$(AppVersionFile)" Lines="$(_PublishedAppVersion)" Overwrite="true" Encoding="UTF-8" />
+    <Message Importance="High" Text="Saved published version $(_PublishedAppVersion) to $(AppVersionFile)." />
+  </Target>
+</Project>

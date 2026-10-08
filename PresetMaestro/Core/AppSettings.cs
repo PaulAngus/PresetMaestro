@@ -22,6 +22,7 @@ public class AppSettings
     public bool KeyboardEntryEnabled { get; set; } = true;
     public bool MidiEntryEnabled { get; set; } = true;
     public bool DebugMode { get; set; }
+    public bool DetailedSyncTiming { get; set; }
     public int SceneCc { get; set; } = 34; // Scene Select CC# (must match device's MIDI/Remote setup)
     public string Theme { get; set; } = "Dark";
     public Dictionary<int, string> MidiNoteMap { get; set; } = DefaultMidiNoteMap();

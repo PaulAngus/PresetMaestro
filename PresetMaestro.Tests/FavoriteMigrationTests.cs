@@ -73,14 +73,14 @@ public sealed class FavoriteMigrationTests : IDisposable
                 Assert.DoesNotContain("Category", reader.ReadToEnd());
             }
         }
-        Check(store.LoadFavorites(store.Import(zipPath)));
+        Check(store.LoadFavorites(store.Import(zipPath, "ZIP migration")));
         string source = Path.Combine(_directory, "source"); Directory.CreateDirectory(source);
         File.WriteAllText(Path.Combine(source, "Old-settings.json"), """{"MidiChannel":4,"CategoryOrder":["Low Gain"]}""");
         File.WriteAllText(Path.Combine(source, "Old-favorites.json"), Legacy);
         Check(store.LoadFavorites(store.Import(Path.Combine(source, "Old-settings.json"))));
         string oldZip = Path.Combine(_directory, "legacy.zip");
         ZipFile.CreateFromDirectory(source, oldZip);
-        Check(store.LoadFavorites(store.Import(oldZip)));
+        Check(store.LoadFavorites(store.Import(oldZip, "Legacy ZIP migration")));
         Assert.Equal(Legacy, File.ReadAllText(Path.Combine(source, "Old-favorites.json")));
         Assert.DoesNotContain("Category", JsonSerializer.Serialize(store.LoadFavorites(name)));
     }
@@ -106,6 +106,9 @@ public sealed class FavoriteTableLayoutTests
 {
     [Theory]
     [InlineData(18, 2, "9,9")]
+    [InlineData(0, 1, "0")]
+    [InlineData(1, 1, "1")]
+    [InlineData(18, 1, "18")]
     [InlineData(18, 3, "6,6,6")]
     [InlineData(19, 3, "7,6,6")]
     [InlineData(10, 4, "3,3,2,2")]
@@ -122,7 +125,7 @@ public sealed class FavoriteTableLayoutTests
     [Fact]
     public void LargeListsAndResizeBreakpointsNeverLoseOrDuplicateItems()
     {
-        for (int columns = 2; columns <= 10; columns++)
+        for (int columns = 1; columns <= 10; columns++)
         {
             var ranges = FavoriteTableLayout.Distribute(10001, columns);
             Assert.Equal(Enumerable.Range(0, 10001), ranges.SelectMany(r => Enumerable.Range(r.Start, r.Count)));
@@ -134,4 +137,10 @@ public sealed class FavoriteTableLayoutTests
         Assert.Equal(3, FavoriteTableLayout.TableCount(1813));
         Assert.Equal(4, FavoriteTableLayout.TableCount(1814));
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void NonpositiveColumnCountsRemainInvalid(int columns) =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => FavoriteTableLayout.Distribute(3, columns));
 }

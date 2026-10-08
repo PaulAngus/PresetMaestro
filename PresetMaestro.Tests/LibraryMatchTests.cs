@@ -56,7 +56,7 @@ public sealed class LibraryMatchTests
         Assert.True(result.IsConsistent);
         Assert.Contains("100 of 100 populated presets match · consistent", result.Describe());
         Assert.DoesNotContain("%", result.Describe());
-        Assert.Contains("1 other preset name differs · library match unconfirmed", result.Describe(1));
+        Assert.Contains("1 other preset name differs · device match unconfirmed", result.Describe(1));
         observed[99] = observed[99] with { ContentSha256 = "changed" };
         result = LibraryMatch.Compare(baseline, observed, false, "Stage", "12.00");
         Assert.Equal((99, 100), (result.Matched, result.Compared));

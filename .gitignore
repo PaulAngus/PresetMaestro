@@ -24,5 +24,6 @@ prototype-screenshots/
 
 # Local deployment helper
 /Copy-PublishedExe.ps1
-/Publish-App.ps1
 docs/design/
+scripts/Test-PublishVersion.ps1
+TestResults/

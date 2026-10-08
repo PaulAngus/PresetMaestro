@@ -15,7 +15,7 @@ public partial class MainWindow
     private Control BuildLibraryMatchDetails()
     {
         _connectionSyncDifferences = new StackPanel { Name = "ConnectionSyncDifferences", Spacing = 10, IsVisible = false };
-        AutomationProperties.SetName(_connectionSyncDifferences, "Library check differences");
+        AutomationProperties.SetName(_connectionSyncDifferences, "Device check differences");
         return _connectionSyncDifferences;
     }
 
@@ -33,7 +33,7 @@ public partial class MainWindow
         _connectionSyncDifferences.Children.Clear();
         if (!_connectionSyncDifferences.IsVisible) { return; }
         _connectionSyncDifferences.Children.Add(new TextBlock { Text = "What differs", FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = TextBrush });
-        string date = _libraryCheckBaselineAt is { } baseline ? $"Saved library: {baseline.LocalDateTime:g}. " : "";
+        string date = _libraryCheckBaselineAt is { } baseline ? $"Saved device data: {baseline.LocalDateTime:g}. " : "";
         _connectionSyncDifferences.Children.Add(DetailText(date + (_libraryMatch?.IsSample == true
             ? "This check sampled different random slots; a previous sample may have missed these presets."
             : _libraryMatch is null ? "Only preset names were compared; preset content was not read." : "Every preset slot was checked.")));
@@ -43,11 +43,11 @@ public partial class MainWindow
         }
         if (_libraryMatch?.IncludesLegacyFingerprints == true)
         {
-            _connectionSyncDifferences.Children.Add(DetailText("This older library includes bypass in its fingerprint. Review these differences, then Sync library once to enable comparisons that ignore bypass states."));
+            _connectionSyncDifferences.Children.Add(DetailText("This older saved device data includes bypass in its fingerprint. Review these differences, then Sync device once to enable comparisons that ignore bypass states."));
         }
         var rows = BuildLibraryDifferenceRows(presets, metadata, "ConnectionSync", concise: false);
         var scroll = new ScrollViewer { Name = "ConnectionSyncDifferencesScroll", Content = rows, MaxHeight = 240, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
-        AutomationProperties.SetName(scroll, "Presets and settings that differ from the saved library");
+        AutomationProperties.SetName(scroll, "Presets and settings that differ from the saved device");
         _connectionSyncDifferences.Children.Add(scroll);
     }
 

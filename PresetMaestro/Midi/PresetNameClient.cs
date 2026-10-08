@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading.Channels;
 using PresetMaestro.Core;
 #if FRACTAL_INDEX
@@ -10,21 +11,26 @@ namespace PresetMaestro.Midi;
 /// <summary>Serializes all name/state reads on the existing MIDI connection.</summary>
 public sealed class PresetNameClient : IDisposable
 #if FRACTAL_INDEX
-    , IStoredPresetImageSource, IStoredPresetNameSource
+    , IStoredPresetImageSource, IStoredPresetNameSource, IPresetCapacitySource
 #endif
 {
     private readonly IMidiManager _midi;
     private readonly SemaphoreSlim _requestGate = new(1, 1);
-    private readonly Channel<byte[]> _frames = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(64) { FullMode = BoundedChannelFullMode.DropOldest });
+    private readonly Channel<byte[]> _frames;
+    private long _droppedFrames;
     private readonly SysexAssembler _assembler = new();
     private readonly CancellationTokenSource _lifetime = new();
     private long _quietUntil;
+    private long? _lastQueryStarted;
+    private static readonly TimeSpan MinimumQueryInterval = TimeSpan.FromMilliseconds(10);
     private bool _disposed;
     private long _presetRevision;
     private DeviceModel _deviceModel = DeviceModel.FM9;
 
     public PresetNameClient(IMidiManager midi)
     {
+        _frames = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(64)
+        { FullMode = BoundedChannelFullMode.DropOldest }, _ => Interlocked.Increment(ref _droppedFrames));
         _midi = midi; _midi.SysexMessageReceived += OnSysexMessageReceived;
         _midi.PresetChangeReceived += OnPresetChange;
     }
@@ -87,6 +93,26 @@ public sealed class PresetNameClient : IDisposable
     }, token);
 
 #if FRACTAL_INDEX
+    public async Task<int?> DetectPresetCapacityAsync(FractalDeviceDefinition device, CancellationToken token)
+    {
+        if (device.Variant.ToDeviceModel() != _deviceModel)
+        { throw new InvalidOperationException("Capacity query does not match the connected device model."); }
+        if (_deviceModel != DeviceModel.AxeFxIII) { return device.PresetSlots; }
+        const int boundarySlot = 512;
+        try
+        {
+            var evidence = await Locked(ct => Exchange(
+                SysexProtocol.Frame(device.ModelByte, 0x0d, [0, 4]),
+                frame => SysexProtocol.ValidFrame(frame, device.ModelByte, 0x0d, 42) &&
+                    (frame[6] | frame[7] << 7) == boundarySlot ? new CapacityEvidence(1024) : null,
+                TimeSpan.FromSeconds(1.5), ct), token, allowIndexRead: true).ConfigureAwait(false);
+            return evidence.Slots;
+        }
+        catch (TimeoutException) { return null; }
+    }
+
+    private sealed record CapacityEvidence(int Slots);
+
     public async Task<string?> ReadStoredPresetNameAsync(int slot, FractalDeviceDefinition device, CancellationToken token)
     {
         // Keep the cheap name check on the existing verified FM9 path.
@@ -113,7 +139,8 @@ public sealed class PresetNameClient : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, _lifetime.Token);
-        await _requestGate.WaitAsync(linked.Token).ConfigureAwait(false);
+        await ReadDiagnostics.MeasureAsync("midi.queue", null, async () =>
+        { await _requestGate.WaitAsync(linked.Token).ConfigureAwait(false); return true; }).ConfigureAwait(false);
         try
         {
             if (_deviceModel != DeviceModel.FM9 &&
@@ -132,35 +159,101 @@ public sealed class PresetNameClient : IDisposable
     }
     private async Task<T> Exchange<T>(byte[] request, Func<byte[], T?> parse, TimeSpan timeout, CancellationToken token) where T : class
     {
+        // Name requests use low/high septets; dump requests use high/low.
+        int? slot = request[5] == 0x0d ? request[6] | request[7] << 7 :
+            request[5] == 0x03 ? request[6] << 7 | request[7] : null;
+        return await ReadDiagnostics.MeasureAsync("midi.exchange", slot,
+            () => ExchangeCore(request, parse, timeout, slot, token)).ConfigureAwait(false);
+    }
+
+    private async Task<T> ExchangeCore<T>(byte[] request, Func<byte[], T?> parse, TimeSpan timeout,
+        int? slot, CancellationToken token) where T : class
+    {
         long remainingQuiet = _quietUntil - Environment.TickCount64;
         if (remainingQuiet > 0)
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(remainingQuiet), token).ConfigureAwait(false);
+            await ReadDiagnostics.MeasureAsync("midi.quiet", slot, async () =>
+            { await Task.Delay(TimeSpan.FromMilliseconds(remainingQuiet), token).ConfigureAwait(false); return true; }).ConfigureAwait(false);
         }
 
-        while (_frames.Reader.TryRead(out _)) { }
+        // Fast USB replies can arrive in ~1 ms. Avoid immediately issuing hundreds
+        // of back-to-back queries; keep the gap within the shared request gate.
+        // This is a conservative application policy, not a protocol requirement.
+        if (_lastQueryStarted is long lastQuery)
+        {
+            var remaining = MinimumQueryInterval - Stopwatch.GetElapsedTime(lastQuery);
+            if (remaining > TimeSpan.Zero)
+            {
+                await ReadDiagnostics.MeasureAsync("midi.pacing", slot, async () =>
+                {
+                    while (remaining > TimeSpan.Zero)
+                    {
+                        await Task.Delay(remaining, token).ConfigureAwait(false);
+                        remaining = MinimumQueryInterval - Stopwatch.GetElapsedTime(lastQuery);
+                    }
+                    return true;
+                }).ConfigureAwait(false);
+            }
+        }
+
+        int discarded = 0;
+        while (_frames.Reader.TryRead(out _)) { discarded++; }
         token.ThrowIfCancellationRequested();
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
         deadline.CancelAfter(timeout);
         bool completed = false;
+        int received = 0, matching = 0, rejected = 0, invalid = 0;
+        var opcodes = new Dictionary<string, int>();
+        long dropsBefore = Interlocked.Read(ref _droppedFrames);
+        string receiveOutcome = "failed";
         try
         {
-            if (!_midi.SendSysEx(request))
+            _lastQueryStarted = Stopwatch.GetTimestamp();
+            if (!ReadDiagnostics.Measure("midi.send", slot, () => _midi.SendSysEx(request)))
             {
                 throw new IOException("Could not send SysEx query.");
             }
 
-            while (true)
+            return await ReadDiagnostics.MeasureAsync("midi.reply", slot, async () =>
             {
-                var frame = await _frames.Reader.ReadAsync(deadline.Token).ConfigureAwait(false);
-                T? result = parse(frame);
-                if (result != null) { token.ThrowIfCancellationRequested(); completed = true; return result; }
-            }
+                try
+                {
+                    while (true)
+                    {
+                        var frame = await _frames.Reader.ReadAsync(deadline.Token).ConfigureAwait(false);
+                        received++;
+                        string opcode = frame.Length > 5 && frame[1] == 0 && frame[2] == 1 && frame[3] == 0x74
+                            ? $"0x{frame[5]:X2}" : "other";
+                        opcodes[opcode] = opcodes.GetValueOrDefault(opcode) + 1;
+                        bool matches = frame.Length > 5 && frame[5] == request[5];
+                        if (matches)
+                        {
+                            matching++;
+                            if (!SysexProtocol.ValidFrame(frame, request[4], request[5], frame.Length)) { invalid++; }
+                        }
+                        T? result = parse(frame);
+                        if (result != null) { token.ThrowIfCancellationRequested(); completed = true; receiveOutcome = "complete"; return result; }
+                        if (matches) { rejected++; }
+                    }
+                }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                {
+                    receiveOutcome = "timeout";
+                    throw new TimeoutException($"device query 0x{request[5]:X2} timed out ({received} frames received, {matching} matching opcode, {rejected} rejected).");
+                }
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         { throw new TimeoutException($"device query 0x{request[5]:X2} timed out."); }
+        catch (OperationCanceledException) { receiveOutcome = "cancelled"; throw; }
         finally
         {
+            ReadDiagnostics.Record(new ReadTiming("midi.receive", slot, 0, receiveOutcome)
+            {
+                Receive = new(request[5], received, matching, rejected, invalid, discarded,
+                    Interlocked.Read(ref _droppedFrames) - dropsBefore)
+                { OpcodeCounts = opcodes }
+            });
             // No transaction IDs: quarantine late responses after cancellation/timeout.
             if (!completed)
             {

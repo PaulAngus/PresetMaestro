@@ -16,7 +16,8 @@ public partial class MainWindow
     private void HandleDigit(int digit)
     {
         HideSendFeedback();
-        if (_enteredDigits.Length >= 3)
+        int digitLimit = _currentPage == AppPage.PresetIndex ? Math.Max(3, EffectiveMaximum.ToString().Length) : 3;
+        if (_enteredDigits.Length >= digitLimit)
         {
             _autoSendTimer.Stop();
             _enteredDigits = string.Empty;
@@ -25,7 +26,7 @@ public partial class MainWindow
         _enteredDigits += digit.ToString();
         UpdateDisplay();
 
-        if (_settings.AutoSend && _enteredDigits.Length == 3)
+        if (_settings.AutoSend && _enteredDigits.Length == digitLimit)
         {
             _autoSendTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(10, _settings.AutoSendDelayMs));
             _autoSendTimer.Start();
@@ -134,6 +135,13 @@ public partial class MainWindow
     private void ExecuteSend()
     {
         if (_connectionCts is not null) { return; }
+#if FRACTAL_INDEX
+        if (_currentPage == AppPage.PresetIndex)
+        {
+            SendIndexEntry();
+            return;
+        }
+#endif
         if (_enteredDigits.Length == 0)
         {
             return;
@@ -337,6 +345,9 @@ public partial class MainWindow
         _favoritesDisplayLabel.Text = text;
         _favoritesDisplayLabel.FontSize = text.Length > 12 ? 16 : 24;
         _favoritesDisplayLabel.Foreground = fore;
+#if FRACTAL_INDEX
+        UpdateIndexSendControls();
+#endif
 
         bool showDetails = _mode != EntryMode.Favorite && _enteredDigits.Length == 0 && _currentPreset.HasValue;
         _currentPresetNameLabel.Text = showDetails ? GetCurrentPresetName() ?? "—" : "";
@@ -737,27 +748,63 @@ public partial class MainWindow
     {
         _statusText = text;
         _statusKind = kind;
-        IBrush foreground = kind switch
+        RefreshConnectionStatus();
+        UpdatePresetSyncButtons();
+        UpdateFavoriteSceneReadButton();
+    }
+
+    private void RefreshConnectionStatus()
+    {
+        if (_statusLabel is null || _headerStatusLabel is null || _senderStatusLabel is null) { return; }
+        string text = _statusText;
+        string headerText = text;
+        IBrush foreground = _statusKind switch
         {
-            StatusKind.ConnectedBoth => Avalonia.Application.Current!.RequestedThemeVariant == Avalonia.Styling.ThemeVariant.Light ? Brushes.LimeGreen : SuccessBrush,
+            StatusKind.ConnectedBoth => ThemeBrush("SendSuccessForegroundBrush"),
             StatusKind.InputOnly or StatusKind.OutputOnly => Brushes.Goldenrod,
             StatusKind.DeviceError or StatusKind.NotConnected or StatusKind.Disconnected => Brushes.Red,
             _ => Brushes.Gray,
         };
+        IBrush indicator = _statusKind == StatusKind.ConnectedBoth ? foreground : Brushes.Red;
+#if FRACTAL_INDEX
+        if (_statusKind == StatusKind.ConnectedBoth && _detectedDevice is { } device)
+        {
+            if (ConnectionDeviceCheckRunning)
+            {
+                text = "MIDI connected · Checking device…";
+                headerText = "Checking device…";
+                foreground = AccentBrush;
+            }
+            else if (!HasCompletedConnectionDeviceCheck)
+            {
+                text = "MIDI connected · Device not checked";
+                headerText = "Device not checked";
+                foreground = SecondaryBrush;
+            }
+            else if (_connectionSyncMatchedContext != ConnectionSyncContext)
+            {
+                text = device.Label + " · Device needs review";
+                headerText = "Device needs review";
+                foreground = ThemeBrush("SendWarningForegroundBrush");
+            }
+            indicator = foreground;
+        }
+#endif
         _statusLabel.Text = text;
         _statusLabel.Foreground = foreground;
-        _headerStatusLabel.Text = text;
+        AutomationProperties.SetName(_statusLabel, text);
+        _headerStatusLabel.Text = headerText;
         ToolTip.SetTip(_headerStatusLabel, text);
-        _headerStatusLabel.Foreground = kind == StatusKind.ConnectedBoth ? TextBrush : foreground;
+        AutomationProperties.SetName(_headerStatusLabel, text);
+        _headerStatusLabel.Foreground = _statusKind == StatusKind.ConnectedBoth ? TextBrush : foreground;
         if (_connectionDot is not null)
         {
             _connectionDot.IsVisible = true;
-            _connectionDot.Background = kind == StatusKind.ConnectedBoth ? SuccessBrush : Brushes.Red;
+            _connectionDot.Background = indicator;
         }
         _senderStatusLabel.Text = text;
         _senderStatusLabel.Foreground = foreground;
-        UpdatePresetSyncButtons();
-        UpdateFavoriteSceneReadButton();
+        AutomationProperties.SetName(_senderStatusLabel, text);
     }
 
     private void UpdateConnectButtons()
@@ -799,6 +846,7 @@ public partial class MainWindow
         _keyboardEntryCheck.IsChecked = _settings.KeyboardEntryEnabled;
         _midiEntryCheck.IsChecked = _settings.MidiEntryEnabled;
         _debugCheck.IsChecked = _settings.DebugMode;
+        if (_syncTimingToggle is not null) { _syncTimingToggle.IsChecked = _settings.DetailedSyncTiming; }
 
         bool isLight = string.Equals(_settings.Theme, "Light", StringComparison.OrdinalIgnoreCase);
         _lightThemeRadio.IsChecked = isLight;
@@ -847,6 +895,7 @@ public partial class MainWindow
         _midi.NoteOnReceived -= OnNoteOnReceived;
         _presetNameClient.Dispose();
         _midi.Dispose();
+        if (_syncDiagnosticLog is not null) { _ = _syncDiagnosticLog.DisposeAsync().AsTask(); }
     }
 
     // ── Diagnostics test button ────────────────────────────────────

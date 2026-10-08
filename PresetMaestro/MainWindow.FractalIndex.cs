@@ -1,5 +1,6 @@
 #if FRACTAL_INDEX
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
@@ -19,7 +20,7 @@ public partial class MainWindow
     private IndexProfile _indexProfile = new();
     private DeviceIndex? _indexCache;
     private string? _indexError;
-    private bool _refreshingIndex, _indexScanning;
+    private bool _refreshingIndex, _indexScanning, _indexResumeChecking;
     private ComboBox? _indexAvailableDevices;
     private TextBlock? _indexDeviceLabel, _indexAssignmentLabel;
     private TextBox? _indexDeviceName;
@@ -52,6 +53,7 @@ public partial class MainWindow
                 }
             }
             _indexError = null;
+            SynchronizeSceneTags();
             if (_profileStore is not null && _indexProfile.PortableAmpReferences.Count > 0)
             {
                 try { AmpReferences.Merge(_indexProfile.PortableAmpReferences); _ampReferenceError = null; }
@@ -65,11 +67,12 @@ public partial class MainWindow
     {
         if (_indexLibrary is null) { return; }
         var previousMapping = new DevicePresetMapping(_settings.MidiChannel, _settings.DisplayOffset, _settings.SceneCc);
+        int previousCapacity = PickerCapacity;
         LoadIndexContext();
-        if (_favPresetSpinner is not null && previousMapping != new DevicePresetMapping(_settings.MidiChannel, _settings.DisplayOffset, _settings.SceneCc))
+        if (_favListBox is not null) { RefreshFavoritesList(); }
+        if (_favPresetSpinner is not null && (previousCapacity != PickerCapacity || previousMapping != new DevicePresetMapping(_settings.MidiChannel, _settings.DisplayOffset, _settings.SceneCc)))
         {
             UpdatePresetCapacityUI();
-            RefreshFavoritesList();
             UpdateDisplay();
         }
         _refreshingIndex = true;
@@ -78,10 +81,10 @@ public partial class MainWindow
             string assignment = _indexCache?.Device.Name ?? _indexProfile.AssignedDevice?.Name ?? "Not assigned";
             if (_indexDeviceLabel is not null)
             {
-                _indexDeviceLabel.Text = "Library: " + assignment;
-                ToolTip.SetTip(_indexDeviceLabel, $"Device library assigned to profile '{_settings.ActiveProfile}': {assignment}. Change the assignment in Config.");
+                _indexDeviceLabel.Text = "Device: " + assignment;
+                ToolTip.SetTip(_indexDeviceLabel, $"Device assigned to profile '{_settings.ActiveProfile}': {assignment}. Change the assignment in Config.");
             }
-            if (_indexAssignmentLabel is not null) { _indexAssignmentLabel.Text = $"{_settings.ActiveProfile} → {assignment}"; }
+            if (_indexAssignmentLabel is not null) { _indexAssignmentLabel.Text = $"Selected device: “{assignment}”"; }
             if (_indexAvailableDevices is not null && _profileStore is not null)
             {
                 var devices = AvailableIndexDevices();
@@ -95,6 +98,7 @@ public partial class MainWindow
         RefreshAmpsContext();
         RenderIndexResults();
         UpdateIndexButtons();
+        RefreshConnectionStatus();
     }
 
     private bool SaveIndexProfile(Action<IndexProfile> change)
@@ -102,7 +106,17 @@ public partial class MainWindow
         if (_indexError is not null || _profileStore is null) { return false; }
         try
         {
-            _indexProfile = _libraryProfiles.Update(_indexProfile, change);
+            var updated = IndexJson.Clone(_indexProfile);
+            change(updated);
+            if (updated.SelectedDeviceId != _indexProfile.SelectedDeviceId)
+            {
+                _indexProfile = _libraryProfiles.Update(updated, _ => { });
+                return true;
+            }
+            FavoritesManager.MutateAndSave(_favorites,
+                () => SharedSceneTags.Reconcile(updated, _indexCache, _favorites, _settings.DisplayOffset, importLegacy: false),
+                _ => PersistSharedSceneTags(updated));
+            if (_favListBox is not null) { RefreshFavoritesList(); }
             return true;
         }
         catch (Exception ex)
@@ -119,6 +133,15 @@ public partial class MainWindow
         RefreshIndexContext();
     }
 
+    partial void UpdateIndexHeader(double width)
+    {
+        // Reserve room for navigation, connection status and long profile names.
+        if (_indexDeviceLabel is not null)
+        {
+            _indexDeviceLabel.IsVisible = width >= 1280 && _currentPage is (AppPage.PresetIndex or AppPage.Amps);
+        }
+    }
+
     private sealed record IndexVariantChoice(FractalDeviceVariant Variant, string Label)
     {
         public override string ToString() => Label;
@@ -128,38 +151,42 @@ public partial class MainWindow
     {
         panel.Children.Add(new TextBlock
         {
-            Text = "Device library for this profile",
+            Text = "Device for this profile",
             FontWeight = Avalonia.Media.FontWeight.SemiBold,
             Foreground = TextBrush,
             Margin = new Thickness(0, 12, 0, 0)
         });
         panel.Children.Add(new TextBlock
         {
-            Text = "One library per profile. Several profiles can share its saved device data.",
+            Text = "Presets, scenes and amps are saved on this PC for offline use. Profiles for the same device share this data.",
             Foreground = SecondaryBrush,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap
         });
         var content = new StackPanel { Spacing = 8, IsEnabled = _profileStore is not null };
         _indexAssignmentLabel = new TextBlock { Name = "IndexAssignment", FontSize = 12, Foreground = TextBrush, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         content.Children.Add(_indexAssignmentLabel);
-        _indexAvailableDevices = new ComboBox { Name = "IndexAvailableDevices", HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Choose a saved device library" };
-        _indexAvailableDevices.ItemTemplate = new FuncDataTemplate<IndexDevice>((device, _) => new TextBlock
+        _indexAvailableDevices = new ComboBox { Name = "IndexAvailableDevices", HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Choose a saved device" };
+        AutomationProperties.SetName(_indexAvailableDevices, "Saved device used by this profile");
+        _indexAvailableDevices.ItemTemplate = new FuncDataTemplate<IndexDevice>((device, _) =>
         {
-            Text = device is null ? "" : LibraryDisplayName(device),
-            TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
+            string name = device is null ? "" : LibraryDisplayName(device);
+            var label = new TextBlock { Text = name, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
+            ToolTip.SetTip(label, name);
+            AutomationProperties.SetName(label, name);
+            return label;
         });
         _indexAvailableDevices.SelectionChanged += (_, _) =>
         {
             if (!_refreshingIndex && _indexAvailableDevices.SelectedItem is IndexDevice device && device.Id != _indexProfile.SelectedDeviceId)
             { AssignIndexLibrary(device); }
         };
-        content.Children.Add(CompactField("Assigned library", _indexAvailableDevices));
-        var manage = IndexButton("Manage library", "ManageLibraries");
+        content.Children.Add(CompactField("Select device", _indexAvailableDevices));
+        var manage = IndexButton("Manage devices…", "ManageLibraries");
         manage.Click += (_, _) => _showManageLibraries?.Invoke();
         content.Children.Add(manage);
         content.Children.Add(new TextBlock
         {
-            Text = "Library checks compare saved presets with the connected device. Any difference is shown for review. A match suggests the library belongs to this device; it cannot identify a physical unit.",
+            Text = "Imported a profile for the same device? Select the device you already use. Manage devices lets you rename devices or remove unused copies of their saved data.",
             FontSize = 12,
             Foreground = SecondaryBrush,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap
@@ -179,48 +206,56 @@ public partial class MainWindow
     private bool IndexDeviceMatchesProfile(FractalDeviceVariant variant)
     {
         if (variant.ToDeviceModel() == _settings.DeviceModel) { return true; }
-        SetIndexMessage($"This profile is configured for {_settings.DeviceModel}. Choose a matching library, or connect the intended device to configure this profile first.");
+        SetIndexMessage($"This profile is configured for {_settings.DeviceModel}. Choose a device with the same model, or connect the intended device to configure this profile first.");
         return false;
     }
 
-    partial void UpdateIndexButtons()
-    {
-        if (_indexSyncButton is null) { return; }
-        bool ready = !_changingProfile && _connectionCts is null && _presetNamesCts is null && _indexError is null &&
+    private bool CanSyncIndex => !_changingProfile && _connectionCts is null && _presetNamesCts is null && _indexError is null &&
             !_connectionLibraryChoiceBusy && (!_connectionLibrarySetupRequired || _connectionLibraryVariant is not null && (_connectionDefaultLibrary is null || _connectionLibraryCandidate is not null)) &&
             _indexCache is not null && _settings.DeviceModel == _indexCache.Device.Variant.ToDeviceModel() && _detectedDevice?.Model == _indexCache.Device.Variant.ToDeviceModel() && _midi.InputOpen && _midi.OutputOpen;
-        _indexSyncButton.IsEnabled = ready;
-        _indexResumeButton!.IsEnabled = ready && _indexCache?.LastAttempt is { Status: not "Complete" };
+
+    private bool CanCheckIndex => CanSyncIndex && !_connectionLibrarySetupRequired && _indexCache?.Committed is not null;
+
+    partial void UpdateIndexButtons()
+    {
+        if (_indexResumeButton is null) { return; }
+        UpdateIndexSendControls();
+        _indexResumeButton.IsEnabled = CanSyncIndex && _indexCache?.LastAttempt is { Status: not "Complete" };
         _indexResumeButton.IsVisible = _indexCache?.LastAttempt is { Status: not "Complete" };
         _indexCancelButton!.IsVisible = _indexScanning || _indexChecking;
         _indexProgressPanel!.IsVisible = _indexScanning || _indexChecking;
-        if (_indexCheckButton is not null) { _indexCheckButton.IsEnabled = ready && !_connectionLibrarySetupRequired && _indexCache?.Committed is not null; }
-        RefreshLibraryMatchStatus();
         RefreshIndexConnectionSyncCompletion();
         UpdateLibraryManagementButtons();
-        if (_indexDeviceLabel is not null) { _indexDeviceLabel.IsVisible = _currentPage is AppPage.PresetIndex or AppPage.Amps; }
-        if (_headerStatusLabel is not null) { _headerStatusLabel.IsVisible = _currentPage is not (AppPage.PresetIndex or AppPage.Amps); }
+        UpdateIndexHeader(ClientSize.Width);
         if (_indexError is not null) { SetIndexMessage(_indexError + " The original data has been preserved."); }
     }
 
     internal async Task SyncIndexAsync(bool resume = false)
     {
         var cache = _indexCache is null ? null : IndexJson.Clone(_indexCache);
-        if (cache is null || _indexSyncButton?.IsEnabled != true) { return; }
+        if (cache is null || !CanSyncIndex) { return; }
         int generation = _profileGeneration;
         long connection = _connectionGeneration;
+        string deviceCheckContext = ConnectionSyncContext;
         string? deviceName = _detectedDevice!.DeviceName;
         // Every new read uses this connection's reported firmware, including null
         // on failure. Never carry a previous connection's version into a new scan.
         cache.Device = cache.Device with { Firmware = _detectedDevice.Firmware };
         var baseline = cache.Committed;
         using var cancellation = new CancellationTokenSource();
+        using var diagnostics = BeginSyncDiagnostics(resume ? "resume-sync" : "sync");
+        bool diagnosticScanStarted = false;
+        string diagnosticOutcome = "not-started";
         _presetNamesCts = cancellation;
         _indexScanning = true;
+        _showConnectionSyncChecks = false;
+        _connectionSyncOutcome = null;
+        _connectionSyncDeviceCheckContext = null;
+        _connectionSyncMatchedContext = null;
         _indexProgressMessage = "Preparing sync… Completed reads are saved as it runs.";
         _indexProgressText!.Text = _indexProgressMessage;
         _indexProgress!.Value = 0;
-        _indexProgress.Maximum = FractalDeviceDefinition.For(cache.Device.Variant).PresetSlots;
+        _indexProgress.Maximum = FractalDeviceDefinition.For(cache.Device).PresetSlots;
         _sceneCts?.Cancel(); _scenePollCts?.Cancel();
         UpdatePresetSyncButtons();
         RenderIndexResults();
@@ -229,29 +264,48 @@ public partial class MainWindow
         bool profileNamesUpdated = false;
         try
         {
-            if (baseline is null && !_connectionLibrarySetupRequired && !await ConfirmProfileAsync("Establish device library",
+            if (baseline is null && !_connectionLibrarySetupRequired && !await ConfirmProfileAsync("Save device data",
                 $"Use the connected {_detectedDevice.ModelLabel} as the baseline for “{cache.Device.Name}”? The saved-preset read can take several minutes. Cancel keeps completed reads.", "Sync device"))
-            { outcome = "Sync cancelled. The library was not changed."; return; }
+            { outcome = "Sync cancelled. Saved device data was not changed."; return; }
             cancellation.Token.ThrowIfCancellationRequested();
+            if (generation != _profileGeneration || connection != _connectionGeneration) { return; }
+            await EstablishPresetCapacityAsync(cache, cancellation.Token);
             if (generation != _profileGeneration || connection != _connectionGeneration) { return; }
             // A partial scan may belong to an earlier connection. Check it before reusing reads.
             if (resume && cache.LastAttempt is { Status: not "Complete" } partial)
             {
+                _indexResumeChecking = true;
                 _indexProgressText!.Text = "Checking saved reads before resuming…";
-                var check = await LibraryMatch.CheckSampleAsync(_fractalIndexReader, cache, partial, deviceName, cancellation.Token);
+                RefreshConnectionSyncOptions();
+                var check = await LibraryMatch.CheckSampleAsync(_fractalIndexReader, cache, partial, deviceName, cancellation.Token,
+                    progress => Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!_indexResumeChecking || !ReferenceEquals(_presetNamesCts, cancellation)) { return; }
+                        _indexProgress!.Maximum = Math.Max(1, progress.Total);
+                        _indexProgress.Value = progress.Checked;
+                        _indexProgressText.Text = $"Checking saved reads before resuming… {progress.Checked} of {progress.Total} presets checked.";
+                        RefreshConnectionSyncOptions();
+                    }));
+                _indexResumeChecking = false;
                 if (!check.IsConsistent)
                 {
                     resume = false;
                     _indexProgressText.Text = "Previous reads could not be confirmed. Starting a fresh scan…";
                 }
+                _indexProgress!.Maximum = FractalDeviceDefinition.For(cache.Device).PresetSlots;
+                _indexProgress.Value = resume ? partial.Presets.Count : 0;
+                RefreshConnectionSyncOptions();
             }
-            await new IndexScanner(_fractalIndexReader, _connectionLibraryStaging ?? _indexLibrary).ScanAsync(cache, resume, progress => Dispatcher.UIThread.Post(() =>
+            diagnosticScanStarted = true;
+            await new IndexScanner(_fractalIndexReader, _connectionLibraryStaging ?? _indexLibrary).ScanAsync(cache, resume, progress => PostSyncProgress(diagnostics, progress.Slot, () =>
             {
-                if (!_indexScanning) { return; }
+                if (!_indexScanning || !ReferenceEquals(_presetNamesCts, cancellation)) { return; }
                 int checkedSlots = Math.Min(progress.Total, progress.Read + progress.Failed);
                 _indexProgress!.Maximum = progress.Total;
                 _indexProgress.Value = checkedSlots;
-                _indexProgressMessage = $"{checkedSlots * 100 / progress.Total}% · {checkedSlots} of {progress.Total} slots checked · {progress.Read - progress.EmptySkipped} presets read · {progress.EmptySkipped} empty skipped · {progress.Failed} failed";
+                _indexProgressMessage = progress.Retrying
+                    ? $"Retrying preset {progress.Slot + _settings.DisplayOffset:D3} after no reply (attempt 2 of 2)… {progress.Read} of {progress.Total} slots saved."
+                    : $"{checkedSlots * 100 / progress.Total}% · {checkedSlots} of {progress.Total} slots checked · {progress.Read - progress.EmptySkipped} presets read · {progress.EmptySkipped} empty skipped · {progress.Failed} need retry";
                 _indexProgressText!.Text = _indexProgressMessage;
                 RefreshConnectionSyncOptions();
             }), cancellation.Token, publish: false, connectedDeviceName: deviceName);
@@ -263,8 +317,9 @@ public partial class MainWindow
             if (match is not null)
             {
                 RememberLibraryMatch(cache, match);
+                _connectionSyncDeviceCheckContext = deviceCheckContext;
                 if ((!match.IsConsistent || cache.Imported) && !await ConfirmLibraryUpdateAsync(cache, match))
-                { outcome = "Previous library kept. New reads were saved separately; they have not replaced its baseline."; return; }
+                { outcome = "Previous device data kept. New reads were saved separately; they have not replaced its baseline."; return; }
             }
             cancellation.Token.ThrowIfCancellationRequested();
             if (generation != _profileGeneration || connection != _connectionGeneration) { return; }
@@ -277,29 +332,40 @@ public partial class MainWindow
             _connectionLibrarySetupRequired = false;
             _connectionSyncCheckedContext = ConnectionSyncContext;
             _connectionSyncMatchedContext = ConnectionSyncContext;
+            _connectionSyncDeviceCheckContext = ConnectionSyncContext;
             _showConnectionSyncChecks = false;
-            RememberLibraryMatch(cache, match, "Confirmed sync established this library's baseline. Choose Quick match or Full match on future connections to compare it.");
+            RememberLibraryMatch(cache, match);
             outcome = $"Presets, scenes and amps refreshed in “{cache.Device.Name}”. This profile’s preset and scene names were also refreshed automatically. {candidate.Presets.Values.Count(p => p.NameOnlyEmpty)} empty slots skipped.";
         }
         catch (OperationCanceledException)
         {
-            outcome = cache.LastAttempt?.Status == "Complete"
-                ? "Library update cancelled. Completed reads were saved separately."
+            diagnosticOutcome = "cancelled";
+            outcome = cache.LastAttempt is null ? "Sync cancelled. Saved device data was not changed." : cache.LastAttempt.Status == "Complete"
+                ? "Device data update cancelled. Completed reads were saved separately."
                 : "Sync cancelled. Completed reads were saved; Resume continues this scan.";
         }
-        catch (Exception ex) { outcome = "Sync stopped: " + ex.Message; }
+        catch (Exception ex) { diagnosticOutcome = "failed"; outcome = "Sync stopped: " + ex.Message; }
         finally
         {
+            var scan = diagnosticScanStarted ? cache.LastAttempt : null;
+            diagnostics.Result(scan?.Status.ToLowerInvariant() ?? diagnosticOutcome, scan?.Presets.Count,
+                scan?.Presets.Values.Count(p => !string.Equals(p.Name.Trim(), "<EMPTY>", StringComparison.Ordinal)),
+                scan?.Presets.Values.Count(p => string.Equals(p.Name.Trim(), "<EMPTY>", StringComparison.Ordinal)), scan?.Errors.Count);
             _indexScanning = false;
+            _indexResumeChecking = false;
             _presetNamesCts = null;
             RefreshIndexContext();
             SetIndexMessage(outcome);
-            SetConnectionSyncOutcome(libraryUpdated && profileNamesUpdated ? "Device library synced" : "Library sync needs attention",
+            SetConnectionSyncOutcome(libraryUpdated && profileNamesUpdated ? "Device synced" : "Device sync needs attention",
                 outcome,
-                libraryUpdated && profileNamesUpdated ? "Choose Use saved library to continue. Preset Index, Amps and Favorites now use the refreshed data."
+                libraryUpdated && profileNamesUpdated ? "Choose Use saved data to continue. Preset Index, Amps and Favorites now use the refreshed data."
                     : cache.LastAttempt is { Status: not "Complete" } ? "Next: Choose Resume to retry missing presets, or Done to use the data already saved."
-                        : "Choose Sync library to retry or review an update, or Done to continue with saved data.", needsAttention: !libraryUpdated || !profileNamesUpdated);
+                        : "Choose Sync device to retry or review an update, or Done to continue with saved data.", needsAttention: !libraryUpdated || !profileNamesUpdated);
             UpdatePresetSyncButtons();
+            if (!libraryUpdated && _connectionSyncDialog is { IsVisible: true })
+            {
+                (_indexCache?.LastAttempt is { Status: not "Complete" } ? _connectionSyncResume : _connectionSyncLibrary)?.Focus();
+            }
             CompleteInitialConnectionSync();
             if (!_connectionLibrarySetupRequired && _detectedDevice is not null) { StartSceneTracking(); }
         }
@@ -307,6 +373,7 @@ public partial class MainWindow
 
     private void CacheLibraryNames(IndexScan scan)
     {
+        UpdatePresetCapacityUI();
         // The full scan already returned these names. Reuse them rather than
         // issuing a second set of MIDI reads after an accepted library update.
         _settings.PresetNameCache = scan.Presets.ToDictionary(p => p.Key, p => p.Value.Name);

@@ -10,6 +10,9 @@ public sealed class Favorite
     public int Slot { get; set; } // number typed on the keypad to trigger this favorite
     public string Name { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = [];
+    // Identifies the index annotation whose scene tags this shortcut displays.
+    // Null means legacy/standalone tags that have not yet been linked.
+    public Guid? SceneTagSourceId { get; set; }
     public int Preset { get; set; } // displayed preset number
     public int Scene { get; set; } = 1; // 1-8
 

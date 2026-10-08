@@ -68,8 +68,8 @@ public partial class MainWindow
         create.Click += async (_, _) => await PromptProfileActionAsync("create");
         var import = ProfileCommand("ProfileImport", "Import…");
         import.Click += async (_, _) => await TransferProfileAsync(export: false);
-        var rescan = ProfileCommand("ProfileManagementRescan", "Rescan");
-        rescan.Click += async (_, _) => await RunProfileActionAsync("rescan", "");
+        var rescan = ProfileScanButton("ProfileManagementRescan");
+        _profileScanCommands.Add(create); _profileScanCommands.Add(import);
         commands.Children.Add(create); commands.Children.Add(import); commands.Children.Add(rescan);
         Grid.SetColumn(commands, 1); toolbar.Children.Add(commands); content.Children.Add(toolbar);
 
@@ -139,7 +139,10 @@ public partial class MainWindow
         Grid.SetColumn(detailPane, 2); split.Children.Add(detailPane); Grid.SetRow(split, 2); content.Children.Add(split);
         var status = new TextBlock { Name = "ProfileManagementStatus", FontSize = 11, MinHeight = 20, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap };
         status.Bind(TextBlock.TextProperty, new Binding(nameof(TextBlock.Text)) { Source = _profileStatus });
-        Grid.SetRow(status, 4); content.Children.Add(status);
+        var scanInformation = new StackPanel { Spacing = 8 };
+        scanInformation.Children.Add(ProfileScanDescription("ProfileManagementScanPurpose", showFolder: true));
+        scanInformation.Children.Add(status);
+        Grid.SetRow(scanInformation, 4); content.Children.Add(scanInformation);
         var card = new Border
         {
             Name = "ProfileManagementCard",
@@ -252,10 +255,10 @@ public partial class MainWindow
         }
         bool active = _selectedProfileName == _settings.ActiveProfile;
         _useProfileButton.Content = active ? "Active profile" : "Use profile";
-        _useProfileButton.IsEnabled = readable && !active;
+        _useProfileButton.IsEnabled = readable && !active && !_profileFileScanning;
         foreach (var button in _managedDataActions)
         {
-            button.IsEnabled = readable && (button.Name != "ProfileDelete" || _settings.Profiles.Count > 1);
+            button.IsEnabled = readable && !_profileFileScanning && (button.Name != "ProfileDelete" || _settings.Profiles.Count > 1);
         }
     }
 
