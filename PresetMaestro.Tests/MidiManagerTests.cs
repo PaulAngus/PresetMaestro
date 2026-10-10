@@ -1,11 +1,28 @@
-using NAudio.Midi;
 using PresetMaestro.Midi;
 
 namespace PresetMaestro.Tests;
 
 public sealed class MidiManagerTests
 {
-    private static MidiManager Create(Input input, Output output, Func<string, IMidiInput>? createInput = null) => new(
+    [Fact]
+    public void NativeInputErrorsAreReportedOnlyWhileThePortIsConnected()
+    {
+        var input = new Input();
+        using var manager = Create(input, new Output());
+        var errors = new List<string>();
+        manager.LogMessage += (_, text) => errors.Add(text);
+        Assert.True(manager.OpenInput("Main", out _));
+        input.EmitError("Malformed device packet");
+        Assert.Contains("MIDI INPUT ERROR: Malformed device packet", errors);
+        manager.CloseInput();
+        input.EmitError("Late callback");
+        Assert.DoesNotContain(errors, text => text.Contains("Late callback", StringComparison.Ordinal));
+        Assert.True(manager.OpenThruInput("Controller", out _));
+        input.EmitError("Controller removed");
+        Assert.Contains("MIDI INPUT ERROR: Controller removed", errors);
+    }
+
+    private static MidiManager Create(Input input, Output output, Func<string, IMidiInputPort>? createInput = null) => new(
         () => [("main", "Main"), ("thru", "Controller")], createInput ?? (_ => input),
         () => [(7, "Device")], index => { Assert.Equal(7, index); return output; });
 
@@ -25,6 +42,11 @@ public sealed class MidiManagerTests
         Assert.True(manager.SendScene(3, 34, 2));
         Assert.True(manager.SendSysEx([0xf0, 1, 0xf7]));
         Assert.Equal([0xf0, 1, 0xf7], Assert.Single(output.Frames));
+        Assert.False(manager.SendSysEx([]));
+        Assert.False(manager.SendSysEx([0x01, 0xf7]));
+        Assert.False(manager.SendSysEx([0xf0, 0x80, 0xf7]));
+        Assert.False(manager.SendSysEx([0xf0, 0x01]));
+        Assert.Single(output.Frames);
         int sent = output.Messages.Count;
         Assert.False(manager.SendBankAndPC(-1, 0, 1));
         Assert.False(manager.SendBankAndPC(0, 128, 1));
@@ -52,7 +74,7 @@ public sealed class MidiManagerTests
         Assert.Equal((60, 100, 3, "Main"), (note.NoteNumber, note.Velocity, note.Channel, note.SourcePort));
         Assert.Equal([3], presets); Assert.Single(frames);
         var late = input.Capture();
-        manager.CloseInput(); late?.Invoke(input, new(0x643c92, TimeSpan.Zero));
+        manager.CloseInput(); late?.Invoke(input, new(0x643c92));
         Assert.Single(notes); Assert.True(input.Disposed); Assert.False(manager.InputOpen);
     }
 
@@ -74,7 +96,7 @@ public sealed class MidiManagerTests
         var late = input.Capture();
         var listed = manager.ThruInputPorts;
         manager.CloseThruInput("Controller");
-        late?.Invoke(input, new(0x643c93, TimeSpan.Zero));
+        late?.Invoke(input, new(0x643c93));
         Assert.Equal(3, output.Messages.Count);
         Assert.Single(listed); Assert.Empty(manager.ThruInputPorts); Assert.True(input.Disposed);
     }
@@ -165,22 +187,24 @@ public sealed class MidiManagerTests
         Assert.Throws<ObjectDisposedException>(() => manager.OpenThruInput("Controller", out _));
     }
 
-    private sealed class Input : IMidiInput
+    private sealed class Input : IMidiInputPort
     {
-        public event EventHandler<MidiInMessageEventArgs>? MessageReceived;
-        public event EventHandler<MidiInSysexMessageEventArgs>? SysexMessageReceived;
+        public event EventHandler<MidiShortMessageEventArgs>? MessageReceived;
+        public event EventHandler<MidiSysExMessageEventArgs>? SysexMessageReceived;
+        public event EventHandler<string>? ErrorReceived;
+        public void EmitError(string error) => ErrorReceived?.Invoke(this, error);
         public Action? OnStart { get; init; }
         public int Starts { get; private set; }
         public bool Disposed { get; private set; }
         public void Start() { Starts++; OnStart?.Invoke(); }
         public void Stop() { }
         public void Dispose() => Disposed = true;
-        public void Emit(int message) => MessageReceived?.Invoke(this, new(message, TimeSpan.Zero));
-        public void EmitSysex(byte[] frame) => SysexMessageReceived?.Invoke(this, new(frame, TimeSpan.Zero));
-        public EventHandler<MidiInMessageEventArgs>? Capture() => MessageReceived;
+        public void Emit(int message) => MessageReceived?.Invoke(this, new(message));
+        public void EmitSysex(byte[] frame) => SysexMessageReceived?.Invoke(this, new(frame));
+        public EventHandler<MidiShortMessageEventArgs>? Capture() => MessageReceived;
     }
 
-    private sealed class Output : IMidiOutput
+    private sealed class Output : IMidiOutputPort
     {
         public List<int> Messages { get; } = [];
         public List<byte[]> Frames { get; } = [];

@@ -1,0 +1,18 @@
+<Project>
+  <!-- Audit the actual SDK-selected payload before it can be hidden in a single-file bundle. -->
+  <Target Name="ValidatePlatformPublishPayload" BeforeTargets="GenerateSingleFileBundle" AfterTargets="ComputeFilesToPublish">
+    <PropertyGroup>
+      <_ForbiddenPayload>\.so(\.|$)|\.a$|Avalonia\.X11|Avalonia\.LinuxFramebuffer|Avalonia\.Desktop|NAudio\.Wasapi|NAudio\.Asio|NAudio\.WinForms</_ForbiddenPayload>
+      <_ForbiddenPayload Condition="'$(MaestroPlatform)' == 'Windows'">$(_ForbiddenPayload)|\.dylib$|Avalonia\.Native|Melanchall[._]DryWetMidi</_ForbiddenPayload>
+      <_ForbiddenPayload Condition="'$(MaestroPlatform)' == 'macOS'">$(_ForbiddenPayload)|Avalonia\.Win32|NAudio|Microsoft\.Windows\.SDK|WinRT\.Runtime|Melanchall_DryWetMidi_Native[0-9]+\.dll$|lib(SkiaSharp|HarfBuzzSharp)\.dll$</_ForbiddenPayload>
+    </PropertyGroup>
+    <ItemGroup>
+      <!-- The SDK moves bundled entries out of ResolvedFileToPublish before GenerateSingleFileBundle. -->
+      <_PlatformPayload Include="@(ResolvedFileToPublish);@(FilesToBundle)" />
+      <_WrongPlatformFile Include="@(_PlatformPayload)" Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(_PlatformPayload.RelativePath)', '$(_ForbiddenPayload)', System.Text.RegularExpressions.RegexOptions.IgnoreCase))" />
+    </ItemGroup>
+    <Error Condition="'@(_WrongPlatformFile)' != ''" Text="The $(MaestroPlatform) publish includes forbidden platform payload: @(_WrongPlatformFile->'%(RelativePath)', ', ')" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)publish-payload.txt" Lines="@(_PlatformPayload->'%(RelativePath)')" Overwrite="true" Encoding="UTF-8" />
+    <Message Importance="High" Text="Verified $(MaestroPlatform) publish payload. Manifest: $(IntermediateOutputPath)publish-payload.txt" />
+  </Target>
+</Project>

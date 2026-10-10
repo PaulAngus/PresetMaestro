@@ -1,7 +1,7 @@
 namespace PresetMaestro.Midi;
 
-// Abstracts the MIDI backend so a future platform-specific implementation (e.g. CoreMIDI for macOS)
-// can be swapped in without touching UI code. MidiManager is the only implementation today (Windows/NAudio).
+// The UI and device protocols use the same contract on Windows and macOS.
+// MidiManager supplies common routing over the backend selected at compile time.
 public interface IMidiManager : IDisposable
 {
     event EventHandler<string>? LogMessage;

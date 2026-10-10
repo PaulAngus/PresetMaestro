@@ -5,6 +5,32 @@ namespace PresetMaestro.Tests;
 
 public sealed class ProfileStoreTests : IDisposable
 {
+    [Theory]
+    [InlineData("a:b")]
+    [InlineData("a\\b")]
+    [InlineData("a/b")]
+    [InlineData("a*b")]
+    [InlineData("a?b")]
+    [InlineData("a|b")]
+    [InlineData("a\"b")]
+    public void ProfileNamesRemainPortableAcrossOperatingSystems(string name) =>
+        Assert.Throws<ArgumentException>(() => ProfileStore.ValidateName(name));
+
+    [Fact]
+    public void CreateAndRenameRejectCaseInsensitiveCollisionsAndPreserveProfiles()
+    {
+        var store = new ProfileStore(_directory);
+        store.LoadSettings();
+        store.Create("Stage");
+        store.Create("Studio");
+        Assert.Throws<InvalidOperationException>(() => store.Create("STAGE"));
+        Assert.Throws<InvalidOperationException>(() => store.Rename("Studio", "STAGE"));
+        store.Rename("Stage", "STAGE");
+        Assert.Contains("STAGE", store.ListProfiles());
+        Assert.Contains("Studio", store.ListProfiles());
+        Assert.Equal(3, store.ListProfiles().Count);
+    }
+
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "PresetMaestro-profiles-" + Guid.NewGuid().ToString("N"));
     public void Dispose()
     {
@@ -31,7 +57,7 @@ public sealed class ProfileStoreTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_directory, "Imported-settings.json")));
     }
 
-    [Fact]
+    [WindowsFileLockFact]
     public void SettingsSaveRestoresProfileWhenMachineFileIsLockedAndCanBeRetried()
     {
         var store = new ProfileStore(_directory);

@@ -100,7 +100,7 @@ public sealed class SharedSceneTagTests : IDisposable
         Assert.Single(profile.Annotations);
     }
 
-    [Theory]
+    [WindowsFileLockTheory]
     [InlineData("Default-favorites.json")]
     [InlineData("Default-settings.json")]
     [InlineData("settings.json")]
@@ -281,7 +281,7 @@ public sealed class SharedSceneTagTests : IDisposable
         finally { window.Close(); }
     }
 
-    [AvaloniaFact]
+    [WindowsFileLockAvaloniaFact]
     public void FavoriteSharedSaveFailureKeepsTheDraftAndRollsBackAnnotations()
     {
         var (profile, cache, favorites) = Fixture();

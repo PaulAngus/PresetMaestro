@@ -4,6 +4,7 @@ obj/
 
 # Publish output
 publish/
+publish-macos/
 build_test/
 .test-results/
 
@@ -25,5 +26,4 @@ prototype-screenshots/
 # Local deployment helper
 /Copy-PublishedExe.ps1
 docs/design/
-scripts/Test-PublishVersion.ps1
 TestResults/

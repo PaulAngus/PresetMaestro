@@ -6,6 +6,7 @@ namespace PresetMaestro.Core;
 
 public sealed partial class ProfileStore(string directory)
 {
+    private static readonly System.Buffers.SearchValues<char> InvalidProfileNameChars = System.Buffers.SearchValues.Create("<>:\"/\\|?*");
     static partial void PrepareIndexCopy(ProfileSettings settings);
     partial void PrepareIndexExport(ProfileSettings settings);
     static partial void ValidateIndexImport(ProfileSettings settings);
@@ -22,7 +23,7 @@ public sealed partial class ProfileStore(string directory)
     public static string ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name) || name != name.Trim() || name.Length > 80 ||
-            name.EndsWith('.') || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            name.EndsWith('.') || name.AsSpan().ContainsAny(InvalidProfileNameChars) ||
             name.Any(char.IsControl))
         {
             throw new ArgumentException("Use a profile name of 1–80 characters without filename symbols or leading/trailing spaces.");
@@ -249,7 +250,8 @@ public sealed partial class ProfileStore(string directory)
     public void Create(string name, ProfileSettings? settings = null, List<Favorite>? favorites = null)
     {
         ValidateName(name);
-        if (Exists(name))
+        // Profiles travel between Windows and macOS, including case-sensitive Mac volumes.
+        if (ContainsName(name))
         {
             throw new InvalidOperationException("A profile with that name already exists.");
         }
@@ -273,7 +275,7 @@ public sealed partial class ProfileStore(string directory)
             return;
         }
 
-        // Windows considers these the same path; use an intermediate name to change casing.
+        // Windows and most Mac volumes consider these the same path; stage case-only renames.
         if (string.Equals(name, newName, StringComparison.OrdinalIgnoreCase))
         {
             string temporaryName = "ProfileRename-" + Guid.NewGuid().ToString("N");
@@ -283,7 +285,7 @@ public sealed partial class ProfileStore(string directory)
             return;
         }
 
-        if (Exists(newName))
+        if (ContainsName(newName))
         {
             throw new InvalidOperationException("A profile with that name already exists.");
         }

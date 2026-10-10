@@ -5,4 +5,5 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
   </PropertyGroup>
+  <Import Project="build/DesktopPlatform.props" Condition="'$(MSBuildProjectName)' == 'PresetMaestro' or '$(MSBuildProjectName)' == 'PresetMaestro.Tests'" />
 </Project>

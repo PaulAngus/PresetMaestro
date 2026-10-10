@@ -140,7 +140,7 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        if (_profileNotice.IsKeyboardFocusWithin) { return; }
+        if (_profileNotice.IsKeyboardFocusWithin || e.KeyModifiers != KeyModifiers.None) { return; }
         if (_currentPage == AppPage.Favorites && _settings.KeyboardEntryEnabled &&
             !e.Handled && FocusManager?.GetFocusedElement() is not TextBox && !FavoriteSearchHasFocus &&
             e.Key is Key.Up or Key.Down or Key.Left or Key.Right)
@@ -167,7 +167,7 @@ public partial class MainWindow : Window
     {
         base.OnKeyDown(e);
 
-        if (_profileNotice.IsKeyboardFocusWithin || _currentPage is AppPage.ManageProfiles or AppPage.ManageLibraries or AppPage.Amps || !_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
+        if (e.KeyModifiers != KeyModifiers.None || _profileNotice.IsKeyboardFocusWithin || _currentPage is AppPage.ManageProfiles or AppPage.ManageLibraries or AppPage.Amps || !_settings.KeyboardEntryEnabled || e.Handled || FocusManager?.GetFocusedElement() is TextBox || FavoriteSearchHasFocus)
         {
             return;
         }

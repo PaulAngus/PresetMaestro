@@ -3,7 +3,6 @@
   <PropertyGroup>
     <EnableFractalIndex Condition="'$(EnableFractalIndex)' == ''">true</EnableFractalIndex>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -12,7 +11,7 @@
     <RootNamespace>PresetMaestro</RootNamespace>
     <Product>Preset Maestro</Product>
     <Title>Preset Maestro</Title>
-    <ApplicationIcon>preset_maestro.ico</ApplicationIcon>
+    <ApplicationIcon Condition="'$(MaestroPlatform)' == 'Windows'">preset_maestro.ico</ApplicationIcon>
     <_RequestedPublishVersion>$(PublishVersion)</_RequestedPublishVersion>
     <_RequestedPublishVersion Condition="'$(_RequestedPublishVersion)' == '' and '$(Version)' != ''">$(Version)</_RequestedPublishVersion>
     <AppVersionFile Condition="'$(AppVersionFile)' == ''">$(MSBuildProjectDirectory)\Version.txt</AppVersionFile>
@@ -20,26 +19,44 @@
     <Version>$(AppVersion)</Version>
     <InformationalVersion>$(AppVersion)</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <PublishDir>..\publish\</PublishDir>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(MaestroPlatform)' == 'Windows'">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(MaestroPlatform)' == 'macOS' and $([MSBuild]::IsOSPlatform('OSX')) and '$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)' == 'X64'">osx-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(MaestroPlatform)' == 'macOS'">osx-arm64</RuntimeIdentifier>
+    <PublishDir Condition="'$(MaestroPlatform)' == 'Windows'">../publish/</PublishDir>
+    <PublishDir Condition="'$(MaestroPlatform)' == 'macOS'">../publish-macos/$(RuntimeIdentifier)/raw/</PublishDir>
     <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishSingleFile Condition="'$(MaestroPlatform)' == 'Windows'">true</PublishSingleFile>
+    <IncludeAllContentForSelfExtract Condition="'$(MaestroPlatform)' == 'Windows'">true</IncludeAllContentForSelfExtract>
+    <PublishReadyToRun Condition="'$(MaestroPlatform)' == 'Windows'">true</PublishReadyToRun>
+    <EnableCompressionInSingleFile Condition="'$(MaestroPlatform)' == 'Windows'">true</EnableCompressionInSingleFile>
+    <!-- An ordinary self-contained bundle allows each Mac native binary to be signed. -->
+    <PublishSingleFile Condition="'$(MaestroPlatform)' == 'macOS'">false</PublishSingleFile>
+    <PublishReadyToRun Condition="'$(MaestroPlatform)' == 'macOS'">false</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="preset_maestro.ico" />
     <ProjectReference Include="..\PresetNameSync.Core\PresetNameSync.Core.csproj" />
     <ProjectReference Include="..\PresetMaestro.FractalIndex\PresetMaestro.FractalIndex.csproj" Condition="'$(EnableFractalIndex)' == 'true'" />
-    <!-- Use only the Windows UI and MIDI backends; the umbrella packages pull in unused platforms and WinForms. -->
+    <!-- Never use Avalonia.Desktop or NAudio umbrella packages: backends are selected below. -->
     <PackageReference Include="Avalonia" Version="11.2.3" />
-    <PackageReference Include="Avalonia.Win32" Version="11.2.3" />
     <PackageReference Include="Avalonia.Skia" Version="11.2.3" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(MaestroPlatform)' == 'Windows'">
+    <PackageReference Include="Avalonia.Win32" Version="11.2.3" />
     <PackageReference Include="NAudio.Midi" Version="3.0.1" />
     <PackageReference Include="NAudio.WinMM" Version="3.0.1" />
+    <Compile Remove="Platforms/macOS/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MaestroPlatform)' == 'macOS'">
+    <PackageReference Include="Avalonia.Native" Version="11.2.3" />
+    <!-- 8.x's build targets copy Windows DLLs too. Opt out and select only the Mac asset. -->
+    <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.3" ExcludeAssets="build;buildTransitive" GeneratePathProperty="true" />
+    <None Include="$(PkgMelanchall_DryWetMidi)/build/Melanchall_DryWetMidi_Native64.dylib"
+          Link="Melanchall_DryWetMidi_Native64.dylib" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Compile Remove="Platforms/Windows/**/*.cs" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(EnableFractalIndex)' == 'true'">
@@ -47,5 +64,6 @@
   </PropertyGroup>
 
   <Import Project="..\scripts\PublishVersion.targets" />
+  <Import Project="../build/PlatformPublish.targets" />
 
 </Project>

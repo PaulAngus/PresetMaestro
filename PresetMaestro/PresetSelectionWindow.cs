@@ -217,7 +217,11 @@ public sealed class PresetSelectionWindow : Window
             }
             e.Handled = true; return;
         }
-        if (e.Key == Key.F && e.KeyModifiers.HasFlag(KeyModifiers.Control)) { _search.Focus(); _search.SelectAll(); e.Handled = true; return; }
+        var hotkeys = PlatformSettings?.HotkeyConfiguration;
+        if (e.Key == Key.F && e.KeyModifiers == (hotkeys?.CommandModifiers ?? KeyModifiers.Control))
+        {
+            _search.Focus(); _search.SelectAll(); e.Handled = true; return;
+        }
         if (_search.IsKeyboardFocusWithin)
         {
             if (e.Key is Key.Down or Key.Up) { FocusSelection(); e.Handled = true; }
@@ -228,24 +232,36 @@ public sealed class PresetSelectionWindow : Window
             return;
         }
 
-        PresetNavigation? move = e.Key switch
-        {
-            Key.Left => PresetNavigation.Left,
-            Key.Right => PresetNavigation.Right,
-            Key.Up => PresetNavigation.Up,
-            Key.Down => PresetNavigation.Down,
-            Key.Home => e.KeyModifiers.HasFlag(KeyModifiers.Control) ? PresetNavigation.First : PresetNavigation.Home,
-            Key.End => e.KeyModifiers.HasFlag(KeyModifiers.Control) ? PresetNavigation.Last : PresetNavigation.End,
-            Key.PageUp => PresetNavigation.PageUp,
-            Key.PageDown => PresetNavigation.PageDown,
-            _ => null
-        };
+        PresetNavigation? move = hotkeys?.MoveCursorToTheStartOfDocument.Any(gesture => gesture.Matches(e)) == true
+            ? PresetNavigation.First
+            : hotkeys?.MoveCursorToTheEndOfDocument.Any(gesture => gesture.Matches(e)) == true
+                ? PresetNavigation.Last
+                : e.Key switch
+                {
+                    Key.Left => PresetNavigation.Left,
+                    Key.Right => PresetNavigation.Right,
+                    Key.Up => PresetNavigation.Up,
+                    Key.Down => PresetNavigation.Down,
+                    Key.Home => PresetNavigation.Home,
+                    Key.End => PresetNavigation.End,
+                    Key.PageUp => PresetNavigation.PageUp,
+                    Key.PageDown => PresetNavigation.PageDown,
+                    _ => null
+                };
         if (move == null)
         {
             return;
         }
 
         int target = PresetSelection.MoveIndex(_presets.SelectedIndex, _presets.Items.Count, _grid.Columns, move.Value, Math.Max(1, (int)(_presets.Bounds.Height / RowHeight) - 1));
+        if (move is PresetNavigation.First or PresetNavigation.Last)
+        {
+            // The grid is column-major: the final visual row can contain padding and earlier slots.
+            var ordered = Enumerable.Range(0, _presets.Items.Count)
+                .Where(index => ((ListBoxItem)_presets.Items[index]!).Tag is PresetChoice)
+                .OrderBy(index => ((PresetChoice)((ListBoxItem)_presets.Items[index]!).Tag!).Slot).ToArray();
+            target = ordered.Length == 0 ? -1 : move == PresetNavigation.First ? ordered[0] : ordered[^1];
+        }
         if (target >= 0 && ((ListBoxItem)_presets.Items[target]!).Tag is not PresetChoice)
         {
             while (target >= 0 && ((ListBoxItem)_presets.Items[target]!).Tag is not PresetChoice)

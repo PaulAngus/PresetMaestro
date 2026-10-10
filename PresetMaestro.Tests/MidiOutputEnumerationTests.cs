@@ -1,5 +1,5 @@
 using NAudio;
-using PresetMaestro.Midi;
+using PresetMaestro.Platforms;
 
 namespace PresetMaestro.Tests;
 
@@ -9,7 +9,7 @@ public class MidiOutputEnumerationTests
     public void UnavailableDriverDoesNotHideHealthyOutputsOrChangeDeviceIndices()
     {
         var visited = new List<int>();
-        var ports = MidiManager.GetOutputPorts(4, index =>
+        var ports = MidiBackend.GetOutputPorts(4, index =>
         {
             visited.Add(index);
             return index switch

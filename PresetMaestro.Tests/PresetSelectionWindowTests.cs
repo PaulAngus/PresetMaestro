@@ -44,6 +44,43 @@ public class PickerTestApp : App
 
 public class PresetSelectionWindowTests
 {
+    [AvaloniaTheory]
+    [InlineData(KeyModifiers.Control, Key.Home, Key.End)]
+    [InlineData(KeyModifiers.Meta, Key.Up, Key.Down)]
+    public void SearchAndDocumentNavigationFollowPlatformKeyboardConventions(KeyModifiers command, Key firstKey, Key lastKey)
+    {
+        var window = new PresetSelectionWindow(new Dictionary<int, string>(), 3);
+        var hotkeys = window.PlatformSettings!.HotkeyConfiguration;
+        var previousCommand = hotkeys.CommandModifiers;
+        var previousFirst = hotkeys.MoveCursorToTheStartOfDocument;
+        var previousLast = hotkeys.MoveCursorToTheEndOfDocument;
+        try
+        {
+            hotkeys.CommandModifiers = command;
+            hotkeys.MoveCursorToTheStartOfDocument = [new(firstKey, command)];
+            hotkeys.MoveCursorToTheEndOfDocument = [new(lastKey, command)];
+            window.Show(); Layout();
+            var list = Find<ListBox>(window, "PresetList");
+            var search = Find<TextBox>(window, "PresetSearch");
+            window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
+            Assert.True(list.IsKeyboardFocusWithin);
+            window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = lastKey, KeyModifiers = command });
+            Assert.Equal(511, Slot(list));
+            window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = firstKey, KeyModifiers = command });
+            Assert.Equal(0, Slot(list));
+            window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.F, KeyModifiers = command });
+            Assert.True(search.IsKeyboardFocusWithin);
+            Assert.Equal(0, Slot(list));
+        }
+        finally
+        {
+            hotkeys.CommandModifiers = previousCommand;
+            hotkeys.MoveCursorToTheStartOfDocument = previousFirst;
+            hotkeys.MoveCursorToTheEndOfDocument = previousLast;
+            window.Close();
+        }
+    }
+
     private static T Find<T>(Window window, string name) where T : Control =>
         window.GetVisualDescendants().OfType<T>().Single(c => c.Name == name);
     private static void Layout() => Dispatcher.UIThread.RunJobs();

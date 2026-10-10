@@ -1,0 +1,29 @@
+<Project>
+  <!-- Choose once, before the SDK selects intermediate paths and restores packages.
+       A RID takes precedence over the build host, allowing cross-publishing. -->
+  <PropertyGroup>
+    <MaestroPlatform Condition="'$(MaestroPlatform)' == '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">Windows</MaestroPlatform>
+    <MaestroPlatform Condition="'$(MaestroPlatform)' == '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">macOS</MaestroPlatform>
+    <MaestroPlatform Condition="'$(MaestroPlatform)' == '' and '$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">Windows</MaestroPlatform>
+    <MaestroPlatform Condition="'$(MaestroPlatform)' == '' and '$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">macOS</MaestroPlatform>
+    <TargetFramework Condition="'$(MaestroPlatform)' == 'Windows'">net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework Condition="'$(MaestroPlatform)' == 'macOS'">net10.0</TargetFramework>
+    <TargetFramework Condition="'$(TargetFramework)' == ''">net10.0</TargetFramework>
+    <EnableWindowsTargeting Condition="'$(MaestroPlatform)' == 'Windows'">true</EnableWindowsTargeting>
+    <BaseIntermediateOutputPath>obj/$(MaestroPlatform)/</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin/$(MaestroPlatform)/</BaseOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(ArtifactsPath)' != ''">$(ArtifactsPath)/obj/$(MSBuildProjectName)/$(MaestroPlatform)/</BaseIntermediateOutputPath>
+    <BaseOutputPath Condition="'$(ArtifactsPath)' != ''">$(ArtifactsPath)/bin/$(MSBuildProjectName)/$(MaestroPlatform)/</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+    <DefineConstants Condition="'$(MaestroPlatform)' == 'Windows'">$(DefineConstants);MAESTRO_WINDOWS</DefineConstants>
+    <DefineConstants Condition="'$(MaestroPlatform)' == 'macOS'">$(DefineConstants);MAESTRO_MACOS</DefineConstants>
+  </PropertyGroup>
+  <Target Name="ValidateDesktopPlatform" BeforeTargets="CollectPackageReferences;PrepareForBuild">
+    <Error Condition="'$(MaestroPlatform)' != 'Windows' and '$(MaestroPlatform)' != 'macOS'"
+           Text="Preset Maestro supports Windows and macOS only. Choose win-x64, osx-arm64 or osx-x64; Linux is not a target." />
+    <Error Condition="'$(RuntimeIdentifier)' != '' and '$(RuntimeIdentifier)' != 'win-x64' and '$(RuntimeIdentifier)' != 'osx-arm64' and '$(RuntimeIdentifier)' != 'osx-x64'"
+           Text="Unsupported Preset Maestro runtime '$(RuntimeIdentifier)'. Choose win-x64, osx-arm64 or osx-x64." />
+    <Error Condition="('$(MaestroPlatform)' == 'Windows' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))) or ('$(MaestroPlatform)' == 'macOS' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-')))"
+           Text="MaestroPlatform and RuntimeIdentifier must select the same operating system." />
+  </Target>
+</Project>

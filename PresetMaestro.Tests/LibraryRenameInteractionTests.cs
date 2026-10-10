@@ -150,7 +150,7 @@ public sealed partial class LibraryManagementTests
         finally { window.Close(); }
     }
 
-    [AvaloniaFact]
+    [WindowsFileLockAvaloniaFact]
     public async Task LibraryRenameSaveFailureKeepsDialogOpenAndAllowsRetry()
     {
         var (window, _, _, library, device, midi) = RenameWindow();

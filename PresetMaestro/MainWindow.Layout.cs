@@ -103,7 +103,7 @@ public partial class MainWindow
         return grid;
     }
 
-    private static TextBox CreateSelectableLog(string fontFamily, double fontSize)
+    private static TextBox CreateSelectableLog(FontFamily fontFamily, double fontSize)
     {
         var log = new TextBox
         {
@@ -111,7 +111,7 @@ public partial class MainWindow
             IsReadOnly = true,
             AcceptsReturn = true,
             TextWrapping = TextWrapping.NoWrap,
-            FontFamily = new FontFamily(fontFamily),
+            FontFamily = fontFamily,
             FontSize = fontSize,
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),

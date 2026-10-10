@@ -375,7 +375,7 @@ public class FractalConnectionTests
         try
         {
             await window.ConnectAsync();
-            midi.OutputEnumerationError = new NAudio.MmException(NAudio.MmResult.NoDriver, "midiOutGetDevCaps");
+            midi.OutputEnumerationError = new IOException("MIDI output driver unavailable");
             await window.CheckConnectedDevicesAsync("FM9", "FM9");
             await window.CheckConnectedDevicesAsync("FM9", "FM9");
             Assert.True(midi.InputOpen && midi.OutputOpen);

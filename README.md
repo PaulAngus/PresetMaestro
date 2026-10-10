@@ -1,6 +1,8 @@
 # Preset Maestro
 
-A Windows 10 version 2004 or later desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10, Avalonia, and NAudio. MIDI input uses NAudio's WinRT backend so long-running systems are not exposed to the legacy WinMM signed timestamp overflow; output continues to use WinMM.
+A desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10 and Avalonia. The established Windows build targets Windows 10 version 2004 or later. macOS preparation targets Apple Silicon (including M2) on macOS 15 or later, with native launch and MIDI hardware acceptance still pending. Windows and Mac packages include only their own desktop and MIDI backends; Linux is not a target.
+
+Windows MIDI input uses NAudio's WinRT backend so long-running systems are not exposed to the legacy WinMM signed timestamp overflow; output continues to use WinMM. The Mac backend uses CoreMIDI through DryWetMIDI. See [Windows and macOS development](docs/windows-macos-development.md) for builds, Mac setup, signing and the remaining acceptance checks.
 
 FM9 preset and scene name reads are supported by the current protocol code. FM3 and Axe-Fx III can be identified and used for numeric preset sending, but name reads and scene-state tracking are disabled for those models until their device transactions are verified. The Axe-Fx III picker still offers all 1024 numeric preset slots; names for those slots cannot currently be synchronized.
 
@@ -28,7 +30,7 @@ The selected profile details show both the device model and its device name. Con
 
 Before activating a different profile, the app checks its device type, device name, and saved preset and scene names against the connected device. Name checks use read-only queries and do not select a preset. An **OK/Cancel** warning lists any mismatches or checks that could not be completed, including missing cached names and name reads unsupported by the device. If disconnected, a warning explains that the profile cannot be checked. **OK** continues switching; **Cancel** keeps the current profile and unsaved favorite edits. This also applies when creating or copying a profile, or choosing a replacement for a deleted active profile.
 
-Each profile has two files in `%APPDATA%\PresetMaestro`:
+Each profile has two files in `%APPDATA%\PresetMaestro` on Windows, or `~/Library/Application Support/PresetMaestro` on macOS:
 
 - `<profile>-favorites.json`: favorite slots, names, preset/scene mappings, and tags.
 - `<profile>-settings.json`: device model and name, device assignment, and cached preset/scene names. Legacy mapping values are retained for compatibility; an assigned device's saved mapping takes precedence.
@@ -101,7 +103,7 @@ Developer notes and the verification procedure are in [FAVORITES.md](FAVORITES.m
 4. Click a preset and **Select Preset**, or press **Enter**, to use it in the Favorite draft. **Go to preset** or double-click auditions it on the connected device while keeping the picker open. **Escape** or **Cancel** leaves the Favorite draft unchanged.
 5. Choose the scene and other Favorite details, then use the editor's existing **Save** button.
 
-The dialog has five columns at its default size, fewer when narrowed, and a vertical scrollbar. Arrow keys navigate the grid; Up/Down from the search box moves focus into the grid. Home/End move within a row, Ctrl+Home/Ctrl+End go to the first/last result, Page Up/Down move by a page, and Ctrl+F returns to search. The blue highlight and left-edge marker identify the selected preset.
+The dialog has five columns at its default size, fewer when narrowed, and a vertical scrollbar. Arrow keys navigate the grid; Up/Down from the search box moves focus into the grid. Home/End move within a row, Ctrl+Home/Ctrl+End go to the first/last result, Page Up/Down move by a page, and Ctrl+F returns to search. On Mac, use Command+Up/Command+Down for the first/last result and Command+F for search. The blue highlight and left-edge marker identify the selected preset.
 
 Names come from the existing preset-name cache. Before syncing, unknown slots show `(name unavailable)` but can still be selected by number. On FM9, use **Config → MIDI Connection → Sync options… → Sync names**, or the editor's **↻ Sync** shortcut, to populate names, then reopen the picker. Both show progress and results in the shared sync dialog. A successful device check or accepted complete device sync also supplies preset names.
 
@@ -126,11 +128,11 @@ A cancelled device scan retains completed reads. Choose **Resume** to continue a
 
 ## Saved data
 
-Computer settings are in `%APPDATA%\PresetMaestro\settings.json`. Each `<profile>-settings.json` contains that profile's preset-name and scene-name caches, including when and how each scene-name entry was read. The app does not automatically expire old scene names.
+Computer settings are in `%APPDATA%\PresetMaestro\settings.json` on Windows or `~/Library/Application Support/PresetMaestro/settings.json` on Mac. Each `<profile>-settings.json` contains that profile's preset-name and scene-name caches, including when and how each scene-name entry was read. The app does not automatically expire old scene names.
 
 ## Build, run, and test
 
-Run these commands from the repository root with the .NET 10 SDK installed:
+Run these Windows commands from the repository root with the .NET 10 SDK installed:
 
 ```powershell
 dotnet run --project .\PresetMaestro\PresetMaestro.csproj
@@ -140,7 +142,9 @@ dotnet format .\PresetMaestro.slnx --verify-no-changes --no-restore
 .\Publish-App.ps1
 ```
 
-Windows CI repeats the Release build, regression tests, formatting checks and optional-feature build, and retains test results and coverage. For local coverage, run `dotnet test .\PresetMaestro.slnx --configuration Release --collect:"XPlat Code Coverage"`. The [4 October 2026 code review](docs/code-review-2026-10-04.md) records corrected failure paths, coverage evidence and the completed follow-up work.
+CI is configured for separate Windows and Apple Silicon Mac jobs, including builds, regression tests, formatting, optional-feature builds and retained coverage. Windows additionally verifies cross-platform package isolation; Mac builds a locally signed testing archive. The Mac job still needs its first native run. For local coverage, run `dotnet test .\PresetMaestro.slnx --configuration Release --collect:"XPlat Code Coverage"`. The [4 October 2026 code review](docs/code-review-2026-10-04.md) records earlier corrected failure paths and coverage evidence.
+
+On the M2 Mac, install the Arm64 .NET 10 SDK and PowerShell 7, then run `dotnet build PresetMaestro.slnx -c Release`, `dotnet test PresetMaestro.slnx -c Release`, and `pwsh ./Publish-Mac.ps1`. This produces a self-contained `.app` and ZIP under `publish-macos/osx-arm64/<version>/`, reusing the recorded release version without incrementing it. Building on Windows with `./Publish-Mac.ps1` prepares the same bundle structure, but native launch, signing and hardware validation require macOS. Follow the [Mac preparation and release guide](docs/windows-macos-development.md) before distributing it.
 
 Publishing automatically increments the patch version recorded in `PresetMaestro\Version.txt`: `1.2` → `1.2.1` → `1.2.2`. Ordinary builds and tests do not increment it. The app's displayed version and executable metadata are stamped before compilation, and the version file is updated only after publishing succeeds. This applies to both `Publish-App.ps1` and direct `dotnet publish` commands. Publishing with `--no-build` is rejected because an existing executable cannot be stamped with the new version.
 
@@ -150,7 +154,7 @@ To choose a specific version, run `.\Publish-App.ps1 -Version 1.3.0` or `dotnet 
 
 Run `.\scripts\Test-PublishVersion.ps1` to check automatic increments, explicit overrides, embedded version metadata and failure handling using isolated version files and output folders. These checks also run in Windows CI and do not alter the real version file or distribution copies. Direct `dotnet msbuild -target:Publish` is rejected; use `dotnet publish` so version preparation occurs before compilation.
 
-The Windows x64 executable includes its .NET runtime and needs no separate .NET installation. The project references only Avalonia's Windows and Skia backends and NAudio's MIDI/WinMM packages, avoiding unused desktop platforms, audio playback packages, and the WinForms runtime. Single-file compression reduces distribution size; ReadyToRun remains enabled and code trimming is not used. Compressed assemblies are unpacked on startup, so the executable's size is smaller than its extracted runtime payload.
+The Windows x64 executable includes its .NET runtime and needs no separate .NET installation. Its build references only Avalonia's Windows and Skia backends and NAudio's MIDI/WinMM packages, avoiding unused desktop platforms, audio playback packages, and the WinForms runtime. Single-file compression reduces distribution size; ReadyToRun remains enabled and code trimming is not used. Compressed assemblies are unpacked on startup, so the executable's size is smaller than its extracted runtime payload. Mac builds have their own Avalonia.Native/CoreMIDI dependencies and a separate output directory. Publish checks reject native libraries or desktop backends belonging to the other OS or Linux.
 
 The solution-level test command runs the maintained application and shared-protocol regression tests. The suite includes preset-catalog and headless Avalonia dialog tests for ordering, filtering, resizing, selection, and keyboard interaction. Scene tests use simulated MIDI, synthetic compressed presets and a captured FM9 replay fixture. Opt-in [physical device suites](docs/hardware-tests.md) cover read-only FM9 checks, multi-model compatibility reports and explicitly enabled preset/scene navigation. Normal tests and CI never send to hardware. Builds enforce the repository's `.editorconfig`, Microsoft recommended .NET analyzers, nullable reference types, and warnings-as-errors.
 

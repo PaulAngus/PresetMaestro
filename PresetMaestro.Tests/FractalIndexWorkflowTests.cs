@@ -322,7 +322,9 @@ public sealed class FractalIndexWorkflowTests : IDisposable
     [InlineData(false, "names differ", "Light", 1200, 900)]
     [InlineData(false, "cancelled", "Light", 1200, 900)]
     [InlineData(false, "imported", "Light", 1200, 900)]
-    [InlineData(false, "save fails", "Light", 1200, 900)]
+#if MAESTRO_WINDOWS
+    [InlineData(false, "save fails", "Light", 1200, 900)] // Failure is injected with a Windows FileShare lock.
+#endif
     [InlineData(false, "firmware unavailable", "Light", 1200, 900)]
     [InlineData(false, "content differs", "Light", 1000, 640)]
     [InlineData(false, "content differs", "Dark", 1000, 640)]

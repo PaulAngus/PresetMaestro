@@ -1,6 +1,6 @@
 # Physical Fractal tests
 
-These are developer diagnostics, separate from the normal hardware-independent suite. They use the production Windows MIDI transport, stored-preset reader, decoder and catalogue. Each run writes TRX, timestamped transmitted/received MIDI frames and JSON evidence beneath ignored `build_test/hardware` or `build_test/compatibility`; it does not open the application's profile store. Close PresetMaestro and other MIDI editors first, and run only one physical suite at a time.
+These are developer diagnostics, separate from the normal hardware-independent suite. They use the host platform's production MIDI transport, stored-preset reader, decoder and catalogue. Windows hardware evidence is recorded below; the new macOS/CoreMIDI transport still needs physical acceptance. Run the scripts with PowerShell 7 (`pwsh`) on Mac. Each run writes TRX, timestamped transmitted/received MIDI frames and JSON evidence beneath ignored `build_test/hardware` or `build_test/compatibility`; it does not open the application's profile store. Close PresetMaestro and other MIDI editors first, and run only one physical suite at a time.
 
 ## Commands
 

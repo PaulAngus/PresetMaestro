@@ -22,7 +22,7 @@ public partial class MainWindow
         {
             Name = "IndexPresetNumber",
             Text = "---",
-            FontFamily = new FontFamily("Bahnschrift"),
+            FontFamily = AppFonts.Display,
             FontSize = 20,
             FontWeight = FontWeight.Bold,
             HorizontalAlignment = HorizontalAlignment.Center,

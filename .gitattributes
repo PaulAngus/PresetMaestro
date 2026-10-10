@@ -1,0 +1,5 @@
+# Keep binary assets untouched and source formatting identical on both build hosts.
+* text=auto
+# The existing C# formatter requires CRLF; make Mac checkouts obey it too.
+*.cs text eol=crlf
+*.csx text eol=crlf

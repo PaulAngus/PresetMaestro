@@ -37,7 +37,7 @@ public sealed class MidiMappingWindow : Window
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = ColorBrush("#FFFFFF", "#202833");
-        FontFamily = new FontFamily("Segoe UI");
+        FontFamily = AppFonts.Body;
         Foreground = ColorBrush("#1D2B3B", "#E9EEF5");
 
         foreach (var pair in noteMap)

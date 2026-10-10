@@ -35,7 +35,7 @@ public sealed class ProfileOverwriteTests : IDisposable
         Assert.Equal("Default", new ProfileStore(_directory).LoadSettings().ActiveProfile);
     }
 
-    [Theory]
+    [WindowsFileLockTheory]
     [InlineData("Default-favorites.json")]
     [InlineData("settings.json")]
     public void FailedOverwriteRestoresOriginalPairAndCatalog(string lockedFile)

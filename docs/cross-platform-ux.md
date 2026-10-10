@@ -1,0 +1,18 @@
+# Windows and macOS UX decisions
+
+Reviewed 8 October 2026. This work keeps the existing Avalonia Fluent theme and layouts, while adapting OS-specific keyboard and font choices. Native Mac visual approval remains pending until the M2 is available.
+
+## Primary guidance and implementation
+
+- [Microsoft keyboard interaction guidance](https://learn.microsoft.com/en-us/windows/apps/develop/input/keyboard-interactions) calls for standard control behaviour, logical navigation and predictable focus. [Fluent 2 accessibility guidance](https://fluent2.microsoft.design/accessibility) emphasizes visible focus and returning focus after temporary UI closes. Existing dialog dismissal, native window decorations, control automation names and focus restoration are retained.
+- [Apple's keyboard guidance](https://developer.apple.com/design/human-interface-guidelines/keyboards) recommends standard shortcuts so knowledge transfers between apps. The preset picker's Find command uses Avalonia's platform command modifier: Ctrl on Windows, Command on macOS. First/last-preset navigation uses the platform's document-navigation gestures. This also corrects the final-preset destination in a column-major grid with padding. Modified keys are excluded from the app's unmodified numeric-entry/send shortcuts, so a Command/Control shortcut cannot accidentally enter or send a preset.
+- [Fluent 2 typography](https://fluent2.microsoft.design/typography) defines the Windows type ramp around Segoe UI Variable. [Apple's font guidance](https://developer.apple.com/documentation/technologyoverviews/fonts) favors system fonts and their language coverage. `AppFonts` retains existing Windows faces and selects Avalonia's default UI face plus Menlo for Mac diagnostics. No Windows or Apple font files are redistributed. Actual Mac rendering and font fallback still require inspection.
+- [.NET's application-data mapping](https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/8.0/getfolderpath-unix) places `ApplicationData` in the appropriate user folder on both platforms. The existing storage API already uses it: `%APPDATA%/PresetMaestro` on Windows, `~/Library/Application Support/PresetMaestro` on macOS. Profile names now use a common portable filename policy, and case-insensitive name collisions are rejected even on a case-sensitive Mac volume.
+
+## Product choices and deliberate limits
+
+The shared Fluent styling is a product choice, not a claim to reproduce AppKit controls. Native window chrome and Avalonia's native file pickers remain OS-owned. The app continues to use a saved Light/Dark preference. It remains a single-window MIDI controller that closes its device connections when the last window closes; persistent document-app/Dock reopening behaviour has not been added. Verify the default Mac menu and quit behaviour during native acceptance before changing that lifecycle.
+
+The Mac bundle icon is a lossless container conversion of the existing brand icon at 16–256 pixels. It introduces no visual redesign. A future high-resolution source could improve very large Finder previews; the current asset needs a Retina visual check.
+
+No new details panes or dismissal/task controls were introduced. The existing close-at-header, Escape and focus-return requirements remain applicable to future UI work. Keyboard tests exercise both Windows and Mac command configurations, actual selection/focus changes and suppression of modified preset commands. Windows renders are inspected in both themes and at supported narrow/normal sizes; a Windows headless render is not a substitute for Mac rendering or VoiceOver verification. See the [M2 acceptance checklist](windows-macos-development.md#m2-acceptance-checklist--pending).

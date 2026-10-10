@@ -207,7 +207,7 @@ public sealed partial class LibraryManagementTests : IDisposable
         finally { window.Close(); }
     }
 
-    [AvaloniaFact]
+    [WindowsFileLockAvaloniaFact]
     public void MappingSaveFailureKeepsLibraryAndLiveMappingUnchangedAndAllowsRetry()
     {
         var store = new ProfileStore(_directory);
@@ -358,8 +358,11 @@ public sealed partial class LibraryManagementTests : IDisposable
         library.Save(new DeviceIndex { Device = other }); profile.AssignDevice(other);
         settings.FractalIndex = IndexJson.ToElement(profile); store.SaveSettings(settings);
         store.Create("Second", new ProfileSettings { FractalIndex = IndexJson.ToElement(profile) });
-        using (var locked = new FileStream(Path.Combine(library.DirectoryPath, device.Id.ToString("N") + ".json"), FileMode.Open, FileAccess.Read, FileShare.Read))
+        // POSIX permits unlinking open files. Exercise this additional Windows failure mode there,
+        // then verify successful deletion and cross-profile cleanup on both platforms below.
+        if (OperatingSystem.IsWindows())
         {
+            using var locked = new FileStream(Path.Combine(library.DirectoryPath, device.Id.ToString("N") + ".json"), FileMode.Open, FileAccess.Read, FileShare.Read);
             Assert.Throws<IOException>(() => store.DeleteIndexLibrary(device.Id, settings.ActiveProfile, settings.FractalIndex));
             foreach (string name in store.ListProfiles())
             { Assert.Single(IndexJson.ReadProfile(store.LoadProfile(name).FractalIndex).Annotations); }

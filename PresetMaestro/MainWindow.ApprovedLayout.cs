@@ -275,7 +275,7 @@ public partial class MainWindow
 
     private Control ApprovedDisplay()
     {
-        _displayLabel = new TextBlock { Text = "---", FontFamily = new FontFamily("Bahnschrift"), FontSize = 56, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, LetterSpacing = 2 };
+        _displayLabel = new TextBlock { Text = "---", FontFamily = AppFonts.Display, FontSize = 56, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, LetterSpacing = 2 };
         _currentPresetNameLabel = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = SecondaryBrush };
         _currentSceneNameLabel = new TextBlock { FontSize = 13, Foreground = SecondaryBrush };
         var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto") };
@@ -304,7 +304,7 @@ public partial class MainWindow
         var housing = new Border { Background = send ? AccentBrush : UiBorderBrush, CornerRadius = new CornerRadius(7), Padding = new Thickness(1, 1, 1, 2), Margin = new Thickness(3), BoxShadow = Elevation };
         var face = new Border { Background = send ? AccentBrush : SurfaceBrush, CornerRadius = new CornerRadius(6) };
         var grid = new Grid { MinHeight = 52 };
-        grid.Children.Add(new TextBlock { Text = label, Foreground = send ? Brushes.White : label == "CLR" ? DangerBrush : TextBrush, FontFamily = new FontFamily(command ? "Segoe UI Variable" : "Bahnschrift"), FontSize = command ? 12 : send ? 16 : 20, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+        grid.Children.Add(new TextBlock { Text = label, Foreground = send ? Brushes.White : label == "CLR" ? DangerBrush : TextBrush, FontFamily = command ? AppFonts.Command : AppFonts.Display, FontSize = command ? 12 : send ? 16 : 20, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
         var hit = new Button
         {
             Background = Brushes.Transparent,
@@ -415,7 +415,7 @@ public partial class MainWindow
         card.Name = "MidiLogCard";
         card.Height = 500;
         var layout = new Grid { RowDefinitions = new RowDefinitions("*,Auto") };
-        _logTextBox = CreateSelectableLog("Cascadia Mono", 12);
+        _logTextBox = CreateSelectableLog(AppFonts.Monospace, 12);
         layout.Children.Add(_logTextBox);
         var footer = new StackPanel { Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
         _syncTimingToggle = new ToggleSwitch
@@ -465,7 +465,7 @@ public partial class MainWindow
 
     private Control BuildApprovedFavoriteLibrary()
     {
-        _favoritesDisplayLabel = new TextBlock { Text = "---", FontFamily = new FontFamily("Bahnschrift"), FontSize = 20, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        _favoritesDisplayLabel = new TextBlock { Text = "---", FontFamily = AppFonts.Display, FontSize = 20, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var card = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(16, 11, 12, 17), BoxShadow = Elevation };
         var content = new Grid { RowDefinitions = new RowDefinitions("Auto,8,*") };
         var header = new Grid { Name = "FavoriteToolbar", ColumnDefinitions = new ColumnDefinitions("*,Auto") };
@@ -866,7 +866,7 @@ public partial class MainWindow
     private static ControlTheme CompactListItemTheme() => new(typeof(ListBoxItem)) { Setters = { new Setter(ListBoxItem.PaddingProperty, new Thickness(0)), new Setter(ListBoxItem.MinHeightProperty, 0d), new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch), new Setter(ListBoxItem.BackgroundProperty, Brushes.Transparent) } };
     private static Control ApprovedField(string label, Control input) => new StackPanel { Spacing = 5, Children = { new TextBlock { Text = label.ToUpperInvariant(), FontSize = 11, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush }, input } };
     private static Control CompactField(string label, Control input) => new StackPanel { Spacing = 4, Children = { new TextBlock { Text = label, FontSize = 12, Foreground = SecondaryBrush }, input } };
-    private static TextBlock Value() => new() { Text = "---", FontFamily = new FontFamily("Cascadia Mono"), FontWeight = FontWeight.SemiBold, Foreground = TextBrush, Margin = new Thickness(0, 7) };
+    private static TextBlock Value() => new() { Text = "---", FontFamily = AppFonts.Monospace, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, Margin = new Thickness(0, 7) };
     private static IBrush ThemeBrush(string key) => (IBrush)Application.Current!.Resources[key]!;
     private static IBrush Brush(string hex) => new SolidColorBrush(Color.Parse(hex));
 }

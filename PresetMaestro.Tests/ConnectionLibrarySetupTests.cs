@@ -380,7 +380,7 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
         finally { window.Close(); }
     }
 
-    [Fact]
+    [WindowsFileLockFact]
     public void FailedProfileUpdateRollsBackReferencesAndPreservesTheOccupiedLibrary()
     {
         var store = new ProfileStore(_directory); var settings = store.LoadSettings();
