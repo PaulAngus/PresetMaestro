@@ -221,7 +221,7 @@ public partial class FavoriteEditorTests
         var window = CreateWindow(favorites: favorites);
         try
         {
-            window.Show(); window.Width = 1100; Click(Find<Button>(window, "NavFavorites")); Dispatcher.UIThread.RunJobs();
+            window.Width = 1100; window.Show(); Click(Find<Button>(window, "NavFavorites")); Dispatcher.UIThread.RunJobs();
             var list = Field<ListBox>(window, "_favListBox");
             var panel = Field<FavoriteTablesPanel>(window, "_favTablesPanel");
             var viewer = list.GetVisualDescendants().OfType<ScrollViewer>().Single();
@@ -247,6 +247,8 @@ public partial class FavoriteEditorTests
             Assert.InRange(Find<Button>(window, "NavFavorites").TranslatePoint(default, window)!.Value.X, 350, 650);
             header = Find<Grid>(window, "FavoriteTableHeader");
             var handle = header.Children.OfType<GridSplitter>().First();
+            // Hit testing must use the current viewport after the preceding resizes.
+            window.CaptureRenderedFrame()?.Dispose();
             var point = handle.TranslatePoint(new Point(handle.Bounds.Width / 2, handle.Bounds.Height / 2), window)!.Value;
             double before = header.ColumnDefinitions[0].ActualWidth;
             window.MouseDown(point, MouseButton.Left); window.MouseMove(point + new Vector(18, 0), RawInputModifiers.LeftMouseButton); window.MouseUp(point + new Vector(18, 0), MouseButton.Left); Dispatcher.UIThread.RunJobs();

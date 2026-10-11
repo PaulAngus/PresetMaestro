@@ -41,6 +41,8 @@ public partial class MainWindow
     private int? _indexSelectedScene;
     private Border? _indexConnectionSyncBanner;
     private TextBlock? _indexConnectionSyncTitle, _indexConnectionSyncSummary;
+    private ToggleButton? _indexTagMatchAny, _indexTagMatchAll;
+    private Border? _indexTagMatchThumb;
 
     private static Button IndexButton(string text, string? name = null) => new()
     {
@@ -54,20 +56,26 @@ public partial class MainWindow
 
     partial void RestoreIndexPage(ContentControl host)
     {
+        if (_indexSceneList is not null) { SaveIndexViewState(); }
         _indexPageControl = BuildIndexPage();
         _ampsPage = BuildAmpsPage();
         if (_currentPage == AppPage.PresetIndex) { host.Content = _indexPageControl; }
         if (_currentPage == AppPage.Amps) { host.Content = _ampsPage; }
+        RestoreIndexScroll(_indexViewStates[(int)_indexView].Offset);
     }
 
     partial void AddIndexNavigation(StackPanel nav, Func<string, Control, AppPage, EntryMode?, Button> create)
     {
-        var button = create("Preset Index", _indexPageControl!, AppPage.PresetIndex, EntryMode.Preset);
+        var button = create("Presets and scenes", _indexPageControl!, AppPage.PresetIndex, EntryMode.Preset);
+        button.Name = "NavPresetIndex";
         _presetIndexNavigation = button;
         button.Click += (_, _) =>
         {
+            if (_openingAmpPresets) { SwitchIndexView(IndexView.Presets); }
             if (!_openingAmpPresets) { _ampContains = null; }
+            SaveIndexViewState();
             RefreshIndexContext();
+            RestoreIndexScroll(_indexViewStates[(int)_indexView].Offset);
         };
         nav.Children.Add(button);
         _ampsNavigation = create("Amps", _ampsPage!, AppPage.Amps, null);
@@ -81,8 +89,11 @@ public partial class MainWindow
         var card = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(16, 11, 12, 12), BoxShadow = Elevation };
         var content = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,*,Auto") };
         var title = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 0, 0, 8) };
-        _indexPageTitle = new TextBlock { Name = "IndexPageTitle", Text = "Preset Index", FontSize = 16, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
-        title.Children.Add(_indexPageTitle);
+        _indexPageTitle = new TextBlock { Name = "IndexPageTitle", FontSize = 16, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, IsVisible = false };
+        var identity = new Grid { ColumnDefinitions = new("Auto,16,*") };
+        identity.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { BuildIndexViewTabs(), BuildIndexSceneDetailsButton() } });
+        Grid.SetColumn(_indexPageTitle, 2); identity.Children.Add(_indexPageTitle);
+        title.Children.Add(identity);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         _indexLibraryActions = actions;
         _indexReviewButton = IndexButton("Needs review", "IndexReview");
@@ -90,7 +101,7 @@ public partial class MainWindow
         _indexResumeButton = IndexButton("Resume", "IndexResume");
         _indexResumeButton.Click += async (_, _) => await SyncIndexAsync(resume: true);
         _indexCancelButton = IndexButton("Cancel", "IndexCancel");
-        _indexCancelButton.Click += (_, _) => _presetNamesCts?.Cancel();
+        _indexCancelButton.Click += (_, _) => CancelSyncRead();
         actions.Children.Add(_indexReviewButton);
         actions.Children.Add(_indexResumeButton); actions.Children.Add(_indexCancelButton);
         var commands = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
@@ -139,6 +150,7 @@ public partial class MainWindow
             { GoToDevice(preset.Slot, null, _indexCache!.Device.Variant.ToDeviceModel()); e.Handled = true; }
         };
         results.Children.Add(_indexList);
+        results.Children.Add(BuildIndexSceneResults());
         _indexEmpty = new TextBlock { Name = "IndexEmptyState", TextWrapping = TextWrapping.Wrap, MaxWidth = 520, Foreground = SecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         results.Children.Add(_indexEmpty);
         _indexResultsPane = new IndexDockLayout { Name = "IndexResultsPane", RowDefinitions = new("*,0,0") };
@@ -193,12 +205,30 @@ public partial class MainWindow
             (_indexConnectionSyncBanner?.IsVisible == true || _indexProgressPanel?.IsVisible == true);
     }
 
-    private string[] IndexAvailableTags() => _indexProfile.Annotations.Where(a => a.HasTags)
-        .SelectMany(a => a.Tags.Concat(a.SceneTags.Values.SelectMany(t => t)))
-        .Concat(_favorites.SelectMany(f => f.Tags)).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+    private string[] IndexAvailableTags(bool? scenesOnly = null) => (scenesOnly ?? _indexView == IndexView.Scenes)
+        ? (_indexCache?.Browsable is { } scan ? scan.Presets.Values.Where(p => !p.NameOnlyEmpty)
+            .SelectMany(p => _indexProfile.Find(_indexCache.Device.Id, p, scan.Firmware)?.SceneTags.Values.SelectMany(t => t) ?? [])
+            .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray() : [])
+        : _indexProfile.Annotations.Where(a => a.HasTags)
+            .SelectMany(a => a.Tags.Concat(a.SceneTags.Values.SelectMany(t => t)))
+            .Concat(_favorites.SelectMany(f => f.Tags)).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
 
-    private SearchChip IndexPreviewChip(string text) => IndexAvailableTags().FirstOrDefault(t => t.Equals(text, StringComparison.OrdinalIgnoreCase)) is { } tag
-        ? new(tag, true) : new(text, false);
+    private static SearchChip IndexPreviewChip(string text) => new(text, false);
+
+    private void OnIndexSearchOutsidePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_currentPage != AppPage.PresetIndex || _indexSearchBox?.IsKeyboardFocusWithin != true ||
+            !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || e.Source is not Visual source ||
+            _indexSearchPopup?.Child is Visual popup && (popup == source || popup.IsVisualAncestorOf(source)) ||
+            _indexSearchPopup?.PlacementTarget is Visual entry && (entry == source || entry.IsVisualAncestorOf(source)))
+        {
+            return;
+        }
+
+        if (_indexSearchPopup is not null) { _indexSearchPopup.IsOpen = false; }
+        // Leave the query and result controls intact so the same click can act on them.
+        FocusManager?.ClearFocus();
+    }
 
     private Control BuildIndexSearch()
     {
@@ -206,13 +236,16 @@ public partial class MainWindow
         var layout = new Grid { ColumnDefinitions = new ColumnDefinitions("*,12,Auto") };
         _indexSearchPanel = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
         _indexSearchBox = new TextBox { Name = "IndexSearchInput", Text = previous, Watermark = "Add tag or search term…", MinWidth = 218, MinHeight = 26, Padding = new Thickness(4, 2), BorderThickness = new Thickness(0), Background = Brushes.Transparent };
+        AutomationProperties.SetName(_indexSearchBox, "Add tag or search term");
         _indexSearchPanel.Children.Add(_indexSearchBox);
         var entry = new Border { Name = "IndexSearchEntry", Background = InsetBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(7, 2), MinHeight = 32, Child = _indexSearchPanel };
+        EnableSearchEntryFocus(entry, _indexSearchBox);
         layout.Children.Add(entry);
         _indexSuggestions = new ListBox { Name = "IndexSearchSuggestions", MinWidth = 300, MaxHeight = 220, Background = SurfaceBrush, ItemContainerTheme = CompactListItemTheme(), Focusable = false };
         _indexSearchPopup = new Popup { PlacementTarget = entry, Placement = PlacementMode.BottomEdgeAlignedLeft, IsLightDismissEnabled = true, Child = new Border { BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(4), Background = SurfaceBrush, Child = _indexSuggestions } };
         layout.Children.Add(_indexSearchPopup);
-        _indexSearchBox.TextChanged += (_, _) => { RenderIndexResults(); RefreshIndexSuggestions(); };
+        _indexSearchBox.TextChanged += (_, _) => { if (!_switchingIndexView) { RenderIndexResults(); RefreshIndexSuggestions(); } };
+        _indexSearchBox.LostFocus += (_, _) => _indexSearchPopup.IsOpen = false;
         _indexSearchBox.AddHandler(KeyDownEvent, (_, e) =>
         {
             if (e.Key == Key.Enter)
@@ -236,8 +269,10 @@ public partial class MainWindow
         actions.Children.Add(new TextBlock { Text = "Tag Match", FontSize = 12, Foreground = SecondaryBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
         var any = BuildTagMatchButton("IndexTagMatchAny", "Any tag");
         var all = BuildTagMatchButton("IndexTagMatchAll", "All tags");
+        _indexTagMatchAny = any; _indexTagMatchAll = all;
         var modes = new Grid { Width = TagMatchSegmentWidth * 2, Height = 26, ColumnDefinitions = new ColumnDefinitions("*,*") };
         var thumb = new Border { Background = SurfaceBrush, BorderBrush = UiBorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), IsHitTestVisible = false };
+        _indexTagMatchThumb = thumb;
         modes.Children.Add(thumb); modes.Children.Add(any); Grid.SetColumn(all, 1); modes.Children.Add(all);
         void Mode(bool value)
         {
@@ -252,6 +287,7 @@ public partial class MainWindow
         clear.Click += (_, _) => { _indexSearchChips.Clear(); _indexSearchBox.Text = ""; RenderIndexSearchChips(); Mode(true); };
         actions.Children.Add(clear); Grid.SetColumn(actions, 2); layout.Children.Add(actions);
         RenderIndexSearchChips();
+        RefreshIndexSearchScope();
         return layout;
     }
 
@@ -261,10 +297,11 @@ public partial class MainWindow
         _indexSuggestions.Items.Clear();
         string input = _indexSearchBox?.Text?.Trim() ?? "";
         if (input.Length == 0) { _indexSearchPopup!.IsOpen = false; return; }
-        foreach (var chip in IndexAvailableTags().Where(t => t.Contains(input, StringComparison.OrdinalIgnoreCase)).Take(30)
-            .Select(t => new SearchChip(t, true)).Append(new SearchChip(input, false)))
+        var tags = IndexAvailableTags().Where(t => t.Contains(input, StringComparison.OrdinalIgnoreCase)).Take(30).Select(t => new SearchChip(t, true));
+        var suggestions = tags.Prepend(new(input, false));
+        foreach (var chip in suggestions)
         {
-            var button = IndexButton(chip.IsTag ? chip.Value : $"Search text “{chip.Value}”");
+            var button = IndexButton(chip.IsTag ? (_indexView == IndexView.Scenes ? "Scene tag: " : "") + chip.Value : $"Search text “{chip.Value}”");
             button.HorizontalAlignment = HorizontalAlignment.Stretch; button.HorizontalContentAlignment = HorizontalAlignment.Left;
             button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Focusable = false;
             button.Click += (_, _) => CommitIndexChip(chip);
@@ -289,18 +326,21 @@ public partial class MainWindow
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3 };
             row.Children.Add(new TextBlock { Text = (chip.IsTag ? "" : "Text: ") + chip.Value, FontSize = 12, Foreground = TagTextBrush, VerticalAlignment = VerticalAlignment.Center });
-            var remove = new Button { Content = "×", MinHeight = 22, Padding = new Thickness(3, 0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = TagRemoveBrush };
+            var remove = new Button { Content = "×", MinHeight = 20, Height = 20, Padding = new Thickness(3, 0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = TagRemoveBrush };
             AutomationProperties.SetName(remove, "Remove search " + chip.Value);
             remove.Click += (_, _) => { _indexSearchChips.Remove(chip); RenderIndexSearchChips(); RenderIndexResults(); };
             row.Children.Add(remove);
-            _indexSearchPanel.Children.Insert(_indexSearchPanel.Children.Count - 1, new Border { Background = TagBrush, CornerRadius = new CornerRadius(11), Padding = new Thickness(8, 0, 3, 0), Margin = new Thickness(0, 2, 5, 2), Child = row });
+            _indexSearchPanel.Children.Insert(_indexSearchPanel.Children.Count - 1, BuildTagPill(row, new Thickness(0, 2, 5, 2)));
         }
     }
 
     private void RenderIndexResults()
     {
-        if (_indexList is null || _indexInspector is null) { return; }
+        if (_indexList is null || _indexInspector is null || _switchingIndexView) { return; }
         var scan = _indexCache?.Browsable;
+        ValidateIndexViewContext(scan);
+        _indexList.IsVisible = _indexView == IndexView.Presets;
+        _indexSceneFrame!.IsVisible = _indexView == IndexView.Scenes;
         var chips = _indexSearchChips.ToList();
         if (!string.IsNullOrWhiteSpace(_indexSearchBox?.Text)) { chips.Add(IndexPreviewChip(_indexSearchBox.Text.Trim())); }
         var saved = scan?.Presets.Values.OrderBy(p => p.Slot).Select(p => AmpBrowserCatalog.ResolveForDisplay(p, scan.EffectiveFirmware)).ToArray() ?? [];
@@ -309,7 +349,9 @@ public partial class MainWindow
         if (_ampFilterRow is not null)
         {
             _ampFilterRow.IsVisible = _ampContains is not null;
-            _indexPageTitle!.Text = _ampContains?.Label ?? "Preset Index";
+            _indexPageTitle!.Text = _ampContains?.Label ?? "";
+            _indexPageTitle.IsVisible = _ampContains is not null;
+            ToolTip.SetTip(_indexPageTitle, _ampContains?.Label);
             _indexSearchControls!.IsVisible = _ampContains is null;
             _indexLibraryActions!.IsVisible = _ampContains is null || _indexScanning;
             UpdateIndexSyncInfoVisibility();
@@ -323,6 +365,10 @@ public partial class MainWindow
         var visibleSlots = PresetSelection.TrimExplicitEmptyEdges(saved.Select(p => new PresetChoice(p.Slot, p.Name)).ToArray())
             .Select(p => p.Slot).ToHashSet();
         var presets = saved.Where(p => visibleSlots.Contains(p.Slot)).ToArray();
+        int pending = _indexCache is null ? 0 : _indexProfile.Pending(_indexCache).Count();
+        _indexReviewButton!.Content = $"Needs review ({pending})";
+        _indexReviewButton.IsVisible = pending > 0 || _indexProfile.ReviewHistory.Count > 0;
+        if (_indexView == IndexView.Scenes) { RenderIndexSceneResults(presets, scan, chips); return; }
         if (_indexSelectedSlot is int selected && !visibleSlots.Contains(selected)) { _indexSelectedSlot = null; }
         var filtered = presets.Where(p => (_ampContains is null || _ampContains.AppliesTo(_indexCache) && _ampContains.Matches(p)) && IndexSearch.Matches(p, _indexProfile.Find(_indexCache!.Device.Id, p, scan!.Firmware),
             chips.Where(c => !c.IsTag).Select(c => c.Value), chips.Where(c => c.IsTag).Select(c => c.Value), _indexAllTags, _settings.DisplayOffset)).ToArray();
@@ -389,9 +435,6 @@ public partial class MainWindow
                 : !_ampContains.AppliesTo(_indexCache) ? "Check the connected device against its saved data, or sync it again, to find presets using this amp."
                 : "No presets in this saved index contain this amp.";
         }
-        int pending = _indexCache is null ? 0 : _indexProfile.Pending(_indexCache).Count();
-        _indexReviewButton!.Content = $"Needs review ({pending})";
-        _indexReviewButton.IsVisible = pending > 0 || _indexProfile.ReviewHistory.Count > 0;
         if (!_indexScanning)
         {
             _indexProgress!.Value = scan?.Presets.Count ?? 0;
@@ -425,6 +468,7 @@ public partial class MainWindow
     {
         if (_indexInspector is null) { return; }
         UpdateIndexSendControls();
+        UpdateIndexSceneDetailsButton();
         _indexInspector.Children.Clear();
         _indexInspectorHeader!.Children.Clear();
         _indexInspectorScroll!.Offset = default;
@@ -523,15 +567,27 @@ public partial class MainWindow
         Grid.SetColumn(tabs, 2); header.Children.Insert(1, tabs);
         header.Children.Add(close); _indexInspectorHeader.Children.Add(header);
         _indexInspector.Children.Add(sceneSection); _indexInspector.Children.Add(ampSection);
+        if (_indexSelectedScene is int selectedScene)
+        {
+            var selectedRow = scenes.Children.OfType<Grid>().FirstOrDefault(r => r.Name == $"IndexScene{selectedScene + 1}Row");
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (selectedRow?.IsAttachedToVisualTree() == true) { selectedRow.BringIntoView(); }
+            }, Avalonia.Threading.DispatcherPriority.Loaded);
+        }
     }
 
     private void CloseIndexInspector()
     {
-        var source = _indexList?.SelectedItem as ListBoxItem;
+        var list = ActiveIndexList;
         _indexInspectorDismissed = true;
-        _indexSelectedScene = null;
+        if (_indexView == IndexView.Presets) { _indexSelectedScene = null; }
+        else if (list?.SelectedItem is IndexedScene scene)
+        { _indexSelectedSlot = scene.Preset.Slot; _indexSelectedScene = scene.Index; }
         RenderIndexInspector();
-        if (source?.Focus() != true) { _indexList?.Focus(); }
+        if (list?.SelectedIndex >= 0) { list.ScrollIntoView(list.SelectedIndex); }
+        var source = list?.ContainerFromIndex(list.SelectedIndex);
+        if (source?.Focus() != true) { list?.Focus(); }
     }
 
     private Grid BuildIndexSceneRow(IndexedPreset preset, int scene, IEnumerable<string> tags)
@@ -683,7 +739,7 @@ public partial class MainWindow
         var layout = new StackPanel { Margin = new Thickness(18), Spacing = 12 };
         layout.Children.Add(new TextBlock { Text = preset.Name, Foreground = TextBrush, TextTrimming = TextTrimming.CharacterEllipsis });
         var pills = new WrapPanel(); layout.Children.Add(pills);
-        var input = new AutoCompleteBox { Name = "IndexTagEditorInput", Watermark = "Add tag…", ItemsSource = IndexAvailableTags(), FilterMode = AutoCompleteFilterMode.Contains, MinimumPrefixLength = 0 };
+        var input = new AutoCompleteBox { Name = "IndexTagEditorInput", Watermark = "Add tag…", ItemsSource = IndexAvailableTags(scene is null ? false : null), FilterMode = AutoCompleteFilterMode.Contains, MinimumPrefixLength = 0 };
         AutomationProperties.SetName(input, scene is null ? "Add preset tag" : "Add shared scene tag");
         if (scene is not null) { ToolTip.SetTip(input, "Tags are shared with matching favorites in this profile."); }
         layout.Children.Add(input);
@@ -692,11 +748,7 @@ public partial class MainWindow
             pills.Children.Clear();
             foreach (string tag in tags.ToArray())
             {
-                var chip = BuildFavoriteTagChip(tag, false);
-                var remove = IndexButton("×"); remove.Background = Brushes.Transparent; remove.BorderThickness = new Thickness(0);
-                AutomationProperties.SetName(remove, "Remove tag " + tag);
-                remove.Click += (_, _) => { tags.Remove(tag); Paint(); };
-                ((StackPanel)chip.Child!).Children.Add(remove); pills.Children.Add(chip);
+                pills.Children.Add(BuildFavoriteTagChip(tag, true, () => { tags.Remove(tag); Paint(); }));
             }
         }
         void Add()

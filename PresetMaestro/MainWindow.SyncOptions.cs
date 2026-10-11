@@ -203,7 +203,7 @@ public partial class MainWindow
 #endif
         _connectionSyncCancel = new Button { Content = "Cancel read", Name = "ConnectionSyncCancel", Margin = new(0, 0, 8, 0) };
         Grid.SetColumn(_connectionSyncCancel, 1);
-        _connectionSyncCancel.Click += (_, _) => _presetNamesCts?.Cancel(); footer.Children.Add(_connectionSyncCancel);
+        _connectionSyncCancel.Click += (_, _) => CancelSyncRead(); footer.Children.Add(_connectionSyncCancel);
         _connectionSyncDone = new Button { Content = "Skip for now", Name = "ConnectionSyncDone" };
         Grid.SetColumn(_connectionSyncDone, 2);
         _connectionSyncDone.Click += (_, _) =>
@@ -360,11 +360,15 @@ public partial class MainWindow
         ToolTip.SetTip(_connectionSyncNames, CanReadDeviceNames ? null : UnsupportedNameReads);
         SetSyncOptionDescription("ConnectionSyncNamesDescription", $"{_settings.PresetNameCache.Count} preset names cached in this profile. Refresh names after renaming or moving presets; a successful device check also refreshes them.");
         _connectionSyncCancel!.IsVisible = _presetNamesCts is not null;
-        _connectionSyncDone!.IsVisible = !busy;
-        _connectionSyncDone!.Content = _presetNamesCts is not null || _connectionSyncOutcome is { } outcome && outcome.Context == ConnectionSyncContext ? "Done" : "Skip for now";
+        _connectionSyncCancel.IsEnabled = _presetNamesCts?.IsCancellationRequested != true;
+        _connectionSyncDone!.IsVisible = !busy || _presetNamesCts is not null;
+        _connectionSyncDone!.Content = _presetNamesCts is not null ? "Hide progress"
+            : _connectionSyncOutcome is { } outcome && outcome.Context == ConnectionSyncContext ? "Done" : "Skip for now";
+        ToolTip.SetTip(_connectionSyncDone, _presetNamesCts is not null ? "Close this window. The read continues unless you stop it." : null);
 #if FRACTAL_INDEX
         if (_connectionLibrarySetupRequired)
         {
+            _connectionSyncDone.IsVisible = !busy;
             _connectionSyncDone.Content = "Disconnect";
             _connectionSyncLibrary!.Background = AccentBrush;
             _connectionSyncLibrary.Foreground = Brushes.White;
@@ -427,7 +431,15 @@ public partial class MainWindow
         bool libraryFlow = false;
         double maximum = _syncReadTotal;
         double value = _syncReadCompleted;
-        if (checking)
+        if (_presetNamesCts?.IsCancellationRequested == true)
+        {
+            title = "Stopping read…";
+            detail = "Cancellation requested. Completed reads are being saved; no further presets will be requested.";
+            next = "Wait for the read to stop before resuming or starting another sync.";
+            tone = SyncStatusTone.Activity;
+            indeterminate = true;
+        }
+        else if (checking)
         {
 #if FRACTAL_INDEX
             title = _indexCheckingNames ? "Checking preset names first…" : _indexCheckingFull ? "Running full device check…" : "Running quick device check…";
@@ -451,7 +463,8 @@ public partial class MainWindow
         {
             title = $"Syncing “{_indexCache?.Device.Name}”…";
             detail = (_indexProgressText?.Text ?? "Reading presets, scenes and amps.") +
-                "\nThis may take several minutes. Each preset can take a few seconds. Stop sync keeps completed reads.";
+                "\nStop sync ends the read and keeps completed reads. " +
+                (_connectionLibrarySetupRequired ? "Closing this window disconnects the device." : "Hide progress or closing this window keeps the sync running.");
             next = "";
             libraryFlow = true;
             maximum = _indexProgress?.Maximum ?? 1;
@@ -475,6 +488,8 @@ public partial class MainWindow
             int total = FractalDeviceDefinition.For(recovery.Device).PresetSlots;
             int remaining = Math.Max(0, total - partial.Presets.Count);
             title = remaining == 1 ? "Sync incomplete — 1 slot remaining" : $"Sync incomplete — {remaining} slots remaining";
+            if (partial.Status == "Cancelled")
+            { title = remaining == 1 ? "Sync cancelled — 1 slot remaining" : $"Sync cancelled — {remaining} slots remaining"; }
             detail = $"{partial.Presets.Count} of {total} slots saved to “{recovery.Device.Name}”. Resume checks the saved reads, then reads missing presets and rechecks empty slots." +
                 (recovery.Committed is null ? "" : " Your previous complete saved scan is kept until the sync finishes and you accept the update.");
             next = "";

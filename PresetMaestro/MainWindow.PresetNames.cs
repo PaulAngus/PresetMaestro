@@ -11,6 +11,19 @@ public partial class MainWindow
     private CancellationTokenSource? _presetNamesCts;
     private bool _syncingPresetNames;
 
+    private void CancelSyncRead()
+    {
+        _presetNamesCts?.Cancel();
+#if FRACTAL_INDEX
+        if (_indexScanning || _indexChecking)
+        {
+            _indexProgressMessage = "Stopping read… Completed reads are being saved.";
+            if (_indexProgressText is not null) { _indexProgressText.Text = _indexProgressMessage; }
+        }
+#endif
+        UpdatePresetSyncButtons();
+    }
+
     private bool CanSyncPresetNames => !_changingProfile && CanReadDeviceNames && _connectionCts is null && _presetNamesCts is null && _midi.InputOpen && _midi.OutputOpen
 #if FRACTAL_INDEX
         && !_connectionLibrarySetupRequired

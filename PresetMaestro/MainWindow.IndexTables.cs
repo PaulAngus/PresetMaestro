@@ -27,13 +27,12 @@ public partial class MainWindow
         Dispatcher.UIThread.Post(() =>
         {
             _indexRevealQueued = false;
-            if (_indexList?.SelectedIndex >= 0) { _indexList.ScrollIntoView(_indexList.SelectedIndex); }
+            if (ActiveIndexList?.SelectedIndex >= 0) { ActiveIndexList.ScrollIntoView(ActiveIndexList.SelectedIndex); }
         }, DispatcherPriority.Loaded);
     }
 
-    private void ConfigureIndexTables()
+    private static void ConfigureIndexTableScrollBar(ListBox list)
     {
-        var list = _indexList!;
         list.Resources["ScrollBarSize"] = 6d;
         list.Styles.Add(new Style(selector => selector.OfType<ScrollBar>())
         {
@@ -50,6 +49,12 @@ public partial class MainWindow
                 Setters = { new Setter(RepeatButton.IsVisibleProperty, false) },
             });
         }
+    }
+
+    private void ConfigureIndexTables()
+    {
+        var list = _indexList!;
+        ConfigureIndexTableScrollBar(list);
         var headers = new Grid { Name = "IndexTableHeaders", Height = FavoriteTablesPanel.HeadingHeight, VerticalAlignment = VerticalAlignment.Top };
         var outlines = new FavoriteTableOutlines { IsHitTestVisible = false, Outline = UiBorderBrush };
         bool headerUpdateQueued = false;

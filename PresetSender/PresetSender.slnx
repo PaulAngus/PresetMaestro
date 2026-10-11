@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="PresetSender.csproj" />
+  <Project Path="Tests/PresetSender.Tests.csproj" />
+</Solution>

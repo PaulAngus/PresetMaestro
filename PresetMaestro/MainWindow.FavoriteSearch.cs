@@ -33,6 +33,19 @@ public partial class MainWindow
     private TextBlock _favResultCount = null!;
     private bool HasFavoriteSearch => _favSearchChips.Count > 0 || !string.IsNullOrWhiteSpace(_favSearchBox.Text);
 
+    private static void EnableSearchEntryFocus(Border entry, TextBox input)
+    {
+        entry.PointerPressed += (_, e) =>
+        {
+            if (!e.GetCurrentPoint(entry).Properties.IsLeftButtonPressed) { return; }
+            // Leave caret placement, text selection and chip remove buttons to their controls.
+            if (e.Source is Visual source && (source == input || source is Button ||
+                source.GetVisualAncestors().Any(ancestor => ancestor == input || ancestor is Button))) { return; }
+            input.Focus(NavigationMethod.Pointer);
+            e.Handled = true;
+        };
+    }
+
     private Control BuildFavoriteSearch()
     {
         _favLastSearchInput = "";
@@ -74,7 +87,7 @@ public partial class MainWindow
             MinHeight = 32,
             Child = _favSearchPanel
         };
-        inset.PointerPressed += (_, e) => { if (e.Source == inset) { _favSearchBox.Focus(); } };
+        EnableSearchEntryFocus(inset, _favSearchBox);
         _favSearchHost.Children.Add(inset);
         _favSearchSuggestions = new ListBox
         {
@@ -274,11 +287,11 @@ public partial class MainWindow
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3 };
             row.Children.Add(new TextBlock { Text = (chip.IsTag ? "" : "Text: ") + chip.Value, FontSize = 12, Foreground = TagTextBrush, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 380, TextTrimming = TextTrimming.CharacterEllipsis });
             ToolTip.SetTip(row, chip.Value);
-            var remove = new Button { Name = $"FavoriteSearchRemove{index}", Content = "×", MinHeight = 22, Padding = new Thickness(3, 0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = TagRemoveBrush };
+            var remove = new Button { Name = $"FavoriteSearchRemove{index}", Content = "×", MinHeight = 20, Height = 20, Padding = new Thickness(3, 0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = TagRemoveBrush };
             AutomationProperties.SetName(remove, $"Remove {(chip.IsTag ? "tag" : "text search")} {chip.Value}");
             remove.Click += (_, _) => { _favSearchChips.Remove(chip); RenderSearchChips(); RefreshFavoritesList(refreshOptions: false); _favSearchBox.Focus(); };
             row.Children.Add(remove);
-            _favSearchPanel.Children.Insert(index, new Border { Background = TagBrush, CornerRadius = new CornerRadius(11), Padding = new Thickness(8, 0, 3, 0), Margin = new Thickness(0, 2, 5, 2), Child = row });
+            _favSearchPanel.Children.Insert(index, BuildTagPill(row, new Thickness(0, 2, 5, 2)));
         }
     }
 

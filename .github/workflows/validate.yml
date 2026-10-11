@@ -51,14 +51,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Build with analyzers
-        run: dotnet build PresetMaestro.slnx --configuration Release
-      - name: Regression tests and native CoreMIDI loading (no hardware sends)
-        run: dotnet test PresetMaestro.slnx --configuration Release --no-build --collect:"XPlat Code Coverage" --logger trx --results-directory TestResults
-      - name: Formatting and code style
-        run: dotnet format PresetMaestro.slnx --verify-no-changes --no-restore
-      - name: Package and verify a locally signed Apple Silicon app
-        run: ./Publish-Mac.ps1
+      - name: Native Apple Silicon readiness (no physical MIDI tests)
+        run: ./scripts/Test-MacReadiness.ps1 -ResultsDirectory TestResults
       - name: Build without optional Preset Index
         run: dotnet build PresetMaestro/PresetMaestro.csproj --configuration Release -p:EnableFractalIndex=false --artifacts-path build_test/no-index
       - name: Retain Mac test results

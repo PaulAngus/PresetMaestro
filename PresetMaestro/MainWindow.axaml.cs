@@ -117,9 +117,13 @@ public partial class MainWindow : Window
         _sendFeedbackTimer.Tick += (_, _) => HideSendFeedback();
 
         InitializeComponent();
-        Width = MinWidth;
+        var startupScreen = Screens.Primary;
+        Width = startupScreen is null ? 1360 : Math.Clamp(startupScreen.WorkingArea.Width / startupScreen.Scaling - 48, MinWidth, 1360);
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         AddHandler(PointerPressedEvent, OnFavoriteSearchOutsidePointerPressed, RoutingStrategies.Tunnel);
+#if FRACTAL_INDEX
+        AddHandler(PointerPressedEvent, OnIndexSearchOutsidePointerPressed, RoutingStrategies.Tunnel);
+#endif
         Application.Current!.RequestedThemeVariant = string.Equals(_settings.Theme, "Light", StringComparison.OrdinalIgnoreCase)
             ? ThemeVariant.Light
             : ThemeVariant.Dark;

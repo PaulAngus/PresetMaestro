@@ -53,7 +53,7 @@ public partial class MainWindow
         if (selection is not { } selected) { return; }
         var target = SharedSceneTags.Resolve(_indexProfile, _indexCache, _settings.DisplayOffset, selected.Preset, selected.Scene);
         AutomationProperties.SetName(_favTagInput, target is null ? "Add favorite tag" : "Add shared scene tag");
-        ToolTip.SetTip(_favTagsEditor, target is null ? "Tags for this favorite" : "Tags are shared with this scene in Preset Index and matching favorites.");
+        ToolTip.SetTip(_favTagsEditor, target is null ? "Tags for this favorite" : "Tags are shared with matching scenes and favorites in this profile.");
         List<string> tags;
         string input = "";
         if (_favoriteSceneTagDrafts.TryGetValue(selected, out var draft)) { tags = draft.Tags; input = draft.Input; }

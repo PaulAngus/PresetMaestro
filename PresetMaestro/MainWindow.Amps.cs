@@ -331,7 +331,8 @@ public partial class MainWindow
             if (variants.Length == 0) { return; }
             _ampContains = new(_indexCache.Device.Id, _indexCache.Device.Variant, _indexCache.Device.Firmware,
                 variants.Length == 1 ? variants[0].Name : family.Family.Manufacturer + " " + family.Family.Name, variants.Select(v => v.ModelId).ToArray());
-            _indexSelectedSlot = null;
+            SwitchIndexView(IndexView.Presets);
+            _indexSelectedSlot = _indexSelectedScene = null;
             _openingAmpPresets = true;
             try
             {

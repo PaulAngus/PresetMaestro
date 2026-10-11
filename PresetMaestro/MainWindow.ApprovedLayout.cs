@@ -129,7 +129,7 @@ public partial class MainWindow
         {
             bool active = _currentPage == pageKind ||
                 (pageKind == AppPage.Config && _currentPage is AppPage.Diagnostics or AppPage.ManageProfiles or AppPage.ManageLibraries);
-            double width = label switch { "Preset Sender" => 120, "Favorites" => 88, "Config" => 68, "Amps" => 64, _ => 110 };
+            double width = label switch { "Preset Sender" => 120, "Favorites" => 88, "Config" => 68, "Amps" => 64, "Presets and scenes" => 156, _ => 110 };
             var button = new Button { Name = $"Nav{label.Replace(" ", string.Empty)}", Content = label, Width = width, Height = 32, MinHeight = 32, Padding = new Thickness(10, 0), FontSize = 14, FontWeight = FontWeight.Medium, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(0), Background = active ? AccentBrush : Brushes.Transparent, Foreground = active ? Brushes.White : TextBrush };
             button.Click += (_, _) =>
             {

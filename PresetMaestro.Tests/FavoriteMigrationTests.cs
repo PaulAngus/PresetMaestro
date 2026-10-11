@@ -132,10 +132,10 @@ public sealed class FavoriteTableLayoutTests
             Assert.InRange(ranges.Max(r => r.Count) - ranges.Min(r => r.Count), 0, 1);
         }
         Assert.Equal(2, FavoriteTableLayout.TableCount(897));
-        Assert.Equal(2, FavoriteTableLayout.TableCount(1355));
-        Assert.Equal(3, FavoriteTableLayout.TableCount(1356));
-        Assert.Equal(3, FavoriteTableLayout.TableCount(1813));
-        Assert.Equal(4, FavoriteTableLayout.TableCount(1814));
+        Assert.Equal(2, FavoriteTableLayout.TableCount(1265));
+        Assert.Equal(3, FavoriteTableLayout.TableCount(1266));
+        Assert.Equal(3, FavoriteTableLayout.TableCount(1693));
+        Assert.Equal(4, FavoriteTableLayout.TableCount(1694));
     }
 
     [Theory]

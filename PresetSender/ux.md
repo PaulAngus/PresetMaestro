@@ -1,0 +1,48 @@
+# Preset Sender UX
+
+## Virtual output and channel broadcast — 11 October 2026
+
+Guidance consulted before changing the controls:
+
+- [Fluent 2 dropdown guidance](https://fluent2.microsoft.design/components/web/react/core/dropdown/usage): use concise options, a persistent label, and the standard keyboard selection behavior.
+- [Windows combo boxes](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/combo-box): use a compact single-selection control for secondary settings, keep option text on one line, and order numeric options logically.
+- [Windows MIDI virtual-device transport](https://microsoft.github.io/MIDI/kb/virtual-device-app/): originally consulted for the application-owned publisher. Native shutdown subsequently stalled MidiSrv in coexistence checks, so the final publisher uses an explicitly removed symmetric loopback pair instead. Both sides expose legacy MIDI ports; receivers choose **Preset Sender**, while **Preset Sender (Relay)** is the internal connection. This compatibility choice does not change the channel controls or sending behavior.
+- [MIDI Association channel modes](https://midi.org/about-midi-part-3midi-messages): Omni is a receiver mode. There is no channel-less broadcast Program Change packet.
+
+Documented control principles are applied using existing Avalonia Fluent ComboBoxes and labelled fields. Product choices: the built-in publisher appears as **Preset Sender (virtual device)** in the existing output selector; the numeric channel selector gains **All channels**, meaning sixteen separate Program Change packets. No receiver mode CC is sent. Channel 1 remains the default. Program options now stack vertically so **All channels** and **Channel 16** fit at the supported 360-pixel width. A short explanation calls out repeated reception by an omni receiver. There are no custom dismissal controls or changes to keypad focus capture. Tab/arrow keys retain normal ComboBox behavior; connecting returns focus to the keypad.
+
+New Windows configurations select the built-in publisher; existing saved hardware selections remain intact. Connect publishes the endpoint without a Program Change, and status explains that the receiving application selects Preset Sender as an input. The UI discloses the Windows requirement and preview API. Disconnect and app exit close the endpoint. A helper process contains native calls so a stalled Windows service produces an actionable error after 15 seconds instead of permanently blocking connection; closing its input requests graceful cleanup, with bounded termination if it stops responding. Forwarded PCs share the selected one-channel/all-channel behavior. A partial broadcast failure retains pending entry, disconnects, and explains that some channels may already have received the change.
+
+Verification for this change: simulated tests exercise publishing without sending, all sixteen wire channels, single channel 16, incoming PC filtering/forwarding, partial-send failure, disposal, and settings migration. Rendered frames cover light/dark at 460×740, 360×740, and 360×520, with expanded program options and MIDI controls. The native integration check creates only the app's own endpoints and is opt-in. With the final loopback implementation it passed: two simultaneous legacy MIDI receivers both received PC 42 on channel 6 and PC 127 on every channel from 1 to 16, and both ports disappeared on disconnect. All 25 simulated tests and formatting verification also pass. MIDI Forwarder 1.0.2's combined check passed with the published sender: both startup orders, all channels to two receivers, three forwarder start/stop cycles, concurrent bidirectional SysEx and clean sender shutdown. These checks used no physical hardware. Specific target-app preset mapping remains separate from MIDI transport acceptance. The sender timeout path previously returned an error without leaving a helper process running.
+
+## Guidance consulted
+
+- [Microsoft Fluent 2 buttons](https://fluent2.microsoft.design/components/web/react/core/button/usage/): use clear action labels, provide accessible names, retain interaction states, and explain unavailable actions.
+- [Windows keyboard interactions](https://learn.microsoft.com/en-us/windows/apps/develop/input/keyboard-interactions): support normal keyboard navigation and focus behavior, provide keyboard equivalents, and avoid taking over input belonging to another control.
+- [Windows app icon design](https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-design) and [Fluent 2 iconography](https://fluent2.microsoft.design/iconography/): use a simple recognisable metaphor and retain legibility at small sizes. The selected DIN Send logo combines a five-pin socket with a send arrow; no text is embedded in the icon.
+
+These are the documented design principles applied here, not requirements to use WinUI itself. The implementation uses Avalonia's existing Fluent controls and PresetMaestro's existing light/dark palette and button shape. No details pane or custom dismissal control was added.
+
+The user selected logo option 1 for website and app branding. It is shown at 36 logical pixels beside the existing app heading and in the native window icon. The header image is decorative, excluded from the accessibility control tree, and does not receive focus; the app name remains readable text. The Windows executable embeds an ICO with ten resolutions from 16 to 256 pixels. Transparent PNG exports and favicon are prepared for website use. The original generated mark has been retained, with its mild tonal treatment as a deliberate product choice; no additional artwork or text was added to the small icon.
+
+## Product choices
+
+- A separate app and settings folder keep this task focused on MIDI connection and program sending. Nothing requires a Fractal device, input port, identity response, or library sync.
+- Entry always accepts one to three digits; Enter/Send confirms entry. A fourth digit is rejected rather than silently replacing the pending number. The full range of 128 standard programs is available without selecting an entry-length mode, including when loading older settings.
+- Numbering is selectable and labelled with explicit ranges. Default zero-based numbering corresponds directly to the wire PC value. Confirmation shows both displayed and transmitted values.
+- MIDI input is optional. MIDI controls can learn notes, CCs, and PCs. Incoming PC forwarding is separately opt-in because it sends immediately, unlike digit entry.
+- Keyboard capture is scoped to the keypad. Configuration controls retain standard Tab, arrow, and Enter behavior. Connection and initial launch focus a keypad button. Cancelled MIDI learning returns focus to the keypad when dismissed with Escape.
+- Connection controls collapse after connection, with Disconnect outside the expander. Program options and MIDI mapping remain expandable. The single-column layout scrolls at small sizes; status remains visible in a separate footer. The minimum width is 360 logical pixels; the default is 460 × 740, and the minimum height is 520.
+- Port discovery and opening run away from the UI thread. Startup selects ports without opening them. Failures preserve pending entry, release open ports, and report an actionable connection error. Settings restoration does not silently substitute another output for a missing saved output.
+
+Deliberate adaptation: the preset keypad intercepts digits/Enter/Escape only within its focus subtree rather than acting as a window-wide/global hotkey surface. This keeps configuration input usable while supporting live MIDI input when another application is foreground. Avalonia Fluent templates supply focus, hover, disabled states, expanders, and dropdown behavior.
+
+## Verification
+
+Automated checks cover wire numbering boundaries, extra digit rejection, note/CC release behavior and channel filtering, learned PC precedence, keyboard confirmation and configuration focus, learning without sending, selected output channel, disconnect behavior, input-start failure cleanup, and failed-send entry retention. Tests use simulated ports and send no messages to hardware.
+
+Rendered Avalonia frames were inspected in light and dark themes at 460 and 360 logical pixels, including expanded Program options/MIDI controls scrolled into view. Labels wrap at narrow widths, task buttons remain reachable, and the footer stays visible. The default sender uses the existing palette and control styling; configuration expands within the same scrolling column. Frames can be regenerated by setting `PRESET_SENDER_SCREENSHOT_DIR` before the utility's test command.
+
+The published self-contained Windows executable was launched and inspected through native computer use. Its controls expose accessible labels. Top-row 4 and 2 showed pending 42 without sending; Enter while disconnected reported that an output connection is required and preserved 42. Windows MIDI enumeration found the local software synthesizer. Hardware reception, a virtual MIDI route into AmpliTube, and native macOS operation still require acceptance with those targets.
+
+After applying the selected logo, rendered header frames were inspected again in both themes at 360 and 460 logical pixels. The icon and app name fit without truncation and the keypad remains reachable. PNG exports were inspected at 16, 32, and 48 pixels. The published Windows executable's associated icon was extracted with the Windows/.NET icon API and visually checked against DIN Send; its source ICO contains ten resolutions. The existing 19 interaction checks and formatting check pass after branding integration.

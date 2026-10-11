@@ -143,16 +143,16 @@ public partial class FavoriteEditorTests
             var list = Field<ListBox>(window, "_favListBox");
             list.SelectedIndex = 0; ((ListBoxItem)list.Items[0]!).Focus();
             window.KeyPressQwerty(PhysicalKey.PageDown, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
-            Assert.InRange(list.SelectedIndex, 1, 59);
+            Assert.InRange(list.SelectedIndex, 1, 39);
             window.KeyPressQwerty(PhysicalKey.PageUp, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
             Assert.Equal(0, list.SelectedIndex);
             favorites.RemoveRange(1, 119);
             Invoke(window, "RefreshFavoritesList", true, null!, null!); Dispatcher.UIThread.RunJobs();
-            Assert.Equal(2, Field<FavoriteTablesPanel>(window, "_favTablesPanel").Columns);
+            Assert.Equal(3, Field<FavoriteTablesPanel>(window, "_favTablesPanel").Columns);
             Assert.Single(list.Items);
             favorites.Clear(); Invoke(window, "RefreshFavoritesList", true, null!, null!); Dispatcher.UIThread.RunJobs();
             Assert.Empty(list.Items); Assert.Null(list.SelectedItem);
-            Assert.Equal(2, Field<FavoriteTablesPanel>(window, "_favTablesPanel").Columns);
+            Assert.Equal(3, Field<FavoriteTablesPanel>(window, "_favTablesPanel").Columns);
             Assert.True(Find<TextBlock>(window, "FavoriteEmptyResults").IsVisible);
         }
         finally { window.Close(); }
@@ -192,6 +192,8 @@ public partial class FavoriteEditorTests
     [InlineData(1950, "Light", true)]
     [InlineData(1000, "Dark", true)]
     [InlineData(1320, "Dark", true)]
+    [InlineData(1360, "Light", true)]
+    [InlineData(1360, "Dark", true)]
     public void RenderedTablesKeepDetailsInsideBoundsAndEditorUsable(int width, string theme, bool allDetails)
     {
         string[] names = ["Plexi Low Crunch", "Bassman Crunch", "Clean Bassman", "AC-15 Boosted", "Plexi Mid Crunch", "Satriani JS410 Orange Channel", "Tweed with TS 808", "CarolAnn OD2", "FAS Hi Gain", "Metal Chugs", "Aaron Marshall", "Diezel Hard", "#34", "Mesa IIC+", "Morgan AC-20 Treble", "HBE V1", "Hiwatt DR-103", "Smallbox Friedman V30"];
@@ -218,10 +220,10 @@ public partial class FavoriteEditorTests
             if (allDetails) { Click(Find<Button>(window, "FavoriteDetailsToggle")); }
             Invoke(window, "UpdateFavoriteRowStates", (object)null!); Dispatcher.UIThread.RunJobs();
             var panel = Field<FavoriteTablesPanel>(window, "_favTablesPanel");
-            Assert.Equal(width >= 1900 ? 4 : width >= 1450 ? 3 : 2, panel.Columns);
+            Assert.Equal(width >= 1900 ? 4 : width >= 1360 ? 3 : 2, panel.Columns);
             foreach (var row in list.Items.Cast<ListBoxItem>())
             {
-                Assert.InRange(row.Bounds.Width, 440, 670);
+                Assert.InRange(row.Bounds.Width, 410, 670);
                 var text = DetailText(row);
                 if (text.IsEffectivelyVisible)
                 {

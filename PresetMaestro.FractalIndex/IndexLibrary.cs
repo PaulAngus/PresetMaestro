@@ -440,9 +440,6 @@ public static class IndexSearch
         var filterTags = tagTerms.ToArray();
         bool tagMatch = filterTags.Length == 0 || (allTags ? filterTags.All(HasTag) : filterTags.Any(HasTag));
         bool HasTag(string tag) => attached.Contains(tag, StringComparer.OrdinalIgnoreCase);
-        string searchable = string.Join('\n', new[] { preset.Name, (preset.Slot + displayOffset).ToString("D3") }
-            .Concat(preset.SceneNames).Concat(attached).Concat(preset.Amps.SelectMany(a => a.Channels)
-                .Select(c => $"{c.Model.DisplayName} {c.Model.RealAmpFamily} {c.Model.Id}")));
-        return tagMatch && textTerms.All(term => searchable.Contains(term, StringComparison.OrdinalIgnoreCase));
+        return tagMatch && textTerms.All(term => preset.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
     }
 }

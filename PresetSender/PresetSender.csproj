@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>0.1.0</Version>
+    <AssemblyTitle>Preset Sender</AssemblyTitle>
+    <Product>Preset Sender</Product>
+    <Title>Preset Sender</Title>
+    <Description>General-purpose MIDI program change sender.</Description>
+    <ApplicationIcon Condition="'$(MaestroPlatform)' == 'Windows'">Assets/preset-sender.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/preset-sender-256.png" />
+    <Compile Remove="Tests/**/*.cs" />
+    <Compile Include="../PresetMaestro/Midi/MidiTransport.cs" Link="Midi/MidiTransport.cs" />
+    <Compile Include="../PresetMaestro/Midi/MidiMessageEncoding.cs" Link="Midi/MidiMessageEncoding.cs" />
+    <Compile Include="../PresetMaestro/Platforms/$(MaestroPlatform)/MidiBackend.cs" Link="Midi/MidiBackend.cs" />
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Skia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MaestroPlatform)' == 'Windows'">
+    <PackageReference Include="Windows.Devices.Midi2" Version="0.99.88-preview.10" PrivateAssets="all" GeneratePathProperty="true" ExcludeAssets="runtime;native" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.26100.6584" GeneratePathProperty="true" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="Avalonia.Win32" Version="11.2.3" />
+    <PackageReference Include="NAudio.Midi" Version="3.0.1" />
+    <PackageReference Include="NAudio.WinMM" Version="3.0.1" />
+    <Content Include="$(PkgWindows_Devices_Midi2)/runtimes/win-x64/native/Windows.Devices.Midi2.dll" Link="Windows.Devices.Midi2.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <Content Include="$(PkgWindows_Devices_Midi2)/runtimes/win-x64/native/Windows.Devices.Midi2.pri" Link="Windows.Devices.Midi2.pri" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(MaestroPlatform)' == 'Windows'">
+    <RestoreAdditionalProjectSources>$(RestoreAdditionalProjectSources);$(MSBuildThisFileDirectory)packages</RestoreAdditionalProjectSources>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <CsWinRTWindowsMetadata>$(NuGetPackageRoot)microsoft.windows.sdk.contracts/10.0.26100.6584/ref/netstandard2.0</CsWinRTWindowsMetadata>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MaestroPlatform)' == 'macOS'">
+    <PackageReference Include="Avalonia.Native" Version="11.2.3" />
+    <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.3" ExcludeAssets="build;buildTransitive" GeneratePathProperty="true" />
+    <None Include="$(PkgMelanchall_DryWetMidi)/build/Melanchall_DryWetMidi_Native64.dylib" Link="Melanchall_DryWetMidi_Native64.dylib" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

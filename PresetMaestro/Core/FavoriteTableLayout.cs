@@ -3,8 +3,8 @@ namespace PresetMaestro.Core;
 internal static class FavoriteTableLayout
 {
     public const double Gap = 18;
-    public const double MinimumWidth = 440;
-    public static int TableCount(double width, double minimumWidth = MinimumWidth) => Math.Max(2, (int)Math.Floor((width + Gap) / (minimumWidth + Gap)));
+    public const double MinimumWidth = 410;
+    public static int TableCount(double width, double minimumWidth = MinimumWidth, int minimumTables = 2) => Math.Max(minimumTables, (int)Math.Floor((width + Gap) / (minimumWidth + Gap)));
 
     public static (int Start, int Count)[] Distribute(int count, int columns)
     {

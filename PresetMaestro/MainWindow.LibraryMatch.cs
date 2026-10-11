@@ -95,7 +95,7 @@ public partial class MainWindow
             }
             void Report(LibraryMatchProgress progress) => PostSyncProgress(diagnostics, null, () =>
             {
-                if (!_indexChecking || !ReferenceEquals(_presetNamesCts, cancellation)) { return; }
+                if (!_indexChecking || cancellation.IsCancellationRequested || !ReferenceEquals(_presetNamesCts, cancellation)) { return; }
                 _libraryMatchProgress = progress;
                 _indexProgress!.Maximum = Math.Max(1, progress.Total);
                 _indexProgress.Value = progress.Checked;

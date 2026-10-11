@@ -1,0 +1,4 @@
+<Project>
+  <Import Project="../Directory.Build.props" />
+  <Import Project="../build/DesktopPlatform.props" />
+</Project>

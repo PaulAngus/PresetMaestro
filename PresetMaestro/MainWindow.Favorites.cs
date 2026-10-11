@@ -374,7 +374,18 @@ public partial class MainWindow
         return panel;
     }
 
-    private Border BuildFavoriteTagChip(string tag, bool removable)
+    private static Border BuildTagPill(Control content, Thickness margin) => new()
+    {
+        Background = TagBrush,
+        CornerRadius = new CornerRadius(10),
+        Padding = new Thickness(8, 0),
+        Margin = margin,
+        Height = 20,
+        VerticalAlignment = VerticalAlignment.Center,
+        Child = content,
+    };
+
+    private Border BuildFavoriteTagChip(string tag, bool removable, Action? onRemove = null)
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
         content.Children.Add(new TextBlock { Text = tag, FontSize = 12, Foreground = TagTextBrush, VerticalAlignment = VerticalAlignment.Center });
@@ -382,10 +393,14 @@ public partial class MainWindow
         {
             var remove = new Button { Content = "\u00D7", FontSize = 13, Foreground = TagRemoveBrush, Background = Brushes.Transparent, BorderThickness = new Thickness(0), MinHeight = 20, MinWidth = 18, Padding = new Thickness(2, 0), VerticalContentAlignment = VerticalAlignment.Center };
             AutomationProperties.SetName(remove, "Remove tag " + tag);
-            remove.Click += (_, _) => { _favEditingTags.Remove(tag); RefreshFavoriteTagEditor(); _favTagInput.Focus(); };
+            remove.Click += (_, _) =>
+            {
+                if (onRemove is not null) { onRemove(); }
+                else { _favEditingTags.Remove(tag); RefreshFavoriteTagEditor(); _favTagInput.Focus(); }
+            };
             content.Children.Add(remove);
         }
-        return new Border { Background = TagBrush, CornerRadius = new CornerRadius(11), Padding = new Thickness(removable ? 9 : 10, 2), Margin = new Thickness(0, 0, 6, 0), Height = 22, Child = content };
+        return BuildTagPill(content, new Thickness(0, 0, 6, 0));
     }
 
     private void RefreshFavoriteTagEditor()

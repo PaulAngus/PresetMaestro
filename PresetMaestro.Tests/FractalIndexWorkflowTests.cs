@@ -945,7 +945,8 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         var tags = new PresetAnnotation { Tags = ["Live"], SceneTags = new() { [2] = ["Lead"] } };
         Assert.True(IndexSearch.Matches(preset, tags, ["Plexi"], ["Live", "lead"], true, 1));
         Assert.False(IndexSearch.Matches(preset, tags, [], ["Live", "Clean"], true, 1));
-        Assert.True(IndexSearch.Matches(preset, tags, ["126"], ["Live", "Clean"], false, 1));
+        Assert.True(IndexSearch.Matches(preset, tags, [], ["Live", "Clean"], false, 1));
+        Assert.False(IndexSearch.Matches(preset, tags, ["126"], [], true, 1));
         Assert.False(IndexSearch.Matches(preset, null, [], ["Live"], false, 1));
     }
 
@@ -1056,6 +1057,10 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             var search = Find<TextBox>(window, "IndexSearchInput");
             search.Text = "Live";
             Dispatcher.UIThread.RunJobs();
+            Assert.Equal(0, list.ItemCount);
+            var tagSuggestion = Find<ListBox>(window, "IndexSearchSuggestions").Items.OfType<ListBoxItem>()
+                .Single(item => item.Content is Button { Content: "Live" });
+            Click((Button)tagSuggestion.Content!);
             Assert.Equal(342, list.ItemCount);
             Click(Find<Button>(window, "IndexClearSearch"));
             Assert.Equal(1024, list.ItemCount);
@@ -1282,6 +1287,10 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             var saved = IndexJson.ReadProfile(store.LoadProfile("Default").FractalIndex);
             Assert.Equal("Solo tone", saved.Find(cache.Device.Id, cache.Committed!.Presets[125], "12.00")!.SceneTags[2].Single());
             Find<TextBox>(window, "IndexSearchInput").Text = "Solo tone"; Dispatcher.UIThread.RunJobs();
+            Assert.Empty(Find<ListBox>(window, "IndexPresetList").Items);
+            var tagSuggestion = Find<ListBox>(window, "IndexSearchSuggestions").Items.OfType<ListBoxItem>()
+                .Single(item => item.Content is Button { Content: "Solo tone" });
+            Click((Button)tagSuggestion.Content!);
             Assert.Single(Find<ListBox>(window, "IndexPresetList").Items);
             Click(Find<Button>(window, "NavConfig")); Dispatcher.UIThread.RunJobs();
             Find<ComboBox>(window, "ProfileSelector").SelectedItem = "Second"; Dispatcher.UIThread.RunJobs();

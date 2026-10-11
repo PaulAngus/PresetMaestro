@@ -223,6 +223,8 @@ public partial class MainWindow
         _indexResumeButton.IsEnabled = CanSyncIndex && _indexCache?.LastAttempt is { Status: not "Complete" };
         _indexResumeButton.IsVisible = _indexCache?.LastAttempt is { Status: not "Complete" };
         _indexCancelButton!.IsVisible = _indexScanning || _indexChecking;
+        _indexCancelButton.Content = _indexScanning ? "Stop sync" : "Cancel check";
+        _indexCancelButton.IsEnabled = _presetNamesCts?.IsCancellationRequested != true;
         _indexProgressPanel!.IsVisible = _indexScanning || _indexChecking;
         RefreshIndexConnectionSyncCompletion();
         UpdateLibraryManagementButtons();
@@ -280,7 +282,7 @@ public partial class MainWindow
                 var check = await LibraryMatch.CheckSampleAsync(_fractalIndexReader, cache, partial, deviceName, cancellation.Token,
                     progress => Dispatcher.UIThread.Post(() =>
                     {
-                        if (!_indexResumeChecking || !ReferenceEquals(_presetNamesCts, cancellation)) { return; }
+                        if (!_indexResumeChecking || cancellation.IsCancellationRequested || !ReferenceEquals(_presetNamesCts, cancellation)) { return; }
                         _indexProgress!.Maximum = Math.Max(1, progress.Total);
                         _indexProgress.Value = progress.Checked;
                         _indexProgressText.Text = $"Checking saved reads before resuming… {progress.Checked} of {progress.Total} presets checked.";
@@ -299,7 +301,7 @@ public partial class MainWindow
             diagnosticScanStarted = true;
             await new IndexScanner(_fractalIndexReader, _connectionLibraryStaging ?? _indexLibrary).ScanAsync(cache, resume, progress => PostSyncProgress(diagnostics, progress.Slot, () =>
             {
-                if (!_indexScanning || !ReferenceEquals(_presetNamesCts, cancellation)) { return; }
+                if (!_indexScanning || cancellation.IsCancellationRequested || !ReferenceEquals(_presetNamesCts, cancellation)) { return; }
                 int checkedSlots = Math.Min(progress.Total, progress.Read + progress.Failed);
                 _indexProgress!.Maximum = progress.Total;
                 _indexProgress.Value = checkedSlots;
@@ -356,9 +358,10 @@ public partial class MainWindow
             _presetNamesCts = null;
             RefreshIndexContext();
             SetIndexMessage(outcome);
-            SetConnectionSyncOutcome(libraryUpdated && profileNamesUpdated ? "Device synced" : "Device sync needs attention",
+            SetConnectionSyncOutcome(libraryUpdated && profileNamesUpdated ? "Device synced"
+                    : cancellation.IsCancellationRequested ? "Device sync cancelled" : "Device sync needs attention",
                 outcome,
-                libraryUpdated && profileNamesUpdated ? "Choose Use saved data to continue. Preset Index, Amps and Favorites now use the refreshed data."
+                libraryUpdated && profileNamesUpdated ? "Choose Use saved data to continue. Presets and scenes, Amps and Favorites now use the refreshed data."
                     : cache.LastAttempt is { Status: not "Complete" } ? "Next: Choose Resume to retry missing presets, or Done to use the data already saved."
                         : "Choose Sync device to retry or review an update, or Done to continue with saved data.", needsAttention: !libraryUpdated || !profileNamesUpdated);
             UpdatePresetSyncButtons();

@@ -246,7 +246,7 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
             else { Click(Find<Button>(dialog, "ConnectionSyncCancel")); }
             await WaitFor(() => Find<Button>(dialog, "ConnectionSyncLibrary").IsEnabled);
             Assert.Equal(Json(original), Json(Library.Load(original.Device.Id)!));
-            Assert.Equal("Sync incomplete — 512 slots remaining", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.Equal(fail ? "Sync incomplete — 512 slots remaining" : "Sync cancelled — 512 slots remaining", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
             Assert.Equal("Device not checked", Find<TextBlock>(dialog, "ConnectionSyncDevice").Text);
             Assert.DoesNotContain("Firmware", Find<TextBlock>(dialog, "ConnectionSyncProfile").Text);
             FractalIndexWorkflowTests.AssertConnectionStateDisplayed(window, "Device not checked", "MIDI connected · Device not checked");
@@ -405,6 +405,75 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
         Assert.Equal(Json(original), Json(Library.Load(original.Device.Id)!));
     }
 
+    [AvaloniaTheory]
+    [InlineData(1000, "Light", false)]
+    [InlineData(1440, "Dark", false)]
+    [InlineData(1000, "Dark", true)]
+    [InlineData(1440, "Light", true)]
+    public async Task StopSyncCancelsAcrossConfigAndPresetsAndKeepsCompletedReads(int width, string theme, bool stopFromPresets)
+    {
+        var source = new WaitingSource { PauseAtSlot = 3, DelayCancellationCompletion = true };
+        var original = OccupiedDefault();
+        var (window, settings, _, _) = CreateWindow(source, original, theme, assigned: true, width: width);
+        window.Height = width == 1000 ? 640 : 850;
+        try
+        {
+            await window.ConnectAsync(); Dispatcher.UIThread.RunJobs();
+            Click(Find<Button>(window, "NavConfig"));
+            var dialog = Assert.Single(window.OwnedWindows); dialog.Width = width == 1000 ? 480 : 650;
+            var sync = window.SyncIndexAsync();
+            await source.Started.Task.WaitAsync(TimeSpan.FromSeconds(5)); Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Hide progress", Find<Button>(dialog, "ConnectionSyncDone").Content);
+            Assert.True(Find<Button>(dialog, "ConnectionSyncDone").IsEffectivelyVisible);
+            Capture(dialog, $"cancel-running-dialog-{width}-{theme}");
+            if (stopFromPresets)
+            {
+                Click(Find<Button>(dialog, "ConnectionSyncDone"));
+                Assert.False(sync.IsCompleted);
+                Click(Find<Button>(window, "NavPresetIndex"));
+                Find<Button>(window, "IndexCancel").Focus();
+                window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+                window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            }
+            else
+            {
+                Find<Button>(dialog, "ConnectionSyncCancel").Focus();
+                dialog.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+                dialog.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            }
+            await source.CancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(5)); Dispatcher.UIThread.RunJobs();
+            if (!stopFromPresets)
+            {
+                Assert.Equal("Stopping read…", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+                Assert.False(Find<Button>(dialog, "ConnectionSyncCancel").IsEnabled);
+                Capture(dialog, $"cancel-stopping-dialog-{width}-{theme}");
+                Click(Find<Button>(dialog, "ConnectionSyncDone"));
+                Click(Find<Button>(window, "NavPresetIndex"));
+            }
+            Assert.Contains("Stopping read", Find<TextBlock>(window, "IndexProgressText").Text);
+            Assert.False(Find<Button>(window, "IndexCancel").IsEnabled);
+            Capture(window, $"cancel-stopping-presets-{width}-{theme}");
+            source.FinishCancellation.SetResult();
+            await sync.WaitAsync(TimeSpan.FromSeconds(5)); Dispatcher.UIThread.RunJobs();
+            var saved = Library.Load(original.Device.Id)!;
+            Assert.Equal("Cancelled", saved.LastAttempt!.Status);
+            Assert.Equal(3, saved.LastAttempt.Presets.Count);
+            Assert.Equal(original.Committed!.Id, saved.Committed!.Id);
+            Assert.Equal("Cached 0", settings.PresetNameCache[0]);
+            Assert.Equal([0, 1, 2], source.Inner.NameReads);
+            Assert.False(Find<Button>(window, "IndexCancel").IsVisible);
+            Assert.False(Find<ProgressBar>(window, "IndexProgress").IsEffectivelyVisible);
+            Assert.True(Find<Button>(window, "IndexResume").IsEnabled);
+            Click(Find<Button>(window, "NavConfig"));
+            Click(Find<Button>(window, "ConfigSyncOptions"));
+            dialog = Assert.Single(window.OwnedWindows);
+            Assert.Equal("Sync cancelled — 509 slots remaining", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+            Assert.False(Find<ProgressBar>(dialog, "ConnectionSyncProgress").IsVisible);
+            Capture(dialog, $"cancel-complete-dialog-{width}-{theme}");
+        }
+        finally { source.FinishCancellation.TrySetResult(); window.Close(); }
+    }
+
     private sealed class WaitingSource(bool withAmp = true) : IStoredPresetNameSource, IStoredPresetImageSource, IPresetCapacitySource
     {
         public FractalIndexWorkflowTests.NameSource Inner { get; } = new(s => s == 0 ? "Fixture 0" : "<EMPTY>", withAmp: withAmp);
@@ -414,10 +483,24 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
         { CapacityChecks++; return Task.FromResult(Capacity); }
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int PauseAtSlot { get; init; }
+        public bool DelayCancellationCompletion { get; init; }
+        public TaskCompletionSource CancellationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource FinishCancellation { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool Fail { get; set; }
         public async Task<string?> ReadStoredPresetNameAsync(int slot, FractalDeviceDefinition device, CancellationToken token)
         {
-            Started.TrySetResult(); await Release.Task.WaitAsync(token);
+            if (slot >= PauseAtSlot)
+            {
+                Started.TrySetResult();
+                try { await Release.Task.WaitAsync(token); }
+                catch (OperationCanceledException)
+                {
+                    CancellationObserved.TrySetResult();
+                    if (DelayCancellationCompletion) { await FinishCancellation.Task; }
+                    throw;
+                }
+            }
             if (Fail) { throw new TimeoutException("No reply"); }
             return await Inner.ReadStoredPresetNameAsync(slot, device, token);
         }
