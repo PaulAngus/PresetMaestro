@@ -2,6 +2,8 @@
 
 A desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10 and Avalonia. The established Windows build targets Windows 10 version 2004 or later. macOS preparation targets Apple Silicon (including M2) on macOS 15 or later, with native launch and MIDI hardware acceptance still pending. Windows and Mac packages include only their own desktop and MIDI backends; Linux is not a target.
 
+The standalone **Preset Sender** utility moved to [its own Preset-Forwarder repository](https://github.com/PaulAngus/Preset-Forwarder) on 12 October 2026. It builds independently and has its own tests and releases. PresetMaestro's built-in Preset Sender page remains part of this application.
+
 Windows MIDI input uses NAudio's WinRT backend so long-running systems are not exposed to the legacy WinMM signed timestamp overflow; output continues to use WinMM. The Mac backend uses CoreMIDI through DryWetMIDI. See [Windows and macOS development](docs/windows-macos-development.md) for builds, Mac setup, signing and the remaining acceptance checks.
 
 FM9 preset and scene name reads are supported by the current protocol code. FM3 and Axe-Fx III can be identified and used for numeric preset sending, but name reads and scene-state tracking are disabled for those models until their device transactions are verified. The Axe-Fx III picker still offers all 1024 numeric preset slots; names for those slots cannot currently be synchronized.
