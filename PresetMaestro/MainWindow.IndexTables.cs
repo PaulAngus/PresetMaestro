@@ -63,9 +63,13 @@ public partial class MainWindow
         list.ItemsPanel = new FuncTemplate<Panel?>(() => _indexTablesPanel = new FavoriteTablesPanel
         {
             Name = "IndexTableLayout",
-            // The selected middle option: three tables in an 800px client area,
-            // five at 1440px, with room for preset names beside the number field.
+            // Keep the approved Windows density; adapt Mac density to its default face.
+#if MAESTRO_MACOS
+            // Mac's default face needs more room beside the preset number.
+            MinimumTableWidth = 256,
+#else
             MinimumTableWidth = 224,
+#endif
             LayoutChanged = (count, width, heights) =>
             {
                 outlines.Columns = count; outlines.WidthAvailable = width; outlines.Heights = heights; outlines.InvalidateVisual();

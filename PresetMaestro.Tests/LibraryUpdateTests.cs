@@ -138,7 +138,8 @@ public sealed class LibraryUpdateTests
             image.RawImage[8] = 1;
             if (slot != 1) { return image; }
             BinaryPrimitives.WriteUInt16LittleEndian(image.Body.AsSpan(0x2be, 2), 2);
-            return image with { Scenes = image.Scenes with { Names = ["Lead", .. image.Scenes.Names.Skip(1)] } };
+            // Guarantee overflow using actual differences, independent of platform font metrics.
+            return image with { Scenes = image.Scenes with { Names = ["Lead", .. Enumerable.Range(2, 7).Select(scene => $"Changed scene {scene}")] } };
         }
     }
 }

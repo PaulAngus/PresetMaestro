@@ -59,7 +59,13 @@ public sealed class PresetIndexTableInteractionTests : IDisposable
             Assert.Equal(list.Bounds.Width, dock.Bounds.Width, 0);
             Assert.Single(list.GetVisualDescendants().OfType<ScrollViewer>());
 
-            foreach (var size in new (int Width, int Height, int Columns)[] { (1000, 640, 3), (1440, 850, 5), (1520, 850, 5), (1521, 850, 5), (1522, 850, 6), (1920, 1000, 7), (2400, 1000, 9), (1000, 640, 3) })
+#if MAESTRO_MACOS
+            // Mac's wider preset tables reach the next density at a later window width.
+            (int Width, int Height, int Columns)[] sizes = [(1000, 640, 3), (1440, 850, 5), (1712, 850, 5), (1713, 850, 5), (1714, 850, 6), (1920, 1000, 6), (2400, 1000, 8), (1000, 640, 3)];
+#else
+            (int Width, int Height, int Columns)[] sizes = [(1000, 640, 3), (1440, 850, 5), (1520, 850, 5), (1521, 850, 5), (1522, 850, 6), (1920, 1000, 7), (2400, 1000, 9), (1000, 640, 3)];
+#endif
+            foreach (var size in sizes)
             {
                 window.Width = size.Width; window.Height = size.Height; Dispatcher.UIThread.RunJobs();
                 Assert.Equal(size.Columns, panel.Columns);

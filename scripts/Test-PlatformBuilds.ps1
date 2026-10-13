@@ -66,6 +66,24 @@ try {
     $bundle = Join-Path $results "macOS/osx-arm64/$version/Preset Maestro.app"
     $archive = Join-Path $results "macOS/osx-arm64/$version/PresetMaestro-$version-osx-arm64.zip"
     $validator = Join-Path $PSScriptRoot 'Test-MacBundle.ps1'
+    if ($IsMacOS) {
+        if (@(Get-ChildItem -LiteralPath (Join-Path $results 'macOS') -Directory -Force | Where-Object Name -Like '.build-*').Count) {
+            throw 'Packaging left a hidden staging directory.'
+        }
+        # A managed resource stays valid JSON but must fail its sealed resource hash.
+        $metadata = Join-Path $bundle 'Contents/Resources/Managed/PresetMaestro.runtimeconfig.json'
+        $originalMetadata = [IO.File]::ReadAllBytes($metadata)
+        $tamperedArchive = Join-Path $results 'tampered-resource.zip'
+        try {
+            [IO.File]::AppendAllText($metadata, "`n")
+            Assert-BundleRejected { & $validator -BundlePath $bundle -ExpectedVersion $version -VerifySignature } 'Code signature verification failed'
+            & /usr/bin/ditto -c -k --sequesterRsrc --keepParent $bundle $tamperedArchive
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot create the modified-resource ZIP fixture.' }
+        }
+        finally { [IO.File]::WriteAllBytes($metadata, $originalMetadata) }
+        Assert-BundleRejected { & $validator -BundlePath $bundle -ArchivePath $tamperedArchive -ExpectedVersion $version -VerifySignature } 'Code signature verification failed'
+        Write-Host 'PASS: signatures reject modified managed resources and modified ZIP contents; hidden staging is cleaned.'
+    }
     Assert-BundleRejected { & $validator -BundlePath $bundle -ExpectedVersion $version -Architecture x64 } 'Wrong CPU architecture'
     $wrongLibrary = Join-Path $bundle 'Contents/MacOS/Melanchall_DryWetMidi_Native64.dll'
     try {
@@ -80,6 +98,15 @@ try {
     finally { $zip.Dispose() }
     Assert-BundleRejected { & $validator -BundlePath $bundle -ArchivePath $badArchive -ExpectedVersion $version } 'executable permission'
     Write-Host 'PASS: bundle checks detect wrong native architectures, Windows libraries and lost executable permissions.'
+
+    # App-only publishing must replace a prior archived release without leaving its stale ZIP.
+    & (Join-Path $root 'Publish-Mac.ps1') -Version $version -OutputDirectory (Join-Path $results 'macOS') -SkipArchive
+    if (Test-Path -LiteralPath $archive) { throw 'App-only publishing left the prior release ZIP.' }
+    if (-not (Test-Path -LiteralPath $bundle)) { throw 'App-only publishing did not produce the runnable app.' }
+    if (@(Get-ChildItem -LiteralPath (Join-Path $results 'macOS') -Directory -Force | Where-Object Name -Like '.build-*').Count) {
+        throw 'App-only publishing left a hidden staging directory.'
+    }
+    Write-Host 'PASS: app-only publishing retains the runnable app, removes the prior release ZIP and cleans staging.'
 }
 finally {
     if ((Get-Content -LiteralPath $sourceVersion -Raw) -ne $original) { throw 'Platform checks changed the source version file.' }

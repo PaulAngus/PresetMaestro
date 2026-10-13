@@ -4,11 +4,13 @@ param(
     [Parameter(Mandatory)][string]$BundlePath,
     [ValidateSet('arm64', 'x64')][string]$Architecture = 'arm64',
     [Parameter(Mandatory)][string]$ExpectedVersion,
-    [string]$ArchivePath
+    [string]$ArchivePath,
+    [switch]$VerifySignature
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $bundle = (Resolve-Path -LiteralPath $BundlePath).Path
+if ($VerifySignature -and -not $IsMacOS) { throw 'Signature verification requires macOS.' }
 $binaryDirectory = Join-Path $bundle 'Contents/MacOS'
 $expectedCpu = if ($Architecture -eq 'arm64') { 0x0100000c } else { 0x01000007 }
 $required = @('PresetMaestro', 'PresetMaestro.dll', 'PresetMaestro.deps.json', 'PresetMaestro.runtimeconfig.json',
@@ -16,6 +18,16 @@ $required = @('PresetMaestro', 'PresetMaestro.dll', 'PresetMaestro.deps.json', '
     'Melanchall.DryWetMidi.dll', 'Melanchall_DryWetMidi_Native64.dylib')
 foreach ($name in $required) {
     if (-not (Test-Path -LiteralPath (Join-Path $binaryDirectory $name) -PathType Leaf)) { throw "Mac bundle is missing $name" }
+}
+$managedDirectory = Join-Path $bundle 'Contents/Resources/Managed'
+if (Test-Path -LiteralPath $managedDirectory -PathType Container) {
+    foreach ($name in @('libhostfxr.dylib', 'libhostpolicy.dylib', 'libcoreclr.dylib')) {
+        $path = Join-Path $managedDirectory $name
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or
+            -not ((Get-Item -LiteralPath $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "Managed resource layout is missing its native runtime link: $name"
+        }
+    }
 }
 [xml]$plist = Get-Content -LiteralPath (Join-Path $bundle 'Contents/Info.plist') -Raw
 $nodes = @($plist.DocumentElement.SelectSingleNode('dict').ChildNodes | Where-Object { $_.NodeType -eq [Xml.XmlNodeType]::Element })
@@ -38,6 +50,13 @@ if ($unexpectedPackages.Count) { throw "Unexpected platform dependencies: $unexp
 $forbidden = '(\.so(\.|$)|\.exe$|Avalonia\.(Win32|X11|LinuxFramebuffer|Desktop)\.dll$|^NAudio|^WinRT\.Runtime|^Microsoft\.Windows\.SDK|Melanchall_DryWetMidi_Native[0-9]+\.dll$|lib(SkiaSharp|HarfBuzzSharp)\.dll$)'
 $machOFiles = [Collections.Generic.List[string]]::new()
 foreach ($file in Get-ChildItem -LiteralPath $binaryDirectory -File -Recurse) {
+    if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        $target = $file.ResolveLinkTarget($true)
+        if ($null -eq $target -or -not $target.Exists -or
+            -not $target.FullName.StartsWith($bundle + [IO.Path]::DirectorySeparatorChar, [StringComparison]::Ordinal)) {
+            throw "Bundle contains a broken or external link: $($file.Name)"
+        }
+    }
     if ($file.Name -match $forbidden) { throw "Wrong-platform file in Mac bundle: $($file.Name)" }
     $stream = [IO.File]::OpenRead($file.FullName)
     try {
@@ -79,5 +98,23 @@ if ($ArchivePath) {
         }
     }
     finally { $zip.Dispose() }
+}
+if ($VerifySignature) {
+    function Assert-Signature {
+        param([string]$Path)
+        & /usr/bin/codesign --verify --deep --strict --verbose=2 $Path 2>&1 | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw "Code signature verification failed: $Path" }
+    }
+    Assert-Signature $bundle
+    if ($ArchivePath) {
+        $extracted = Join-Path ([IO.Path]::GetTempPath()) ('PresetMaestro-signature-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $extracted | Out-Null
+        try {
+            & /usr/bin/ditto -x -k $ArchivePath $extracted
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot extract the Mac archive for signature verification.' }
+            Assert-Signature (Join-Path $extracted (Split-Path $bundle -Leaf))
+        }
+        finally { Remove-Item -LiteralPath $extracted -Recurse -Force }
+    }
 }
 Write-Host "PASS: $Architecture self-contained Mac bundle, version $ExpectedVersion, native architectures and platform dependencies verified."

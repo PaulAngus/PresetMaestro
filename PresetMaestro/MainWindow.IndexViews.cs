@@ -174,7 +174,12 @@ public partial class MainWindow
         _indexSuggestions?.Items.Clear();
     }
 
+#if MAESTRO_MACOS
+    // Include the heading's text and gutters in the fixed numeric column.
+    private static ColumnDefinitions SceneResultColumns() => new("3*,48,3*,56,2*");
+#else
     private static ColumnDefinitions SceneResultColumns() => new("3*,44,3*,56,2*");
+#endif
 
     private Control BuildIndexSceneResults()
     {

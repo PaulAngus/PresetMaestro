@@ -5,7 +5,8 @@ param(
     [string]$Version,
     [string]$OutputDirectory = (Join-Path $PSScriptRoot 'publish-macos'),
     [string]$SigningIdentity = '-',
-    [string]$NotaryProfile
+    [string]$NotaryProfile,
+    [switch]$SkipArchive
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,7 +32,9 @@ $stagedApp = Join-Path $stage $appName
 $binaryDirectory = Join-Path $stagedApp 'Contents/MacOS'
 $resources = Join-Path $stagedApp 'Contents/Resources'
 $bundle = Join-Path $releaseRoot $appName
-$archive = Join-Path $releaseRoot "PresetMaestro-$Version-$rid.zip"
+$releaseArchive = Join-Path $releaseRoot "PresetMaestro-$Version-$rid.zip"
+# Notarization still needs an upload archive; app-only releases keep it temporary.
+$archive = if ($SkipArchive) { Join-Path $stage 'Notarization.zip' } else { $releaseArchive }
 
 function Invoke-Checked {
     param([string]$Command, [string[]]$Arguments)
@@ -45,7 +48,7 @@ function Remove-GeneratedDirectory {
     $resolvedRoot = (Resolve-Path -LiteralPath $Within).Path.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
     $resolvedTarget = (Resolve-Path -LiteralPath $Path).Path
     if (-not $resolvedTarget.StartsWith($resolvedRoot, [StringComparison]::Ordinal) -or
-        ((Get-Item -LiteralPath $Path).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        ((Get-Item -LiteralPath $Path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
         throw "Refusing to remove a path outside the generated output directory: $resolvedTarget"
     }
     Remove-Item -LiteralPath $resolvedTarget -Recurse -Force
@@ -111,6 +114,28 @@ try {
 "@
     $plistPath = Join-Path $stagedApp 'Contents/Info.plist'
     [IO.File]::WriteAllText($plistPath, $plist)
+    if ($onMac) {
+        # Apple treats regular files in MacOS as nested code. Managed assemblies and
+        # runtime metadata belong in Resources; relative links retain .NET's paths.
+        foreach ($file in @(Get-ChildItem -LiteralPath $binaryDirectory -File -Recurse -Force)) {
+            $relative = [IO.Path]::GetRelativePath($binaryDirectory, $file.FullName)
+            $resourcePath = Join-Path (Join-Path $resources 'Managed') $relative
+            New-Item -ItemType Directory -Path (Split-Path $resourcePath -Parent) -Force | Out-Null
+            if (Test-MachO $file.FullName) {
+                # The host resolves the managed assembly's real path. Keep native
+                # dependencies reachable from that directory for self-contained startup.
+                if ($file.Name -ne 'PresetMaestro') {
+                    $target = [IO.Path]::GetRelativePath((Split-Path $resourcePath -Parent), $file.FullName)
+                    Invoke-Checked '/bin/ln' @('-s', $target, $resourcePath)
+                }
+                continue
+            }
+            Move-Item -LiteralPath $file.FullName -Destination $resourcePath
+            Invoke-Checked '/bin/chmod' @('644', $resourcePath)
+            $target = [IO.Path]::GetRelativePath($file.DirectoryName, $resourcePath)
+            Invoke-Checked '/bin/ln' @('-s', $target, $file.FullName)
+        }
+    }
     & (Join-Path $PSScriptRoot 'scripts/Test-MacBundle.ps1') -BundlePath $stagedApp -Architecture $Architecture -ExpectedVersion $Version
     if ($onMac) {
         Invoke-Checked '/usr/bin/plutil' @('-lint', $plistPath)
@@ -125,9 +150,11 @@ try {
             if ($architectures.Trim().Split(' ').Count -gt 1) {
                 Invoke-Checked '/usr/bin/lipo' @($file.FullName, '-thin', $(if ($Architecture -eq 'x64') { 'x86_64' } else { 'arm64' }), '-output', $file.FullName)
             }
-            $fileArgs = $signArgs
-            if ($file.Name -eq 'PresetMaestro') { $fileArgs += @('--entitlements', $entitlements) }
-            Invoke-Checked '/usr/bin/codesign' ($fileArgs + @($file.FullName))
+            # Signing the outer app signs its main executable with the JIT entitlement.
+            # Every other native component must already be signed at that point.
+            if ($file.Name -ne 'PresetMaestro') {
+                Invoke-Checked '/usr/bin/codesign' ($signArgs + @($file.FullName))
+            }
         }
         Invoke-Checked '/usr/bin/codesign' ($signArgs + @('--entitlements', $entitlements, $stagedApp))
         Invoke-Checked '/usr/bin/codesign' @('--verify', '--deep', '--strict', '--verbose=2', $stagedApp)
@@ -139,7 +166,7 @@ try {
     Remove-GeneratedDirectory $bundle $releaseRoot
     Move-Item -LiteralPath $stagedApp -Destination $bundle
     Set-Content -LiteralPath $marker -Value 'Preset Maestro generated release'
-    Write-AppArchive
+    if (-not $SkipArchive -or $NotaryProfile) { Write-AppArchive }
     if ($NotaryProfile) {
         Invoke-Checked '/usr/bin/xcrun' @('notarytool', 'submit', $archive, '--keychain-profile', $NotaryProfile, '--wait')
         Invoke-Checked '/usr/bin/xcrun' @('stapler', 'staple', $bundle)
@@ -147,10 +174,14 @@ try {
         Invoke-Checked '/usr/sbin/spctl' @('--assess', '--type', 'execute', '--verbose=2', $bundle)
         Write-AppArchive
     }
-    & (Join-Path $PSScriptRoot 'scripts/Test-MacBundle.ps1') -BundlePath $bundle -ArchivePath $archive -Architecture $Architecture -ExpectedVersion $Version
+    $validationArgs = @{ BundlePath = $bundle; Architecture = $Architecture; ExpectedVersion = $Version; VerifySignature = $onMac }
+    if (-not $SkipArchive -or $NotaryProfile) { $validationArgs.ArchivePath = $archive }
+    & (Join-Path $PSScriptRoot 'scripts/Test-MacBundle.ps1') @validationArgs
+    if ($SkipArchive -and (Test-Path -LiteralPath $releaseArchive)) { Remove-Item -LiteralPath $releaseArchive }
     Write-Host "Mac app: $bundle"
-    Write-Host "Archive: $archive"
+    if (-not $SkipArchive) { Write-Host "Archive: $archive" }
     if (-not $onMac) { Write-Host 'Cross-built preparation artifact: native launch, MIDI and code signing still require macOS validation.' }
-    elseif (-not $NotaryProfile) { Write-Host 'Local test build. Public distribution still requires Developer ID signing and notarization.' }
+    elseif ($SigningIdentity -eq '-') { Write-Host 'Local test build. Public distribution still requires Developer ID signing and notarization.' }
+    elseif (-not $NotaryProfile) { Write-Host 'Developer ID signed. Public distribution still requires notarization.' }
 }
 finally { Remove-GeneratedDirectory $stage $outputRoot }

@@ -65,6 +65,10 @@ The readiness check is for Apple Silicon. For packaging alone, `Publish-Mac.ps1`
 
 `Publish-Mac.ps1` reuses `PresetMaestro/Version.txt`, or an explicit `-Version 1.2.3`, through a temporary version file. It never advances the source version: use the same explicit release number when preparing both OS releases. Direct `dotnet publish` retains the existing version-increment behaviour, so use the wrapper for Mac releases.
 
+For just the directly runnable `.app`, add `-SkipArchive`. This also removes the matching ZIP from an earlier generated release. It works with Developer ID signing and `-NotaryProfile`; notarization uses a temporary upload ZIP that is removed when publishing finishes.
+
+The app-only publish path passed `scripts/Test-PlatformBuilds.ps1`, including replacing an archived release, removing its stale ZIP, cleaning staging and preserving Windows publish validation (`build_test/macos-app-only-validation.log`). The Developer ID identity is now valid after installing Apple's G2 intermediate, but the first signing attempt returned `errSecInternalComponent` (`build_test/macos-developer-id-signing.log`). The previous local ad-hoc app remains in place. Follow [Apple's signing access troubleshooting](https://developer.apple.com/forums/thread/712005): run the publish command from Terminal and authorize `codesign` to use the private key when prompted. Successful Developer ID signing and notarization are still pending.
+
 On macOS, a normal package is ad-hoc signed for local testing. Public download releases use:
 
 ```sh
@@ -118,3 +122,15 @@ The native Mac CI job is configured but has not run in this local preparation se
 - For a public release, use real Developer ID/notarization credentials and test a **downloaded** ZIP on a clean Mac account. A local code-signature check does not reproduce Gatekeeper's download/quarantine path.
 
 Passing cross-build and managed tests is preparation evidence, not native macOS or hardware acceptance.
+
+## Native signing correction — 12 October 2026
+
+The first Mac package failed with `code object is not signed at all` for `System.Xml.XPath.XDocument.dll`. The script signed only Mach-O binaries while leaving unsigned managed assemblies in `Contents/MacOS`, a directory Apple treats as nested code. Native packaging now moves managed assemblies and runtime metadata to `Contents/Resources/Managed`, with relative links in MacOS preserving the published .NET paths. Native libraries remain signed in MacOS, with links back from Managed: the .NET host resolves the main assembly's real path and needs its self-contained runtime libraries available there. The first runtime probe caught that requirement; the final signed apphost successfully loads .NET, CoreMIDI and native Avalonia.
+
+This follows [Apple TN2206's code/resource placement and inside-out signing rules](https://developer.apple.com/library/archive/technotes/tn2206/_index.html). Native components are thinned and signed before the enclosing app; the final app signature applies the JIT entitlement to the main executable. `--deep` is used only for verification. Data is sealed as resources, avoiding the extended-attribute signatures Apple discourages for non-Mach-O files. Relative links stay entirely inside the bundle. The unsigned Windows-created preparation package keeps its existing flat layout; native publication creates the signed resource layout. Windows application publication and dependencies are unchanged.
+
+`Test-MacBundle.ps1 -VerifySignature` checks the app with `codesign --verify --deep --strict`, extracts its ZIP with ditto, and checks the extracted app as well. It checks the links required for self-contained bootstrap. `Test-PlatformBuilds.ps1` adds Mac-only negative checks that modify a managed resource in an isolated app and ZIP; both signatures must be rejected. It also verifies that hidden staging directories are removed. `Get-Item -Force` corrects the cleanup failure on hidden `.build-*` directories, preserving the useful signing error instead of masking it.
+
+Verified on Apple Silicon, macOS 27.0.1, .NET SDK 10.0.401 and PowerShell 7.6.6: local ad-hoc signing and strict verification pass, including ZIP extraction. A temporary startup hook initializes the published app's native Avalonia and enumerates CoreMIDI, then exits before starting the UI or opening profiles. This checks the packaged runtime paths without altering user data. The source version remains 1.2.13. The testing artifacts are `publish-macos/osx-arm64/1.2.13/Preset Maestro.app` and its ZIP. Public Developer ID signing, notarization and downloaded/quarantined acceptance still require release credentials and a separate run; local ad-hoc validation does not establish those results.
+
+The final platform publishing regression script passed Windows and Mac production publishes, both platform payload guards, Linux/mismatched-target rejection, wrong-architecture/library checks, ZIP execute permissions, signed-resource/ZIP tampering rejection and staging cleanup. Evidence: `build_test/macos-signing-final.log`. No Developer ID identity or notarization credentials were used.
