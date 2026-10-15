@@ -27,3 +27,6 @@ prototype-screenshots/
 /Copy-PublishedExe.ps1
 docs/design/
 TestResults/
+
+# Pinned first-party MIDI packages keep this checkout independently buildable.
+!dependencies/midi/*.nupkg

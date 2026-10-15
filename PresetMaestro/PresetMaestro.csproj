@@ -35,6 +35,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MightBeUseful.Midi" Version="$(SharedMidiVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
+    <ProjectReference Include="$(SharedMidiSourceRoot)/src/MightBeUseful.Midi/MightBeUseful.Midi.csproj" Condition="'$(SharedMidiSourceRoot)' != ''" />
     <AvaloniaResource Include="preset_maestro.ico" />
     <ProjectReference Include="..\PresetNameSync.Core\PresetNameSync.Core.csproj" />
     <ProjectReference Include="..\PresetMaestro.FractalIndex\PresetMaestro.FractalIndex.csproj" Condition="'$(EnableFractalIndex)' == 'true'" />
@@ -45,17 +47,16 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(MaestroPlatform)' == 'Windows'">
+    <PackageReference Include="MightBeUseful.Midi.Windows" Version="$(SharedMidiVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
+    <ProjectReference Include="$(SharedMidiSourceRoot)/src/MightBeUseful.Midi.Windows/MightBeUseful.Midi.Windows.csproj" Condition="'$(SharedMidiSourceRoot)' != ''" />
     <PackageReference Include="Avalonia.Win32" Version="11.2.3" />
-    <PackageReference Include="NAudio.Midi" Version="3.0.1" />
-    <PackageReference Include="NAudio.WinMM" Version="3.0.1" />
     <Compile Remove="Platforms/macOS/**/*.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(MaestroPlatform)' == 'macOS'">
+    <PackageReference Include="MightBeUseful.Midi.CoreMidi" Version="$(SharedMidiVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
+    <ProjectReference Include="$(SharedMidiSourceRoot)/src/MightBeUseful.Midi.CoreMidi/MightBeUseful.Midi.CoreMidi.csproj" Condition="'$(SharedMidiSourceRoot)' != ''" />
     <PackageReference Include="Avalonia.Native" Version="11.2.3" />
     <!-- 8.x's build targets copy Windows DLLs too. Opt out and select only the Mac asset. -->
-    <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.3" ExcludeAssets="build;buildTransitive" GeneratePathProperty="true" />
-    <None Include="$(PkgMelanchall_DryWetMidi)/build/Melanchall_DryWetMidi_Native64.dylib"
-          Link="Melanchall_DryWetMidi_Native64.dylib" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Compile Remove="Platforms/Windows/**/*.cs" />
   </ItemGroup>
 

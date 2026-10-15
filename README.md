@@ -1,5 +1,7 @@
 # Preset Maestro
 
+Shared MIDI implementation: see [dependency and setup notes](dependencies/midi/README.md). Current and legacy backends come from the `MightBeUseful.Midi` packages maintained in [MIDIHelperLibrary](https://github.com/PaulAngus/MIDIHelperLibrary); earlier implementation/package details below describe the pre-migration builds.
+
 A desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10 and Avalonia. The established Windows build targets Windows 10 version 2004 or later. macOS preparation targets Apple Silicon (including M2) on macOS 15 or later, with native launch and MIDI hardware acceptance still pending. Windows and Mac packages include only their own desktop and MIDI backends; Linux is not a target.
 
 The standalone **Preset Sender** utility moved to [its own Preset-Forwarder repository](https://github.com/PaulAngus/Preset-Forwarder) on 12 October 2026. It builds independently and has its own tests and releases. PresetMaestro's built-in Preset Sender page remains part of this application.

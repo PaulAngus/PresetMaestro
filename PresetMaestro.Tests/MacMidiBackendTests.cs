@@ -1,4 +1,5 @@
 using Melanchall.DryWetMidi.Core;
+using MacMidiCodec = MightBeUseful.Midi.CoreMidi.MacMidiCodec;
 using PresetMaestro.Midi;
 using PresetMaestro.Platforms;
 
