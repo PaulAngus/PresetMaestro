@@ -201,7 +201,7 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
             confirmations++; return Task.FromResult(true);
         });
         var shared = new IndexProfile { Devices = [original.Device], SelectedDeviceId = original.Device.Id, PortableSnapshots = [IndexJson.Clone(original)] };
-        shared.GetOrCreate(original.Device.Id, original.Committed!.Presets[0], "12.00").Tags = ["Keep for review"];
+        shared.GetOrCreate(original.Device.Id, original.Committed!.Presets[0], "12.00").Tags = ["Keep this tag"];
         store.Create("Other", new ProfileSettings { FractalIndex = IndexJson.ToElement(shared) });
         try
         {
@@ -223,7 +223,8 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
             var references = IndexJson.ReadProfile(other.FractalIndex);
             Assert.Equal(saved.Device, references.AssignedDevice);
             Assert.Empty(references.PortableSnapshots);
-            Assert.Equal("Keep for review", Assert.Single(Assert.Single(references.Pending(saved)).Tags));
+            Assert.Empty(references.Pending(saved));
+            Assert.Equal("Keep this tag", Assert.Single(references.Find(saved.Device.Id, saved.Committed.Presets[0], saved.Committed.Firmware)!.Tags));
             Assert.Equal(DeviceModel.FM9, other.DeviceModel);
         }
         finally { window.Close(); }

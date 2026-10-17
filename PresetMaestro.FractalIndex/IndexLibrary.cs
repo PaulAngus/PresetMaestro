@@ -60,14 +60,20 @@ public sealed class PresetAnnotation
     public int Slot { get; set; }
     public string Name { get; set; } = "";
     public string ContentSha256 { get; set; } = "";
+    public string? BypassIgnoredSha256 { get; set; }
     public string? Firmware { get; set; }
     public List<string> Tags { get; set; } = [];
     public Dictionary<int, List<string>> SceneTags { get; set; } = [];
     public string[] SceneNames { get; set; } = [];
     [System.Text.Json.Serialization.JsonIgnore]
     public bool HasTags => Tags.Count > 0 || SceneTags.Values.Any(tags => tags.Count > 0);
-    public bool Matches(Guid deviceId, IndexedPreset preset, string? firmware) =>
-        !preset.NameOnlyEmpty && DeviceId == deviceId && Slot == preset.Slot && ContentSha256 == preset.ContentSha256 && Firmware == firmware;
+    public bool Matches(Guid deviceId, IndexedPreset preset, string? firmware)
+    {
+        // Tags describe the user's preset/scene locations, not a frozen sound.
+        // Renames, any parameter/block edits and firmware changes retain tags.
+        // The user decides when the descriptions need updating after edits.
+        return LibraryMatch.IsPopulated(preset) && DeviceId == deviceId && Slot == preset.Slot;
+    }
 }
 
 public sealed class IndexTagReassignment
@@ -99,19 +105,43 @@ public sealed class IndexProfile
     public List<DeviceIndex> PortableSnapshots { get; set; } = [];
     public List<AmpReference> PortableAmpReferences { get; set; } = [];
 
-    public PresetAnnotation? Find(Guid deviceId, IndexedPreset preset, string? firmware) =>
-        Annotations.FirstOrDefault(a => a.Matches(deviceId, preset, firmware));
+    public PresetAnnotation? Find(Guid deviceId, IndexedPreset preset, string? firmware)
+    {
+        var matches = Annotations.Where(a => a.Matches(deviceId, preset, firmware)).ToArray();
+        var exact = matches.Where(a => a.ContentSha256 == preset.ContentSha256).ToArray();
+        return exact.Length == 1 ? exact[0] : matches.Length == 1 ? matches[0] : null;
+    }
 
     public IEnumerable<PresetAnnotation> Pending(DeviceIndex cache) => Annotations.Where(a => a.HasTags &&
         a.DeviceId == cache.Device.Id && (cache.Browsable is not { } scan ||
-        !scan.Presets.TryGetValue(a.Slot, out var preset) || !a.Matches(cache.Device.Id, preset, scan.Firmware)));
+        !scan.Presets.TryGetValue(a.Slot, out var preset) || Find(cache.Device.Id, preset, scan.Firmware) != a));
+
+    public bool RefreshTagBindings(DeviceIndex cache)
+    {
+        if (SelectedDeviceId != cache.Device.Id || cache.Browsable is not { } scan) { return false; }
+        bool changed = false;
+        foreach (var preset in scan.Presets.Values)
+        {
+            var annotation = Find(cache.Device.Id, preset, scan.Firmware);
+            if (annotation is null || annotation.ContentSha256 == preset.ContentSha256 && annotation.Firmware == scan.Firmware &&
+                annotation.BypassIgnoredSha256 == preset.BypassIgnoredSha256 && annotation.Name == preset.Name &&
+                annotation.SceneNames.SequenceEqual(preset.SceneNames)) { continue; }
+            annotation.ContentSha256 = preset.ContentSha256;
+            annotation.BypassIgnoredSha256 = preset.BypassIgnoredSha256;
+            annotation.Firmware = scan.Firmware;
+            annotation.Name = preset.Name;
+            annotation.SceneNames = preset.SceneNames.ToArray();
+            changed = true;
+        }
+        return changed;
+    }
 
     public PresetAnnotation GetOrCreate(Guid deviceId, IndexedPreset preset, string? firmware)
     {
         if (preset.NameOnlyEmpty) { throw new InvalidOperationException("This slot was reported empty; there is no saved preset content to tag."); }
         var existing = Find(deviceId, preset, firmware);
         if (existing is not null) { return existing; }
-        var annotation = new PresetAnnotation { DeviceId = deviceId, Slot = preset.Slot, Name = preset.Name, ContentSha256 = preset.ContentSha256, Firmware = firmware, SceneNames = preset.SceneNames.ToArray() };
+        var annotation = new PresetAnnotation { DeviceId = deviceId, Slot = preset.Slot, Name = preset.Name, ContentSha256 = preset.ContentSha256, BypassIgnoredSha256 = preset.BypassIgnoredSha256, Firmware = firmware, SceneNames = preset.SceneNames.ToArray() };
         Annotations.Add(annotation);
         return annotation;
     }

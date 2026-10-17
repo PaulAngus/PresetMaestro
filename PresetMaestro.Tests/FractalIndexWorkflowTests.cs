@@ -880,7 +880,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
     }
 
     [Fact]
-    public void ChangedMovedAndCopiedPresetsNeverInheritTagsWithoutReview()
+    public void ClearedMovedAndCopiedPresetsNeverInheritTagsWithoutReview()
     {
         var cache = Cache();
         var profile = new IndexProfile { Devices = [cache.Device] };
@@ -891,7 +891,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         Assert.Same(annotation, profile.Find(cache.Device.Id, original, "12.00"));
         var copy = original with { Slot = 99 };
         Assert.Null(profile.Find(cache.Device.Id, copy, "12.00"));
-        var replaced = original with { ContentSha256 = "replacement" };
+        var replaced = original with { Name = "<EMPTY>", NameOnlyEmpty = true, ContentSha256 = "" };
         cache.Committed.Presets[2] = replaced;
         cache.Committed.Presets[99] = copy;
         Assert.Null(profile.Find(cache.Device.Id, replaced, "12.00"));

@@ -71,6 +71,8 @@ public sealed partial class DeviceNavigationTests
             cache.Committed!.Presets[0] = cache.Committed.Presets[0] with { SceneNames = ["Clean", "Clean", "Warm CLEAN", "Lead", "Rhythm", "Solo", "Ambient", ""] };
             var tags = profile.GetOrCreate(cache.Device.Id, cache.Committed.Presets[0], "12.00");
             tags.Tags = ["Preset only"]; tags.SceneTags[0] = ["Stage"]; tags.SceneTags[1] = ["Clean"];
+            cache.Committed.Presets[1] = cache.Committed.Presets[1] with
+            { Name = "<EMPTY>", NameOnlyEmpty = true, ContentSha256 = "", Amps = [] };
             profile.Annotations.Add(new PresetAnnotation { DeviceId = cache.Device.Id, Slot = 1, ContentSha256 = "old", Firmware = "12.00", SceneTags = { [0] = ["Obsolete"] } });
             IndexView(window, 1);
             var search = Find<TextBox>(window, "IndexSearchInput"); search.Focus(); search.Text = "clean"; Dispatcher.UIThread.RunJobs();

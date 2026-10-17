@@ -65,12 +65,12 @@ public sealed class SharedSceneTagTests : IDisposable
     }
 
     [Fact]
-    public void ChangedContentAndOtherDevicesDoNotInheritLinkedTags()
+    public void ClearedSlotsAndOtherDevicesDoNotInheritLinkedTags()
     {
         var (profile, cache, favorites) = Fixture();
         SharedSceneTags.Reconcile(profile, cache, favorites, 1);
         var original = IndexJson.Clone(cache.Committed!.Presets[125]);
-        cache.Committed.Presets[125] = original with { ContentSha256 = "replacement" };
+        cache.Committed.Presets[125] = original with { Name = "<EMPTY>", NameOnlyEmpty = true, ContentSha256 = "" };
         SharedSceneTags.Reconcile(profile, cache, favorites, 1);
         Assert.Empty(favorites[0].Tags); Assert.Empty(favorites[1].Tags);
         Assert.Equal(["Lead", "live", "Bright"], profile.Pending(cache).Single().SceneTags[2]);
@@ -178,6 +178,9 @@ public sealed class SharedSceneTagTests : IDisposable
     public void EditingEitherViewUpdatesBothAndSceneDraftsStayWithTheirTargets(string theme, int width, int height)
     {
         var (profile, cache, favorites) = Fixture();
+        var sceneNames = cache.Committed!.Presets[125].SceneNames.ToArray(); sceneNames[2] = "Renamed solo";
+        cache.Committed.Presets[125] = cache.Committed.Presets[125] with
+        { ContentSha256 = "edited-and-renamed", SceneNames = sceneNames };
         var store = new ProfileStore(_directory); var settings = store.LoadSettings();
         settings.Theme = theme; settings.DisplayOffset = 1; settings.FractalIndex = IndexJson.ToElement(profile);
         store.SaveSettings(settings); store.SaveFavorites("Default", favorites);

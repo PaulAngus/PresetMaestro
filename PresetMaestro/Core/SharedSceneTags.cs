@@ -23,11 +23,11 @@ internal static class SharedSceneTags
         profile.GetOrCreate(target.DeviceId, target.Preset, target.Firmware).SceneTags[target.Scene] = IndexProfile.NormalizeTags(tags);
 
     // Import each legacy favorite only once. Linked copies must never resurrect a
-    // deleted tag or transfer old content's tags onto a replacement at the same slot.
+    // deleted tag or transfer tags to a different device or preset/scene location.
     public static bool Reconcile(IndexProfile profile, DeviceIndex? cache, IList<Favorite> favorites, int displayOffset, bool importLegacy = true)
     {
         if (cache is null || profile.SelectedDeviceId != cache.Device.Id || cache.Browsable is null) { return false; }
-        bool changed = false;
+        bool changed = profile.RefreshTagBindings(cache);
         foreach (var group in favorites.Where(f => !f.IsEmpty).GroupBy(f => (f.Preset, f.Scene)))
         {
             var target = Resolve(profile, cache, displayOffset, group.Key.Preset, group.Key.Scene);
