@@ -6,6 +6,8 @@ namespace PresetMaestro.Platforms;
 // Application boundary only: all device handling and current/legacy policy live in the shared package.
 internal static class MidiBackend
 {
+    public static void RefreshCapabilities() => WindowsMidiBackend.RefreshCapabilities();
+
     public static IReadOnlyList<(string Id, string Name)> GetInputDevices() => WindowsMidiBackend.GetInputDevices();
     public static IReadOnlyList<(int Index, string Name)> GetOutputDevices() => WindowsMidiBackend.GetOutputDevices();
     public static IMidiInputPort OpenInput(string id) => WindowsMidiBackend.OpenInput(id);

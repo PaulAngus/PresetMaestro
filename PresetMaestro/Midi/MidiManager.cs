@@ -19,17 +19,20 @@ public sealed class MidiManager : IMidiManager
     private readonly Func<string, IMidiInputPort> _createInput;
     private readonly Func<IReadOnlyList<(int Index, string Name)>> _outputDevices;
     private readonly Func<int, IMidiOutputPort> _createOutput;
+    private readonly Action _refreshCapabilities;
 
     public MidiManager() : this(MidiBackend.GetInputDevices, MidiBackend.OpenInput,
-        MidiBackend.GetOutputDevices, MidiBackend.OpenOutput)
+        MidiBackend.GetOutputDevices, MidiBackend.OpenOutput, MidiBackend.RefreshCapabilities)
     { }
 
     // Keep the actual routing and lifecycle testable independently of Windows drivers.
     internal MidiManager(Func<IReadOnlyList<(string Id, string Name)>> inputDevices, Func<string, IMidiInputPort> createInput,
-        Func<IReadOnlyList<(int Index, string Name)>> outputDevices, Func<int, IMidiOutputPort> createOutput)
+        Func<IReadOnlyList<(int Index, string Name)>> outputDevices, Func<int, IMidiOutputPort> createOutput,
+        Action? refreshCapabilities = null)
     {
         _inputDevices = inputDevices; _createInput = createInput;
         _outputDevices = outputDevices; _createOutput = createOutput;
+        _refreshCapabilities = refreshCapabilities ?? (() => { });
     }
 
     // Events may fire on a background thread — subscribers must marshal to UI if needed.
@@ -50,8 +53,12 @@ public sealed class MidiManager : IMidiManager
     IReadOnlyList<string> IMidiManager.GetInputPortNames() => _inputDevices().Select(device => device.Name).ToArray();
     IReadOnlyList<string> IMidiManager.GetOutputPortNames() => _outputDevices().Select(device => device.Name).ToArray();
 
-    public Task<MidiPorts> DiscoverPortsAsync() => Task.Run(() => new MidiPorts(
-        _inputDevices().Select(device => device.Name).ToArray(), _outputDevices().Select(device => device.Name).ToArray()));
+    public Task<MidiPorts> DiscoverPortsAsync() => Task.Run(() =>
+    {
+        _refreshCapabilities();
+        return new MidiPorts(_inputDevices().Select(device => device.Name).ToArray(),
+            _outputDevices().Select(device => device.Name).ToArray());
+    });
 
     public bool OpenInput(string portName, out string? errorMessage)
     {
