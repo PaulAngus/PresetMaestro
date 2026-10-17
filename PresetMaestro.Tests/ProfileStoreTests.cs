@@ -6,6 +6,165 @@ namespace PresetMaestro.Tests;
 public sealed class ProfileStoreTests : IDisposable
 {
     [Theory]
+    [InlineData("no settings", "alpha")]
+    [InlineData("legacy settings", "alpha")]
+    [InlineData("unreadable settings", "alpha")]
+    [InlineData("missing active", "alpha")]
+    [InlineData("broken active", "alpha")]
+    [InlineData("saved active", "Zulu")]
+    public void StartupPrefersSavedActiveOtherwiseDiscoversFirstViableAlphabetically(string scenario, string expected)
+    {
+        var seed = new ProfileStore(_directory);
+        foreach (string name in new[] { "Zulu", "Default", "Beta", "alpha" })
+        {
+            seed.Create(name, new ProfileSettings { MidiChannel = name == "alpha" ? 7 : 9 },
+                [new Favorite { Name = name + " favorite" }]);
+        }
+        File.WriteAllText(Path.Combine(_directory, "A broken-settings.json"), "{ invalid }");
+        File.WriteAllText(Path.Combine(_directory, "A broken-favorites.json"), "[]");
+        File.WriteAllText(Path.Combine(_directory, "A incomplete-settings.json"), "{}");
+        string machinePath = Path.Combine(_directory, "settings.json");
+        var machine = new JsonObject
+        {
+            ["Profiles"] = new JsonArray("Zulu", "Default", "Beta", "alpha"),
+            ["MidiInputPort"] = "Keyboard",
+        };
+        if (scenario == "saved active") { machine["ActiveProfile"] = "Zulu"; }
+        if (scenario == "missing active" || scenario == "broken active")
+        {
+            machine["ActiveProfile"] = scenario == "missing active" ? "Missing" : "A broken";
+            // Discovery must find alpha even when it is absent from the catalog.
+            machine["Profiles"] = new JsonArray("Zulu", "Missing");
+        }
+        File.WriteAllText(machinePath, machine.ToJsonString());
+        if (scenario == "no settings") { File.Delete(machinePath); }
+        if (scenario == "unreadable settings") { File.WriteAllText(machinePath, "{ invalid }"); }
+        var originals = Directory.GetFiles(_directory, "*-*.json").ToDictionary(path => path, File.ReadAllText);
+
+        var store = new ProfileStore(_directory);
+        var settings = store.LoadSettings();
+
+        Assert.Equal(expected, settings.ActiveProfile);
+        Assert.Equal(expected == "alpha" ? 7 : 9, settings.MidiChannel);
+        Assert.Equal(expected + " favorite", store.LoadFavorites(expected).Single().Name);
+        Assert.Equal(["alpha", "Beta", "Default", "Zulu"], store.ListProfiles());
+        Assert.Equal(store.ListProfiles(), settings.Profiles);
+        if (scenario is not ("no settings" or "unreadable settings")) { Assert.Equal("Keyboard", settings.MidiInputPort); }
+        foreach (var (path, original) in originals) { Assert.Equal(original, File.ReadAllText(path)); }
+        Assert.Equal(originals.Count, Directory.GetFiles(_directory, "*-*.json").Length);
+        Assert.Equal(expected, new ProfileStore(_directory).LoadSettings().ActiveProfile);
+    }
+
+    [Fact]
+    public void ProfileListsSortAnUnsortedSavedCatalogAndRemainSortedAfterChanges()
+    {
+        var store = new ProfileStore(_directory);
+        store.Create("Zulu");
+        store.Create("alpha");
+        SettingsManager.Save(new AppSettings { ActiveProfile = "Zulu", Profiles = ["Zulu", "alpha", "ALPHA"] },
+            Path.Combine(_directory, "settings.json"));
+        store = new ProfileStore(_directory);
+        Assert.Equal(["alpha", "Zulu"], store.ListProfiles());
+        var settings = store.LoadSettings();
+        Assert.Equal(["alpha", "Zulu"], settings.Profiles);
+        store.Create("Beta");
+        Assert.Equal(["alpha", "Beta", "Zulu"], store.ListProfiles());
+        store.Rename("Zulu", "aardvark");
+        Assert.Equal(["aardvark", "alpha", "Beta"], store.ListProfiles());
+        store.Delete("alpha");
+        Assert.Equal(["aardvark", "Beta"], new ProfileStore(_directory).ListProfiles());
+    }
+
+    [Fact]
+    public void FirstLaunchCreatesOneReadableDefaultAndRestartKeepsIt()
+    {
+        for (int launch = 0; launch < 2; launch++)
+        {
+            var store = new ProfileStore(_directory);
+            var settings = store.LoadSettings();
+            Assert.Equal("Default", settings.ActiveProfile);
+            Assert.Equal(["Default"], settings.Profiles);
+            Assert.Equal(["Default"], store.ListProfiles());
+            Assert.Equal(1, store.LoadProfile("Default").MidiChannel);
+            Assert.Empty(store.LoadFavorites("Default"));
+            Assert.Null(store.StartupMessage);
+        }
+        Assert.Equal(3, Directory.GetFiles(_directory, "*.json").Length);
+    }
+
+    [Theory]
+    [InlineData("Default", false)]
+    [InlineData("Default", true)]
+    [InlineData("Default (2)", true)]
+    public void CatalogWithoutProfileFilesCreatesDefaultWithoutSuffix(string active, bool catalogEntry)
+    {
+        SettingsManager.Save(new AppSettings
+        {
+            ActiveProfile = active,
+            Profiles = catalogEntry ? [active] : [],
+            MidiInputPort = "Keyboard",
+        }, Path.Combine(_directory, "settings.json"));
+
+        var store = new ProfileStore(_directory);
+        var settings = store.LoadSettings();
+
+        Assert.Equal("Default", settings.ActiveProfile);
+        Assert.Equal(["Default"], settings.Profiles);
+        Assert.Equal(1, store.LoadProfile("Default").MidiChannel);
+        Assert.Empty(store.LoadFavorites("Default"));
+        Assert.Equal("Keyboard", settings.MidiInputPort);
+        Assert.Null(store.StartupMessage);
+        var restarted = new ProfileStore(_directory);
+        var reopened = restarted.LoadSettings();
+        Assert.Equal("Default", reopened.ActiveProfile);
+        Assert.Equal(["Default"], reopened.Profiles);
+        Assert.Null(restarted.StartupMessage);
+        Assert.Equal(3, Directory.GetFiles(_directory, "*.json").Length);
+    }
+
+    [Fact]
+    public void StartupRemovesPhantomDefaultAndPreservesExistingReplacement()
+    {
+        var store = new ProfileStore(_directory);
+        var settings = store.LoadSettings();
+        store.Create("Default (2)", new ProfileSettings { MidiChannel = 7 }, [new Favorite { Name = "Saved" }]);
+        store.LoadProfile("Default (2)").ApplyTo(settings);
+        settings.ActiveProfile = "Default (2)";
+        store.SaveSettings(settings);
+        File.Delete(Path.Combine(_directory, "Default-settings.json"));
+        File.Delete(Path.Combine(_directory, "Default-favorites.json"));
+
+        var restarted = new ProfileStore(_directory);
+        var reopened = restarted.LoadSettings();
+
+        Assert.Equal("Default (2)", reopened.ActiveProfile);
+        Assert.Equal(["Default (2)"], reopened.Profiles);
+        Assert.Equal(7, reopened.MidiChannel);
+        Assert.Equal("Saved", restarted.LoadFavorites("Default (2)").Single().Name);
+        Assert.Equal(reopened.Profiles, new ProfileStore(_directory).LoadSettings().Profiles);
+    }
+
+    [Theory]
+    [InlineData("settings")]
+    [InlineData("favorites")]
+    public void StartupPreservesIncompleteProfileFilesAndCatalogEntry(string missing)
+    {
+        var store = new ProfileStore(_directory);
+        store.LoadSettings();
+        string remaining = Path.Combine(_directory, missing == "settings" ? "Default-favorites.json" : "Default-settings.json");
+        string original = File.ReadAllText(remaining);
+        File.Delete(Path.Combine(_directory, $"Default-{missing}.json"));
+
+        var restarted = new ProfileStore(_directory);
+        var settings = restarted.LoadSettings();
+
+        Assert.Equal("Default (2)", settings.ActiveProfile);
+        Assert.Equal(["Default", "Default (2)"], settings.Profiles);
+        Assert.Equal(original, File.ReadAllText(remaining));
+        Assert.Contains("unreadable", restarted.StartupMessage);
+    }
+
+    [Theory]
     [InlineData("a:b")]
     [InlineData("a\\b")]
     [InlineData("a/b")]

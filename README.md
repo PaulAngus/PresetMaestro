@@ -41,7 +41,7 @@ Each profile has two files in `%APPDATA%\PresetMaestro` on Windows, or `~/Librar
 
 MIDI channel, display offset and Scene CC are saved in `FractalIndex/<device-id>.json` with the saved device data. Existing devices adopt the active profile's mapping when first opened. Copies sharing a device share its mapping; exported device snapshots include it.
 
-`settings.json` keeps computer settings: MIDI input/output and thru ports, debug mode, entry options and note mappings, appearance, the available profile names (`Profiles`), and the last selected profile (`ActiveProfile`). Startup restores that profile. If its files are missing or unreadable, the app reports this and loads another readable profile, creating a new default profile if needed while preserving the original files.
+`settings.json` keeps computer settings: MIDI input/output and thru ports, debug mode, entry options and note mappings, appearance, the available profile names (`Profiles`), and the last selected profile (`ActiveProfile`). Startup restores that profile if readable. Otherwise, including when there is no settings file or saved selection, it discovers profile pairs in the directory and uses the first readable profile alphabetically, ignoring case. Profile lists always use this alphabetical order. Only when no readable profile exists does startup initialise Default with its settings and favorites files. Existing incomplete or damaged files are preserved; if they occupy the Default name, recovery uses an available name.
 
 If `settings.json` itself contains invalid JSON, startup preserves it as `settings.json.unreadable.<id>.bak`, discovers readable profile pairs, and starts with default computer settings.
 

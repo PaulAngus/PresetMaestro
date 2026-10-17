@@ -39,7 +39,7 @@ public sealed partial class ProfileStore(string directory)
             var json = File.Exists(MachinePath) ? JsonNode.Parse(File.ReadAllText(MachinePath)) : null;
             _profiles = json?[nameof(AppSettings.Profiles)]?.Deserialize<List<string>>() ?? ScanProfiles().Names;
         }
-        return [.. _profiles];
+        return _profiles.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private (List<string> Names, int Skipped) ScanProfiles()
@@ -101,7 +101,7 @@ public sealed partial class ProfileStore(string directory)
     public AppSettings LoadSettings()
     {
         AppSettings settings;
-        bool recoveredMachineSettings = false;
+        StartupMessage = null;
         try
         {
             settings = SettingsManager.Load(MachinePath);
@@ -118,42 +118,48 @@ public sealed partial class ProfileStore(string directory)
                 ActiveProfile = _profiles.FirstOrDefault() ?? "Default",
             };
             StartupMessage = $"Computer settings were unreadable and preserved as '{Path.GetFileName(backup)}'. Loaded available profiles with default computer settings.";
-            recoveredMachineSettings = true;
         }
-        // A missing ActiveProfile identifies the pre-profile format. Preserve both originals.
-        bool legacy = (!recoveredMachineSettings || _profiles?.Count == 0) && (!File.Exists(MachinePath) ||
-            JsonNode.Parse(File.ReadAllText(MachinePath))?[nameof(AppSettings.ActiveProfile)] is null);
-        if (legacy)
+        // A catalog entry alone is not a profile. Drop names with neither file
+        // before choosing a default, otherwise a phantom Default forces Default (2).
+        // Keep incomplete and unreadable pairs so their data remains recoverable.
+        _profiles = ListProfiles().Where(name =>
         {
-            if (File.Exists(MachinePath) && !File.Exists(MachinePath + ".pre-profiles.bak"))
-            {
-                File.Copy(MachinePath, MachinePath + ".pre-profiles.bak", false);
-            }
-
-            string legacyFavorites = Path.Combine(directory, "favorites.json");
-            string name = "Default";
-            for (int suffix = 2; Exists(name); suffix++)
-            {
-                name = $"Default {suffix}";
-            }
-
-            Create(name, ProfileSettings.From(settings), FavoritesManager.Load(legacyFavorites));
-            settings.ActiveProfile = name;
-            SaveMachine(settings);
+            try { return Exists(name); }
+            catch (ArgumentException) { return true; }
+        }).ToList();
+        bool hasSavedActiveProfile = File.Exists(MachinePath) &&
+            JsonNode.Parse(File.ReadAllText(MachinePath))?[nameof(AppSettings.ActiveProfile)] is not null;
+        // Preserve pre-profile settings even when existing profiles take precedence
+        // over migration. The legacy favorites file is never rewritten here.
+        if (!hasSavedActiveProfile && File.Exists(MachinePath) && !File.Exists(MachinePath + ".pre-profiles.bak"))
+        {
+            File.Copy(MachinePath, MachinePath + ".pre-profiles.bak", false);
         }
-        if (!IsReadable(settings.ActiveProfile))
+
+        string unavailable = settings.ActiveProfile;
+        bool hadProfileFiles = _profiles.Count > 0;
+        string? selected = hasSavedActiveProfile && IsReadable(settings.ActiveProfile) ? settings.ActiveProfile : null;
+        if (selected is null)
         {
-            string unavailable = settings.ActiveProfile;
-            string? fallback = ListProfiles().FirstOrDefault(IsReadable);
-            if (fallback is null)
-            {
-                fallback = AvailableName("Default");
-                Create(fallback);
-            }
-            settings.ActiveProfile = fallback;
-            string message = $"Profile '{unavailable}' is missing or unreadable. Loaded '{fallback}'; the original files were preserved.";
+            // The directory, rather than a potentially stale catalog, determines
+            // the fallback. ScanProfiles returns viable pairs in alphabetical order.
+            var scan = ScanProfiles();
+            _profiles = ListProfiles().Concat(scan.Names).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Order(StringComparer.OrdinalIgnoreCase).ToList();
+            selected = scan.Names.FirstOrDefault();
+        }
+        if (selected is null)
+        {
+            selected = AvailableName("Default");
+            Create(selected, hasSavedActiveProfile ? null : ProfileSettings.From(settings),
+                hasSavedActiveProfile ? null : FavoritesManager.Load(Path.Combine(directory, "favorites.json")));
+        }
+        if (hasSavedActiveProfile && (hadProfileFiles || selected != "Default") && !IsReadable(unavailable))
+        {
+            string message = $"Profile '{unavailable}' is missing or unreadable. Loaded '{selected}'; the original files were preserved.";
             StartupMessage = StartupMessage is null ? message : StartupMessage + " " + message;
         }
+        settings.ActiveProfile = selected;
         if (!ListProfiles().Contains(settings.ActiveProfile, StringComparer.OrdinalIgnoreCase))
         {
             PersistCatalog(ListProfiles().Append(settings.ActiveProfile));
