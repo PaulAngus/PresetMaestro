@@ -2,6 +2,8 @@
 
 Shared MIDI implementation: see [dependency and setup notes](dependencies/midi/README.md). Current and legacy backends come from the `MightBeUseful.Midi` packages maintained in [MIDIHelperLibrary](https://github.com/PaulAngus/MIDIHelperLibrary); earlier implementation/package details below describe the pre-migration builds.
 
+For loopMIDI on older Windows, see the [setup instructions](#loopmidi-setup-on-older-windows).
+
 A desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10 and Avalonia. The established Windows build targets Windows 10 version 2004 or later. macOS preparation targets Apple Silicon (including M2) on macOS 15 or later, with native launch and MIDI hardware acceptance still pending. Windows and Mac packages include only their own desktop and MIDI backends; Linux is not a target.
 
 The standalone **Preset Sender** utility moved to [its own Preset-Forwarder repository](https://github.com/PaulAngus/Preset-Forwarder) on 12 October 2026. It builds independently and has its own tests and releases. PresetMaestro's built-in Preset Sender page remains part of this application.
@@ -21,6 +23,37 @@ FM9 preset and scene name reads are supported by the current protocol code. FM3 
 You do **not** need to scan all presets before using scenes. For everyday use, just connect and select a preset.
 
 **Controller block toggles:** under **Config → MIDI Connection → Thru In(s)**, select one input route per controller. If the same controller is connected through both USB and a MIDI interface, checking both forwards each press twice. With Fractal's Effect Bypass mode set to Toggle, the second CC reverses the first. Leave only USB or only the interface checked for that controller. Different controllers can still use separate checked inputs. Thru messages retain their original channel and values; the device's receive channel and MIDI/Remote CC assignments must match. Diagnostics show the source and output ports for each forwarded message.
+
+## loopMIDI setup on older Windows
+
+Use this on supported Windows versions when connecting PresetMaestro through another MIDI application or MIDI-Forwarder. A direct USB/MIDI connection to the hardware does not need loopMIDI. The app normally selects its legacy MIDI backend automatically on older Windows; Windows MIDI Services and the optional current API installer are not required for this route.
+
+1. Download and install [loopMIDI from Tobias Erichsen](https://www.tobias-erichsen.de/software/loopmidi.html), then start it on the PC running PresetMaestro.
+2. Create two ports named `MIDI Fwd From App` and `MIDI Fwd To App`. These example names match the MIDI-Forwarder guide. Each port appears as an input and an output; its direction depends on which application selects it.
+3. Keep loopMIDI running in the tray. Enable its autostart option if the MIDI apps start at sign-in. Its ports are available only while it runs, and applications must use the same Windows user account.
+4. In **Config → MIDI Connection**, choose the ports below. In MIDI-Forwarder Client, choose the matching **From MIDI app (input)** and **To MIDI app (output)** ports. Another MIDI router must make the same connections.
+
+| Application | MIDI input (receives) | MIDI output (sends) |
+|---|---|---|
+| PresetMaestro | `MIDI Fwd To App` | `MIDI Fwd From App` |
+| MIDI-Forwarder Client / software router | `MIDI Fwd From App` | `MIDI Fwd To App` |
+
+5. Connect the bridge/router to the actual device first, then click **Connect** in PresetMaestro. loopMIDI supplies local software cables; MIDI-Forwarder or another router supplies the connection to the hardware. Device identification, name sync and scene queries require a working return path from a supported device.
+6. Check the configured MIDI channel against the device, then select a known preset to verify sending. Returned device information confirms that the return cable is routed correctly.
+
+Use two different cables for the two directions. Do not add the output cable as a **Thru In(s)** source or route the output back to itself: that can create a MIDI feedback loop. For a software controller, use a separate loopMIDI cable from that controller's output to the appropriate PresetMaestro input/Thru selection.
+
+**Ports missing or no response?** Create the ports before launching the MIDI apps, refresh the MIDI port list, or restart an app that only discovers ports at startup. Confirm that loopMIDI is still running, both applications selected the exact same port names, and the device/router accepts the configured channel. A cable alone does not emulate a Fractal device or generate device replies.
+
+If you need to force the shared legacy backend, close PresetMaestro and run this PowerShell block from its executable folder:
+
+```powershell
+$env:MBU_MIDI_BACKEND = 'legacy'
+.\PresetMaestro.exe --midi-backend | Out-Host
+.\PresetMaestro.exe
+```
+
+The backend check should report **Legacy MIDI 1.0**. The setting applies to apps launched from that shell. To return to automatic selection, run `Remove-Item Env:MBU_MIDI_BACKEND` in that shell and restart the app. See the [shared MIDI dependency notes](dependencies/midi/README.md) for the common policy used by all three apps.
 
 ## Preset Index
 
