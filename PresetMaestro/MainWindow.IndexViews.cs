@@ -258,10 +258,15 @@ public partial class MainWindow
         Grid.SetColumn(tags, 4); row.Children.Add(tags);
         string identity = $"Scene {scene.Index + 1}: {text[0]}. Preset {text[3]}: {text[2]}. Tags: {string.Join(", ", scene.Tags)}";
         AutomationProperties.SetName(row, identity); ToolTip.SetTip(row, identity);
+        var activeAccent = BuildIndexActiveAccent(row, scene.Preset.Slot, scene.Index + 1, -3);
+        Grid.SetColumnSpan(activeAccent, 5); row.Children.Add(activeAccent);
         row.AttachedToVisualTree += (_, _) =>
         {
             if (row.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault() is { } item)
-            { AutomationProperties.SetName(item, identity); ToolTip.SetTip(item, identity); }
+            {
+                AutomationProperties.SetName(item, identity); ToolTip.SetTip(item, identity);
+                AutomationProperties.SetHelpText(item, AutomationProperties.GetHelpText(row));
+            }
         };
         var go = new MenuItem { Header = "Go to scene" };
         go.Click += (_, _) => GoToDevice(scene.Preset.Slot, scene.Index + 1, scene.Preset.Variant.ToDeviceModel());
@@ -277,6 +282,7 @@ public partial class MainWindow
         _indexRendering = true;
         try
         {
+            _indexSceneActiveRows.Clear();
             _indexSceneList!.ItemsSource = scenes;
             _indexSceneList.SelectedItem = scenes.FirstOrDefault(s => s.Preset.Slot == _indexSelectedSlot && s.Index == _indexSelectedScene);
             if (_indexSceneList.SelectedItem is null) { _indexSelectedSlot = _indexSelectedScene = null; }

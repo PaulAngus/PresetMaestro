@@ -376,6 +376,7 @@ public partial class MainWindow
         UpdateIndexSendControls();
         _indexRendering = true;
         _indexList.Items.Clear();
+        _indexPresetActiveRows.Clear();
         foreach (var preset in filtered)
         {
             var annotation = _indexProfile.Find(_indexCache!.Device.Id, preset, scan!.Firmware);
@@ -412,6 +413,8 @@ public partial class MainWindow
                 Grid.SetColumn(summary, 1); row.Children.Add(summary);
             }
             var item = new ListBoxItem { Tag = preset, Content = row, Padding = new Thickness(3, 0), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            var activeAccent = BuildIndexActiveAccent(item, preset.Slot, null, -6);
+            Grid.SetColumnSpan(activeAccent, 2); row.Children.Add(activeAccent);
             AutomationProperties.SetName(item, $"Preset {preset.Slot + _settings.DisplayOffset}: {preset.Name}");
             ToolTip.SetTip(item, string.Join(" · ", new[] { preset.Name }.Concat(annotation?.Tags ?? [])
                 .Concat(annotation?.SceneTags.SelectMany(p => p.Value.Select(t => $"S{p.Key + 1}: {t}")) ?? [])

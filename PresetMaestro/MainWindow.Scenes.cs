@@ -19,6 +19,7 @@ public partial class MainWindow
     // These are written only by the existing hardware-state poll.  Sending a
     // preset or scene therefore does not optimistically mark a Favourite active.
     private int? _detectedPresetSlot, _detectedScene;
+    partial void UpdateIndexActiveRows();
     private bool _sceneClosing, _pollBusy;
     private string _sceneCacheKey = "";
     private TextBlock _favoriteSceneDisplay = null!;
@@ -333,7 +334,7 @@ public partial class MainWindow
                 _detectedPresetSlot = _detectedScene = null;
                 _currentPreset = preset.Slot + _settings.DisplayOffset;
                 _currentFavoriteName = null; _currentFavoriteScene = null;
-                UpdateDisplay(); UpdateFavoriteRowStates();
+                UpdateDisplay(); UpdateFavoriteRowStates(); UpdateIndexActiveRows();
                 await RefreshScenesAsync(preset.Slot);
             }
             int sceneGeneration = _sceneGeneration;
@@ -344,7 +345,7 @@ public partial class MainWindow
                 _activeScene = scene.Index + 1;
                 _detectedPresetSlot = preset.Slot;
                 _detectedScene = _activeScene;
-                UpdateDisplay(); UpdateFavoriteRowStates();
+                UpdateDisplay(); UpdateFavoriteRowStates(); UpdateIndexActiveRows();
             }
         }
         catch (OperationCanceledException) { }
@@ -376,6 +377,7 @@ public partial class MainWindow
         _sceneGeneration++; _sceneSlot = null; _activeScene = null;
         _detectedPresetSlot = _detectedScene = null;
         UpdateFavoriteRowStates();
+        UpdateIndexActiveRows();
         // Query the full current slot rather than guessing the bank from a PC notification.
         _ = PollAfterChangeAsync();
     });
@@ -399,5 +401,6 @@ public partial class MainWindow
         _sceneGeneration++; _sceneSlot = null; _activeScene = null;
         _detectedPresetSlot = _detectedScene = null;
         UpdateFavoriteRowStates();
+        UpdateIndexActiveRows();
     }
 }
