@@ -176,12 +176,12 @@ public partial class MainWindow
         _ampsManufacturer.SelectedItem = manufacturers.Contains(selected) ? selected : manufacturers[0];
         _ampsFirmwareNotice!.IsVisible = _indexCache is not null && !_ampsCatalog.HasUsageData;
         _ampsUsageNotice!.Text = _ampsCatalog.IsReferencePreview
-            ? "Firmware has not been detected. Browse the FM9 reference catalogue below. Connect in Config, then open Sync options and choose Sync device to read amp usage."
+            ? $"Firmware has not been detected. Browse the FM9 reference catalogue below. Connect in Config, then open Sync options and choose {DeviceSyncActionLabel} to read amp usage."
             : _indexCache?.Browsable is null
-                ? "Amp usage has not been synced. Preset-name sync updates names only. Open Sync options in Config and choose Sync device to read amp data."
+                ? $"Amp usage has not been synced. Preset-name sync updates names only. Open Sync options in Config and choose {DeviceSyncActionLabel} to read amp data."
                 : string.IsNullOrWhiteSpace(_indexCache.Browsable.EffectiveFirmware) && !_indexCache.Imported
                     ? "Check the connected device against its saved data to show which amps your saved presets use. Open Sync options in Config and choose Quick check or Full check."
-                    : "Your device’s software has changed since this amp information was saved. Open Sync options in Config and choose Sync device to refresh the saved amp data.";
+                    : $"Your device’s software has changed since this amp information was saved. Open Sync options in Config and choose {DeviceSyncActionLabel} to refresh the saved amp data.";
         var usageOptions = _ampsUsage!.Items.OfType<ComboBoxItem>().ToArray();
         usageOptions[1].IsEnabled = _ampsCatalog.HasUsageData;
         usageOptions[2].IsEnabled = _ampsCatalog.CanListUnusedAmps;
@@ -251,7 +251,7 @@ public partial class MainWindow
         }) + $"{families.Length} families · {families.Sum(f => f.Variants.Length)} variants";
         _ampsEmpty!.IsVisible = families.Length == 0;
         _ampsEmpty.Text = _indexCache is null ? "Assign a device in Config to browse amps." : _ampsCatalog.Families.Length == 0
-            ? "No roster is verified for this device and firmware. Open Sync options in Config and choose Sync device to browse the observed models."
+            ? $"No roster is verified for this device and firmware. Open Sync options in Config and choose {DeviceSyncActionLabel} to browse the observed models."
             : usage == AmpUsageFilter.Used ? "No matching amps were found in the saved preset index. Choose All amps to browse the catalogue."
             : usage == AmpUsageFilter.Unused ? "No unused amps match these filters. Clear search, choose All manufacturers, or choose All amps."
             : "No amps match these filters. Clear search or choose All manufacturers.";

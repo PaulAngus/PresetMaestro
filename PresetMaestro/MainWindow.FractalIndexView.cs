@@ -431,7 +431,7 @@ public partial class MainWindow
         _indexEmpty.Text = _indexCache is null ? "Assign a device in Config → Device for this profile. Then return here to sync its saved presets."
             : _indexScanning && presets.Length == 0 ? "Sync is in progress. Completed reads are being saved; you can cancel and resume."
             : saved.Length > 0 && presets.Length == 0 ? "No populated presets. Empty slots at the start and end are hidden, as in Select Preset."
-            : presets.Length == 0 ? "No saved presets have been indexed yet. Connect this device and choose Sync device." : "No presets match this search.";
+            : presets.Length == 0 ? $"No saved presets have been indexed yet. Connect this device and choose {DeviceSyncActionLabel}." : "No presets match this search.";
         if (_ampContains is not null && filtered.Length == 0)
         {
             _indexEmpty.Text = scan is null ? "No saved scan is available. Sync this device to find presets containing this amp."

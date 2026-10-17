@@ -21,7 +21,7 @@ public partial class MainWindow
     private readonly List<Control> _profileScanCommands = [];
     internal Func<Task<(List<string> Names, int Skipped)>>? ProfileFileScanner { get; set; }
     internal Task? ProfileScanTask { get; private set; }
-    private const string ProfileScanPurpose = "Find saved profiles on this PC from matching settings and favorites files. To read device presets, use Sync device.";
+    private const string ProfileScanPurpose = "Find saved profiles on this PC from matching settings and favorites files. To read device presets, use Sync options in Config.";
 
     private Button ProfileScanButton(string name)
     {

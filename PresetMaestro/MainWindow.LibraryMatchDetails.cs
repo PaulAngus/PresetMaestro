@@ -43,7 +43,7 @@ public partial class MainWindow
         }
         if (_libraryMatch?.IncludesLegacyFingerprints == true)
         {
-            _connectionSyncDifferences.Children.Add(DetailText("This older saved device data includes bypass in its fingerprint. Review these differences, then Sync device once to enable comparisons that ignore bypass states."));
+            _connectionSyncDifferences.Children.Add(DetailText($"This older saved device data includes bypass in its fingerprint. Review these differences, then {DeviceSyncActionLabel} once to enable comparisons that ignore bypass states."));
         }
         var rows = BuildLibraryDifferenceRows(presets, metadata, "ConnectionSync", concise: false);
         var scroll = new ScrollViewer { Name = "ConnectionSyncDifferencesScroll", Content = rows, MaxHeight = 240, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };

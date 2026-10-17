@@ -294,6 +294,8 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             Assert.Equal(cache.Committed.Presets[3].Name, store.LoadSettings().PresetNameCache[3]);
             Assert.False(Find<Grid>(dialog, "ConnectionSyncCheckChoices").IsVisible);
             Assert.True(Find<Button>(dialog, "ConnectionSyncLibrary").IsEffectivelyVisible);
+            Assert.Equal("Resync device", Find<Button>(dialog, "ConnectionSyncLibrary").Content);
+            Assert.Equal(Find<Button>(dialog, "ConnectionManageProfiles").Background, Find<Button>(dialog, "ConnectionSyncLibrary").Background);
             Assert.True(Find<Button>(dialog, "ConnectionSyncScenes").IsEffectivelyVisible);
             Assert.Equal(baselineId, library.Load(cache.Device.Id)!.Committed!.Id);
             Assert.Null(library.Load(cache.Device.Id)!.LastAttempt);
@@ -305,6 +307,8 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             }
             Click(Find<Button>(dialog, "ConnectionSyncShowChecks")); Dispatcher.UIThread.RunJobs();
             Assert.True(Find<Grid>(dialog, "ConnectionSyncCheckChoices").IsVisible);
+            Assert.Equal("Resync device", Find<Button>(dialog, "ConnectionSyncRestart").Content);
+            Assert.Contains("Resync device", Find<TextBlock>(dialog, "ConnectionSyncCompareNote").Text);
             Click(Find<Button>(dialog, "ConnectionSyncDone"));
             await window.ConnectAsync(); Dispatcher.UIThread.RunJobs();
             dialog = Assert.Single(window.OwnedWindows);
@@ -474,14 +478,19 @@ public sealed class FractalIndexWorkflowTests : IDisposable
     }
 
     [AvaloniaTheory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task InitialLibrarySyncOpensIndexOnlyAfterTheSavedDataIsReady(bool accept)
+    [InlineData(true, "Light", 1200, false)]
+    [InlineData(false, "Light", 1200, false)]
+    [InlineData(true, "Light", 1200, true)]
+    [InlineData(true, "Dark", 1200, true)]
+    [InlineData(true, "Light", 1000, true)]
+    [InlineData(true, "Dark", 1000, true)]
+    public async Task InitialLibrarySyncOpensIndexOnlyAfterTheSavedDataIsReady(bool accept, string theme, int width, bool manual)
     {
         var cache = Cache();
         var store = new ProfileStore(_directory);
         var library = new IndexLibrary(Path.Combine(_directory, "FractalIndex")); library.Save(cache);
         var settings = store.LoadSettings(); settings.MidiInputPort = "FM9"; settings.MidiOutputPort = "FM9";
+        settings.Theme = theme;
         settings.PresetNameCache[0] = "Previous name";
         settings.FractalIndex = IndexJson.ToElement(new IndexProfile { Devices = [cache.Device], SelectedDeviceId = cache.Device.Id });
         store.SaveSettings(settings);
@@ -495,7 +504,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         var window = new MainWindow(settings, [], midi, profileStore: store,
             confirm: (title, _, _, _) => { Assert.Equal("Confirm device data update", title); return Task.FromResult(accept); },
             queryPresetNameAsync: (_, _, _) => throw new InvalidOperationException("The full device sync should reuse its preset names."))
-        { Width = 1200, Height = 900, ThruInputRetryDelay = TimeSpan.Zero };
+        { Width = width, Height = 900, ThruInputRetryDelay = TimeSpan.Zero };
         var source = new NameSource(slot => slot < 16 ? "Populated" : "<EMPTY>", withAmp: true);
         typeof(MainWindow).GetField("_fractalIndexReader", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(window,
             new PresetIndexReader(source, AmpModelCatalogRegistry.CreateStarter()));
@@ -504,13 +513,45 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         {
             Click(Find<Button>(window, "NavConfig"));
             await window.ConnectAsync();
+            if (manual)
+            {
+                Click(Find<Button>(Assert.Single(window.OwnedWindows), "ConnectionSyncDone"));
+                Click(Find<Button>(window, "ConfigSyncOptions"));
+            }
             await window.SyncIndexAsync(); Dispatcher.UIThread.RunJobs();
             if (accept)
             {
-                Assert.Empty(window.OwnedWindows);
-                Assert.True(Find<Grid>(window, "PresetIndexPage").IsEffectivelyVisible);
-                Assert.Equal("Device synced", Find<TextBlock>(window, "IndexConnectionSyncTitle").Text);
-                Assert.Contains("were refreshed", Find<TextBlock>(window, "IndexConnectionSyncSummary").Text);
+                if (!manual)
+                {
+                    Assert.Empty(window.OwnedWindows);
+                    Assert.True(Find<Grid>(window, "PresetIndexPage").IsEffectivelyVisible);
+                    Assert.Equal("Device synced", Find<TextBlock>(window, "IndexConnectionSyncTitle").Text);
+                    Assert.Contains("were refreshed", Find<TextBlock>(window, "IndexConnectionSyncSummary").Text);
+                    Click(Find<Button>(window, "NavConfig"));
+                    Click(Find<Button>(window, "ConfigSyncOptions"));
+                }
+                var dialog = Assert.Single(window.OwnedWindows);
+                dialog.Width = width == 1000 ? 480 : 650;
+                var resync = Find<Button>(dialog, "ConnectionSyncLibrary");
+                var done = Find<Button>(dialog, "ConnectionSyncDone");
+                Assert.Equal("Device synced", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
+                Assert.Equal("Resync device", resync.Content);
+                Assert.True(resync.IsEnabled);
+                Assert.True(resync.IsEffectivelyVisible);
+                Assert.Equal("Use saved data", done.Content);
+                Assert.Equal(Find<Button>(dialog, "ConnectionManageProfiles").Background, resync.Background);
+                Assert.NotEqual(done.Background, resync.Background);
+                string? output = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
+                if (output is not null)
+                {
+                    Directory.CreateDirectory(output);
+                    dialog.UpdateLayout(); Dispatcher.UIThread.RunJobs(); AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                    using var screenshot = dialog.CaptureRenderedFrame();
+                    screenshot!.Save(Path.Combine(output, $"connection-resync-{theme.ToLowerInvariant()}-{width}-{manual}.png"));
+                }
+                Click(done);
+                Click(Find<Button>(window, "ConfigSyncOptions"));
+                Assert.Equal("Resync device", Find<Button>(Assert.Single(window.OwnedWindows), "ConnectionSyncLibrary").Content);
                 Assert.Equal(512, settings.PresetNameCache.Count);
                 Assert.NotNull(library.Load(cache.Device.Id)!.Committed);
             }
@@ -520,7 +561,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
                 var dialog = Assert.Single(window.OwnedWindows);
                 Assert.Equal("Device sync needs attention", Find<TextBlock>(dialog, "ConnectionSyncStatusTitle").Text);
                 Assert.True(Find<Border>(dialog, "ConnectionSyncNextPanel").IsVisible);
-                Assert.Contains("Sync device", Find<TextBlock>(dialog, "ConnectionSyncNext").Text);
+                Assert.Contains("Resync device", Find<TextBlock>(dialog, "ConnectionSyncNext").Text);
                 Assert.Equal("hash-0", library.Load(cache.Device.Id)!.Committed!.Presets[0].ContentSha256);
                 Assert.Equal(16, source.FullReads.Count);
                 Assert.Equal("Previous name", settings.PresetNameCache[0]);

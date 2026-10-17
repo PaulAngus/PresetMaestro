@@ -130,9 +130,9 @@ public partial class MainWindow
                 SetConnectionSyncOutcome(confirmed ? (full ? "Full check complete" : "Quick check complete") : "Device check needs review",
                     evidence + (confirmed ? $" {(full ? "The device contents are" : "The sample is")} consistent with “{cache.Device.Name}”." : " The assigned device could not be confirmed.") +
                         (confirmed && nameRead is not null ? " All 512 preset names were refreshed automatically. Saved presets, scenes and amps were not refreshed." : " Your saved copy has not been updated."),
-                    confirmed ? "Choose Use saved data to continue. Sync device below if you want to refresh preset content, scenes and amps."
+                    confirmed ? $"Choose Use saved data to continue. {DeviceSyncActionLabel} below if you want to refresh preset content, scenes and amps."
                         : result.Failed > 0 ? "Check the MIDI connection, then choose Check device again to retry."
-                        : "Review the differences above. Run a Full check for the complete picture, or choose Sync device to refresh the saved copy. Use Manage devices if another device is intended.", needsAttention: !confirmed);
+                        : $"Review the differences above. Run a Full check for the complete picture, or choose {DeviceSyncActionLabel} to refresh the saved copy. Use Manage devices if another device is intended.", needsAttention: !confirmed);
                 if (confirmed) { SaveDetectedLibraryFirmware(cache, result); }
                 if (confirmed && _detectedDevice?.Firmware is null && _indexCache?.Committed?.EffectiveFirmware is null)
                 {

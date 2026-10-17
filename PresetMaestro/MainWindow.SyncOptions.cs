@@ -42,6 +42,11 @@ public partial class MainWindow
     private const string FullMatchDescription = "Checks preset names first, then every preset and scene. May take several minutes.";
     private Grid? _connectionSyncCheckChoices;
 #endif
+#if FRACTAL_INDEX
+    private string DeviceSyncActionLabel => _indexCache?.Committed is not null ? "Resync device" : "Sync device";
+#else
+    private const string DeviceSyncActionLabel = "Sync device";
+#endif
     private bool _syncingFavoriteScenes;
     private readonly Dictionary<string, TextBlock> _connectionSyncDescriptions = [];
     private enum SyncStatusTone { Neutral, Activity, Success, Attention }
@@ -330,7 +335,8 @@ public partial class MainWindow
         _connectionSyncLibrary.IsVisible = !busy && !chooseDestination && !incomplete && !_connectionSyncCheckChoices.IsVisible;
         _connectionSyncResume.IsVisible = !busy && incomplete;
         _connectionSyncRestart!.IsEnabled = _connectionSyncLibrary.IsEnabled;
-        _connectionSyncRestart.Content = incomplete ? "Start over" : "Sync device";
+        _connectionSyncLibrary.Content = DeviceSyncActionLabel;
+        _connectionSyncRestart.Content = incomplete ? "Start over" : DeviceSyncActionLabel;
         SetSyncOptionVisible(_connectionSyncRestart, incomplete || _connectionSyncCheckChoices.IsVisible);
         _connectionSyncOtherOptions!.IsVisible = !busy && !chooseDestination && (!_connectionLibrarySetupRequired || incomplete);
         _connectionSyncReadErrors!.IsVisible = incomplete && _indexCache!.LastAttempt!.Errors.Count > 0;
@@ -346,8 +352,8 @@ public partial class MainWindow
             ? "Update device data first to save presets and scenes for comparison."
             : CanReadDeviceNames ? FullMatchDescription : "Checks every preset and scene. May take several minutes.");
         _connectionSyncCompareNote.Text = CanReadDeviceNames
-            ? "A successful check also refreshes all preset names. Preset content, scenes and amps are refreshed by Sync device below."
-            : "Checks compare saved data. Use Sync device below to refresh presets, scenes and amps.";
+            ? $"A successful check also refreshes all preset names. Preset content, scenes and amps are refreshed by {DeviceSyncActionLabel} below."
+            : $"Checks compare saved data. Use {DeviceSyncActionLabel} below to refresh presets, scenes and amps.";
         ToolTip.SetTip(_connectionSyncLibrary, _indexCache is null ? "Assign a device using Manage devices first." :
             _detectedDevice?.Model != _indexCache.Device.Variant.ToDeviceModel() ? "The connected and selected device models differ." : null);
 #endif
@@ -376,6 +382,8 @@ public partial class MainWindow
         _connectionSyncCancel.Content = _indexScanning ? "Stop sync" : "Cancel read";
         _connectionSyncManageProfiles!.IsEnabled = !busy && !_connectionLibrarySetupRequired;
         bool matched = !busy && _connectionSyncMatchedContext == ConnectionSyncContext;
+        _connectionSyncLibrary!.Background = matched ? SurfaceBrush : AccentBrush;
+        _connectionSyncLibrary.Foreground = matched ? TextBrush : Brushes.White;
         if (incomplete && !_connectionLibrarySetupRequired && _indexCache?.Committed is not null) { _connectionSyncDone.Content = "Use previous data"; }
         if (matched) { _connectionSyncDone.Content = "Use saved data"; }
         _connectionSyncDone.Background = matched ? AccentBrush : SurfaceBrush;
@@ -613,7 +621,7 @@ public partial class MainWindow
                 _syncReadCompleted = i + 1;
                 RefreshConnectionSyncOptions();
             }
-            SetConnectionSyncOutcome("Favorite scene names synced", $"Scene names refreshed for {slots.Length} presets used by this profile’s favorites.", "Next: Choose Done to continue. Use Sync device if you also changed preset content or amps.");
+            SetConnectionSyncOutcome("Favorite scene names synced", $"Scene names refreshed for {slots.Length} presets used by this profile’s favorites.", $"Next: Choose Done to continue. Use {DeviceSyncActionLabel} if you also changed preset content or amps.");
         }
         catch (OperationCanceledException)
         {

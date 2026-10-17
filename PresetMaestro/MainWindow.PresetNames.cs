@@ -80,7 +80,7 @@ public partial class MainWindow
             SetConnectionSyncOutcome(incomplete ? "Preset-name sync needs attention" : "Preset names synced",
                 $"{read.RefreshedSlots.Count} of 512 preset names refreshed in profile “{_settings.ActiveProfile}”. Only the name list was refreshed." + (warning is null ? "" : " " + warning),
                 incomplete ? "Next: Choose Sync names to retry missing names, or Done to use the saved list."
-                    : "Next: Choose Done to continue. Use Sync device if you also changed preset content or scenes.", needsAttention: incomplete);
+                    : $"Next: Choose Done to continue. Use {DeviceSyncActionLabel} if you also changed preset content or scenes.", needsAttention: incomplete);
             AppendLog(warning is null
                 ? $"PRESET NAMES: synchronized {read.RefreshedSlots.Count} of 512 preset names"
                 : $"PRESET NAMES: {warning}");

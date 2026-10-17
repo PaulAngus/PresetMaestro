@@ -90,6 +90,7 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
             Assert.Equal(FractalDeviceVariant.AxeFxIII, device.Variant);
             Assert.Null(device.PresetCapacity);
             Assert.True(Find<Button>(dialog, "ConnectionSyncLibrary").IsEnabled);
+            Assert.Equal("Sync device", Find<Button>(dialog, "ConnectionSyncLibrary").Content);
             Assert.Empty(source.Inner.NameReads);
         }
         finally { window.Close(); }

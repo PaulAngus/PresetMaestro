@@ -363,7 +363,7 @@ public partial class MainWindow
                 outcome,
                 libraryUpdated && profileNamesUpdated ? "Choose Use saved data to continue. Presets and scenes, Amps and Favorites now use the refreshed data."
                     : cache.LastAttempt is { Status: not "Complete" } ? "Next: Choose Resume to retry missing presets, or Done to use the data already saved."
-                        : "Choose Sync device to retry or review an update, or Done to continue with saved data.", needsAttention: !libraryUpdated || !profileNamesUpdated);
+                        : $"Choose {DeviceSyncActionLabel} to retry or review an update, or Done to continue with saved data.", needsAttention: !libraryUpdated || !profileNamesUpdated);
             UpdatePresetSyncButtons();
             if (!libraryUpdated && _connectionSyncDialog is { IsVisible: true })
             {
