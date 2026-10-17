@@ -33,7 +33,7 @@ public partial class MainWindow
 
     private static Bitmap LoadAppLogo()
     {
-        using Stream iconStream = AssetLoader.Open(new Uri("avares://PresetMaestro/preset_maestro.ico"));
+        using Stream iconStream = AssetLoader.Open(new Uri("avares://PresetMaestro/preset_maestro.png"));
         return new Bitmap(iconStream);
     }
 
@@ -121,7 +121,9 @@ public partial class MainWindow
         header.SizeChanged += (_, e) => UpdateIndexHeader(e.NewSize.Width);
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
         var identity = new StackPanel { Name = "AppIdentity", Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-        identity.Children.Add(new Image { Name = "AppLogo", Source = AppLogo, Width = 24, Height = 24, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center });
+        var logo = new Image { Name = "AppLogo", Source = AppLogo, Width = 24, Height = 24, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center };
+        RenderOptions.SetBitmapInterpolationMode(logo, BitmapInterpolationMode.HighQuality);
+        identity.Children.Add(logo);
         identity.Children.Add(new TextBlock { Name = "AppTitle", Text = "Preset Maestro", FontSize = 18, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center });
         grid.Children.Add(identity);
         var nav = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, VerticalAlignment = VerticalAlignment.Center };

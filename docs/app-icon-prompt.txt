@@ -1,0 +1,5 @@
+Tool: built-in ImageGen
+Input: 256-pixel PNG frame extracted from the previous preset_maestro.ico
+Transparent background: true
+
+Use case: precise-object-edit. Asset type: existing Preset Maestro application icon. The supplied image is the exact edit target, not style inspiration. Change only its framing: remove the unused transparent margin, recenter the existing artwork, and uniformly enlarge it so the complete guitar-pick silhouette occupies approximately 98% of the square canvas height, with a minimal transparent safety border. Preserve its aspect ratio. Preserve the existing artwork exactly: the orange-to-red guitar pick, dark rotary dial, white/silver dial ring, white pointer and white tick marks, original colours, gradients, outlines, highlights and textures. Do not redraw, reinterpret, simplify, modernize, add or remove any details. Keep a genuinely transparent background. No text, backplate or additional shadow. The whole pick must remain visible and unclipped. Output one square image.

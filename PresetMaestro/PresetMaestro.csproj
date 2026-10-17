@@ -38,6 +38,7 @@
     <PackageReference Include="MightBeUseful.Midi" Version="$(SharedMidiVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
     <ProjectReference Include="$(SharedMidiSourceRoot)/src/MightBeUseful.Midi/MightBeUseful.Midi.csproj" Condition="'$(SharedMidiSourceRoot)' != ''" />
     <AvaloniaResource Include="preset_maestro.ico" />
+    <AvaloniaResource Include="preset_maestro.png" />
     <ProjectReference Include="..\PresetNameSync.Core\PresetNameSync.Core.csproj" />
     <ProjectReference Include="..\PresetMaestro.FractalIndex\PresetMaestro.FractalIndex.csproj" Condition="'$(EnableFractalIndex)' == 'true'" />
     <!-- Never use Avalonia.Desktop or NAudio umbrella packages: backends are selected below. -->
