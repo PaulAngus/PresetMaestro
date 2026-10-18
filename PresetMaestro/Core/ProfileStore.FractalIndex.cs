@@ -8,6 +8,39 @@ public sealed partial class ProfileStore
 {
     private IndexLibrary? _deviceLibrary;
     private IndexLibrary DeviceLibrary => _deviceLibrary ??= new(Path.Combine(DirectoryPath, "FractalIndex"));
+
+    internal void SaveIndexRefresh(AppSettings settings, List<Favorite> favorites, DeviceIndex cache, DeviceIndex expected)
+    {
+        IndexJson.Validate(cache);
+        var previous = DeviceLibrary.Load(cache.Device.Id);
+        if (System.Text.Json.JsonSerializer.Serialize(previous, IndexJson.Options) != System.Text.Json.JsonSerializer.Serialize(expected, IndexJson.Options))
+        { throw new IOException("Saved device data changed during the read. Resync again to compare the current copy."); }
+        string devicePath = Path.Combine(DeviceLibrary.DirectoryPath, cache.Device.Id.ToString("N") + ".json");
+        string journalPath = Path.Combine(DeviceLibrary.DirectoryPath, cache.Device.Id.ToString("N") + ".scan.jsonl");
+        string[] paths = [SettingsPath(settings.ActiveProfile), FavoritesPath(settings.ActiveProfile), MachinePath, devicePath, devicePath + ".bak", journalPath];
+        var originals = paths.Select(path => (Path: path, Contents: File.Exists(path) ? File.ReadAllText(path) : null)).ToArray();
+        try
+        {
+            SaveSettingsAndFavorites(settings, favorites);
+            DeviceLibrary.Save(cache);
+        }
+        catch (Exception error)
+        {
+            var recoveryErrors = new List<Exception>();
+            foreach (var original in originals)
+            {
+                try
+                {
+                    if (original.Contents is null) { if (File.Exists(original.Path)) { File.Delete(original.Path); } }
+                    else if (!File.Exists(original.Path) || File.ReadAllText(original.Path) != original.Contents) { WriteText(original.Path, original.Contents); }
+                }
+                catch (Exception recovery) { recoveryErrors.Add(recovery); }
+            }
+            if (recoveryErrors.Count > 0)
+            { throw new IOException("Resync could not be saved and some files could not be restored.", new AggregateException(new[] { error }.Concat(recoveryErrors))); }
+            throw;
+        }
+    }
     internal System.Text.Json.JsonElement? PublishConnectionLibrary(DeviceIndex cache, string activeName,
         System.Text.Json.JsonElement? activeIndex, DeviceIndex expected)
     {

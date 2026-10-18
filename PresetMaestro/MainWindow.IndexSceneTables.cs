@@ -40,7 +40,7 @@ public partial class MainWindow
                         if (table > 0) { headers.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(FavoriteTableLayout.Gap))); }
                         headers.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
                         var heading = new Grid { Name = $"IndexSceneTable{table}Header", ColumnDefinitions = SceneResultColumns(), Background = InsetBrush, Margin = new(4, 1, 4, 0) };
-                        string[] labels = ["Scene name", "Scene", "Preset name", "Preset", "Scene tags"];
+                        string[] labels = ["Scene name", "Scene", "Preset name", "Preset"];
                         for (int column = 0; column < labels.Length; column++)
                         {
                             var label = new TextBlock { Text = labels[column], FontSize = 11, Foreground = SecondaryBrush, Margin = new(6, 0), VerticalAlignment = VerticalAlignment.Center };

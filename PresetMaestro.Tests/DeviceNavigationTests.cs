@@ -68,7 +68,7 @@ public sealed partial class DeviceNavigationTests : IDisposable
             Click(Find<Button>(window, "NavPresetIndex"));
             var list = Find<ListBox>(window, "IndexPresetList"); list.SelectedIndex = 255; Dispatcher.UIThread.RunJobs();
             Assert.Empty(midi.Writes);
-            Click(Find<Button>(window, "IndexGoToPreset"));
+            Click(Find<Button>(window, "IndexSendCommand"));
             Assert.Equal(("Preset", 1, 127, 0, 0, expectedChannel), Assert.Single(midi.Writes));
             Click(Find<Button>(window, "IndexScene3GoTo"));
             Assert.Equal(("Scene", 0, 0, 3, 77, expectedChannel), midi.Writes[1]);
@@ -116,7 +116,7 @@ public sealed partial class DeviceNavigationTests : IDisposable
             Click(Find<Button>(window, "NavPresetIndex"));
             Find<TextBox>(window, "IndexSearchInput").Text = "Plexis+ACs"; Dispatcher.UIThread.RunJobs();
             Find<ListBox>(window, "IndexPresetList").SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
-            var goTo = Find<Button>(window, "IndexGoToPreset"); goTo.Focus();
+            var goTo = Find<Button>(window, "IndexSendCommand"); goTo.Focus();
             var results = Find<Grid>(window, "IndexResultsPane");
             var search = Find<Border>(window, "IndexSearchEntry");
             var bounds = (results.TranslatePoint(default, window), results.Bounds.Size, search.TranslatePoint(default, window));
@@ -146,7 +146,7 @@ public sealed partial class DeviceNavigationTests : IDisposable
             Assert.True(feedback.IsVisible);
             Assert.Equal("Sent preset 001.", Find<TextBlock>(window, "SendFeedbackDetail").Text);
             FavoriteEditorTests.CaptureSendConfirmation(window, $"amp-preset-sent-{width}-{theme}");
-            Click(Find<Button>(window, "IndexGoToPreset"));
+            Click(Find<Button>(window, "IndexSendCommand"));
             Assert.Equal(previous + 2, midi.Writes.Count);
             Assert.Equal("Sent preset 001.", Find<TextBlock>(window, "SendFeedbackDetail").Text);
             Click(Find<Button>(window, "IndexScene3GoTo"));
@@ -206,7 +206,7 @@ public sealed partial class DeviceNavigationTests : IDisposable
             Assert.Equal(3, midi.Writes.Count);
             Assert.All(midi.Writes.Skip(1), write => Assert.Equal(("Scene", 0, 0, 2, 77, 5), write));
 
-            var tags = Find<Button>(window, "IndexScene2Tags");
+            var tags = Find<Button>(window, "IndexPresetTags");
             point = tags.TranslatePoint(new Point(tags.Bounds.Width / 2, tags.Bounds.Height / 2), window)!.Value;
             window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left); Dispatcher.UIThread.RunJobs();
             Assert.Single(window.OwnedWindows).Close();
@@ -222,7 +222,7 @@ public sealed partial class DeviceNavigationTests : IDisposable
         try
         {
             Click(Find<Button>(window, "NavPresetIndex")); Find<ListBox>(window, "IndexPresetList").SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
-            var goTo = (DeviceGoToButton)Find<Button>(window, "IndexGoToPreset");
+            var goTo = (DeviceGoToButton)Find<Button>(window, "IndexScene1GoTo");
             goTo.Refresh(); Assert.False(goTo.IsEnabled); Assert.False(goTo.Go());
             await window.ConnectAsync(); Assert.Single(window.OwnedWindows).Close();
             goTo.Refresh(); Assert.True(goTo.IsEnabled);
@@ -247,7 +247,7 @@ public sealed partial class DeviceNavigationTests : IDisposable
             await window.ConnectAsync(); Assert.Single(window.OwnedWindows).Close(); Click(Find<Button>(window, "NavPresetIndex"));
             Find<ListBox>(window, "IndexPresetList").SelectedIndex = 260; Dispatcher.UIThread.RunJobs();
             midi.FailWrites = true;
-            Click(Find<Button>(window, "IndexGoToPreset"));
+            Click(Find<Button>(window, "IndexScene1GoTo"));
             Assert.Null(typeof(MainWindow).GetField("_sceneSlot", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window));
             Assert.Contains("could not be reached", Find<TextBlock>(window, "SendFeedbackDetail").Text);
             Assert.Equal("Could not go to selection", Find<TextBlock>(window, "SendFeedbackTitle").Text);

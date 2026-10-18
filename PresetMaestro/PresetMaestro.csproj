@@ -35,7 +35,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MightBeUseful.Midi" Version="$(SharedMidiVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
+    <PackageReference Include="MightBeUseful.Midi" Version="$(SharedMidiPackageVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
     <ProjectReference Include="$(SharedMidiSourceRoot)/src/MightBeUseful.Midi/MightBeUseful.Midi.csproj" Condition="'$(SharedMidiSourceRoot)' != ''" />
     <AvaloniaResource Include="preset_maestro.ico" />
     <AvaloniaResource Include="preset_maestro.png" />
@@ -48,13 +48,14 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(MaestroPlatform)' == 'Windows'">
-    <PackageReference Include="MightBeUseful.Midi.Windows" Version="$(SharedMidiVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
+    <PackageReference Include="MightBeUseful.Midi.Windows" Version="$(SharedMidiPackageVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
     <ProjectReference Include="$(SharedMidiSourceRoot)/src/MightBeUseful.Midi.Windows/MightBeUseful.Midi.Windows.csproj" Condition="'$(SharedMidiSourceRoot)' != ''" />
     <PackageReference Include="Avalonia.Win32" Version="11.2.3" />
     <Compile Remove="Platforms/macOS/**/*.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(MaestroPlatform)' == 'macOS'">
-    <PackageReference Include="MightBeUseful.Midi.CoreMidi" Version="$(SharedMidiVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
+    <PackageReference Include="MightBeUseful.Midi.CoreMidi" Version="$(SharedMidiPackageVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
+    <PackageReference Include="MightBeUseful.Midi.Rtp" Version="$(SharedMidiPackageVersion)" Condition="'$(SharedMidiSourceRoot)' == ''" />
     <ProjectReference Include="$(SharedMidiSourceRoot)/src/MightBeUseful.Midi.CoreMidi/MightBeUseful.Midi.CoreMidi.csproj" Condition="'$(SharedMidiSourceRoot)' != ''" />
     <PackageReference Include="Avalonia.Native" Version="11.2.3" />
     <!-- 8.x's build targets copy Windows DLLs too. Opt out and select only the Mac asset. -->

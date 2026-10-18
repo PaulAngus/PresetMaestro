@@ -14,6 +14,7 @@ internal sealed class SceneTagSummaryPanel : Panel
     private readonly Control[] _tags;
     private readonly TextBlock[] _overflow;
     internal int VisibleTagCount { get; private set; }
+    internal double NaturalWidth => _tags.Sum(tag => tag.DesiredSize.Width);
 
     public SceneTagSummaryPanel(IEnumerable<Control> tags, IBrush foreground)
     {
@@ -45,7 +46,7 @@ internal sealed class SceneTagSummaryPanel : Panel
     {
         double used = 0;
         int visible = _tags.Length;
-        if (_tags.Sum(tag => tag.DesiredSize.Width) > finalSize.Width)
+        if (NaturalWidth > finalSize.Width)
         {
             visible = 0;
             while (visible < _tags.Length)

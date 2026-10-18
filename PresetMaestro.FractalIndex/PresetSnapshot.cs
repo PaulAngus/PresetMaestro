@@ -12,4 +12,5 @@ public sealed record PresetSnapshot(
     string ContentSha256)
 {
     public string? BypassIgnoredSha256 { get; init; }
+    public string[]? SceneContentSha256 { get; init; }
 }

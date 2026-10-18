@@ -23,7 +23,7 @@ public sealed class IndexViewLayoutTests : IDisposable
     [InlineData(1000, 640, "Dark")]
     [InlineData(1440, 850, "Light")]
     [InlineData(1440, 850, "Dark")]
-    public void IndexHeaderAndResultsRetainTheirVerticalFootprint(int width, int height, string theme)
+    public void IndexHeaderAndResultsRetainTheirExpectedVerticalFootprint(int width, int height, string theme)
     {
         var store = new ProfileStore(_directory);
         var settings = store.LoadSettings(); settings.Theme = theme;
@@ -83,10 +83,14 @@ public sealed class IndexViewLayoutTests : IDisposable
             var search = Find<Border>("IndexSearchEntry");
             var results = Find<Grid>("IndexResultsPane");
             var measurements = new[] { title.Bounds.Height, search.TranslatePoint(default, window)!.Value.Y, search.Bounds.Width, results.TranslatePoint(default, window)!.Value.Y, results.Bounds.Height };
-            // These are measured Windows baseline captures, not values derived from the controls under test.
+            // Measured Windows baselines: Presets reclaims the removed 28-pixel
+            // instruction footer; Scenes still displays its result-count footer.
             if (OperatingSystem.IsWindows() && state is "closed" or "open" or "scenes-closed" or "scenes-selected" or "scenes-open")
             {
-                double[] before = width == 1000 ? [28, 108, 627, 148, 431] : [28, 108, 1067, 148, 641];
+                bool presetView = state is "closed" or "open";
+                double[] before = width == 1000
+                    ? [28, 108, 627, 148, presetView ? 459 : 431]
+                    : [28, 108, 1067, 148, presetView ? 669 : 641];
                 Assert.Equal(before, measurements);
             }
             var nav = Find<Button>("NavPresetIndex");

@@ -12,7 +12,8 @@ namespace PresetMaestro;
 // ListBox owns selection; only visible rows and the focused row need containers.
 internal sealed class SceneTablesPanel : VirtualizingPanel
 {
-    internal const double MinimumTableWidth = 600;
+    // Preserve the prior scene-name minimum; reduce the preset-name allocation by 25%.
+    internal const double MinimumTableWidth = 534;
     internal const double RowHeight = 26;
     internal int Columns { get; private set; } = 1;
     internal Action<int, double, double[]>? LayoutChanged { get; init; }

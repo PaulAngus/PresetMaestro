@@ -34,6 +34,7 @@ public sealed record IndexedPreset(
     // An explicit device name marker, not a decoded empty body or a content fingerprint.
     public bool NameOnlyEmpty { get; init; }
     public string? BypassIgnoredSha256 { get; init; }
+    public string[]? SceneContentSha256 { get; init; }
 
     public bool Contains(int modelId) => Amps.Any(amp => amp.Channels.Any(channel => channel.Model.Id == modelId));
 
@@ -98,6 +99,6 @@ public sealed class PresetIndexReader(IStoredPresetImageSource source, AmpModelC
             [.. amp.ModelIds.Select((id, channel) => new IndexedAmpChannel(channel, catalogs.Resolve(device, firmware, id)))],
             amp.Scenes)).ToArray();
         return new IndexedPreset(device.Variant, decoded.Slot, decoded.Name, decoded.SceneNames, amps, decoded.ContentSha256)
-        { BypassIgnoredSha256 = decoded.BypassIgnoredSha256 };
+        { BypassIgnoredSha256 = decoded.BypassIgnoredSha256, SceneContentSha256 = decoded.SceneContentSha256 };
     }
 }

@@ -1092,7 +1092,6 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             var ampSection = Find<StackPanel>(window, "IndexAmpSection");
             Assert.True(sceneSection.IsVisible);
             Assert.False(ampSection.IsVisible);
-            Assert.Equal("Tags…", Find<Button>(window, "IndexScene3Tags").Content);
             var sceneScroll = Find<ScrollViewer>(window, "IndexInspectorScroll");
             Assert.True(sceneScroll.Extent.Height <= sceneScroll.Viewport.Height + 1);
             var search = Find<TextBox>(window, "IndexSearchInput");
@@ -1204,7 +1203,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
                 var summary = Find<TextBlock>(window, $"IndexScene{scene}AmpSummary");
                 var position = summary.TranslatePoint(default, row)!.Value;
                 Assert.True(position.Y >= 0 && position.Y + summary.Bounds.Height <= row.Bounds.Height);
-                var tags = Find<Button>(window, $"IndexScene{scene}Tags");
+                var tags = Find<Button>(window, $"IndexScene{scene}GoTo");
                 Assert.True(position.X + summary.Bounds.Width <= tags.TranslatePoint(default, row)!.Value.X);
                 Assert.True(summary.TextLayout.Height <= summary.Bounds.Height + 1);
             }
@@ -1321,7 +1320,8 @@ public sealed class FractalIndexWorkflowTests : IDisposable
         {
             Click(Find<Button>(window, "NavPresetIndex")); Dispatcher.UIThread.RunJobs();
             Find<ListBox>(window, "IndexPresetList").SelectedIndex = 125; Dispatcher.UIThread.RunJobs();
-            Click(Find<Button>(window, "IndexScene3Tags")); Dispatcher.UIThread.RunJobs();
+            SelectScene(window, 3);
+            Click(Find<Button>(window, "IndexPresetTags")); Dispatcher.UIThread.RunJobs();
             var editor = Assert.Single(window.OwnedWindows);
             Find<AutoCompleteBox>(editor, "IndexTagEditorInput").Text = "Solo tone";
             Click(Find<Button>(editor, "IndexSaveTags")); Dispatcher.UIThread.RunJobs();
@@ -1362,6 +1362,14 @@ public sealed class FractalIndexWorkflowTests : IDisposable
     private static T Find<T>(Window window, string name) where T : Control => window.GetLogicalDescendants().OfType<T>()
         .Concat(window.GetVisualDescendants().OfType<T>()).Distinct().Single(c => c.Name == name);
     private static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+    internal static void SelectScene(Window window, int scene)
+    {
+        var row = Find<Grid>(window, $"IndexScene{scene}Row");
+        row.BringIntoView(); Dispatcher.UIThread.RunJobs(); window.CaptureRenderedFrame()?.Dispose();
+        var point = row.TranslatePoint(new Point(8, row.Bounds.Height / 2), window)!.Value;
+        window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left); Dispatcher.UIThread.RunJobs();
+    }
 
     private static StoredPresetImage Image(int slot)
     {

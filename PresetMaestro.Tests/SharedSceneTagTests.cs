@@ -192,7 +192,8 @@ public sealed class SharedSceneTagTests : IDisposable
         {
             Click(Find<Button>(window, "NavPresetIndex"));
             Find<ListBox>(window, "IndexPresetList").SelectedIndex = 125; Dispatcher.UIThread.RunJobs();
-            Click(Find<Button>(window, "IndexScene3Tags")); Dispatcher.UIThread.RunJobs();
+            FractalIndexWorkflowTests.SelectScene(window, 3);
+            Click(Find<Button>(window, "IndexPresetTags")); Dispatcher.UIThread.RunJobs();
             var dialog = Assert.Single(window.OwnedWindows);
             Find<AutoCompleteBox>(dialog, "IndexTagEditorInput").Text = "Shared from index";
             Click(Find<Button>(dialog, "IndexSaveTags")); Dispatcher.UIThread.RunJobs();

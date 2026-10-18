@@ -78,7 +78,14 @@ public partial class MainWindow
         };
         _indexSendCommand.Click += (_, _) => HandleSend();
         controls.Children.Add(_indexSendCommand);
+        _indexResyncPresets = IndexButton("Resync Presets", "IndexResyncPresets");
+        _indexResyncPresets.MinHeight = 26;
+        _indexResyncPresets.Padding = new(6, 2);
+        _indexResyncPresets.VerticalAlignment = VerticalAlignment.Center;
+        _indexResyncPresets.Click += async (_, _) => await ResyncIndexAsync();
+        controls.Children.Add(_indexResyncPresets);
         UpdateIndexSendControls();
+        UpdateIndexResyncButtons();
         return controls;
     }
 

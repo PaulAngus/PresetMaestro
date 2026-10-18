@@ -176,9 +176,9 @@ public partial class MainWindow
 
 #if MAESTRO_MACOS
     // Include the heading's text and gutters in the fixed numeric column.
-    private static ColumnDefinitions SceneResultColumns() => new("3*,48,3*,56,2*");
+    private static ColumnDefinitions SceneResultColumns() => new("20*,48,17*,56");
 #else
-    private static ColumnDefinitions SceneResultColumns() => new("3*,44,3*,56,2*");
+    private static ColumnDefinitions SceneResultColumns() => new("20*,44,17*,56");
 #endif
 
     private Control BuildIndexSceneResults()
@@ -244,22 +244,24 @@ public partial class MainWindow
     {
         var row = new Grid { Height = 26, ColumnDefinitions = SceneResultColumns(), Margin = new(3, 0) };
         var divider = new Border { Height = 1, Background = ThemeBrush("RowSeparatorBrush"), VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false };
-        Grid.SetColumnSpan(divider, 5); row.Children.Add(divider);
+        Grid.SetColumnSpan(divider, 4); row.Children.Add(divider);
         string[] text = [scene.Name.Length > 0 ? scene.Name : "(unnamed scene)", (scene.Index + 1).ToString(),
             scene.Preset.Name.Length > 0 ? scene.Preset.Name : "(unnamed preset)", (scene.Preset.Slot + _settings.DisplayOffset).ToString("D3")];
-        for (int i = 0; i < text.Length; i++)
+        var title = new TextBlock { Text = text[0], FontSize = 13, Foreground = TextBrush, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+        var tags = new SceneTagSummaryPanel(scene.Tags.Select(tag => BuildFavoriteTagChip(tag, false)), SecondaryBrush)
+        { VerticalAlignment = VerticalAlignment.Center };
+        ToolTip.SetTip(tags, string.Join(", ", scene.Tags));
+        row.Children.Add(new SceneNameTagsPanel(title, tags)
+        { Margin = new(6, 0), VerticalAlignment = VerticalAlignment.Center, Children = { title, tags } });
+        for (int i = 1; i < text.Length; i++)
         {
             var label = new TextBlock { Text = text[i], FontSize = 13, Foreground = i is 1 or 3 ? SecondaryBrush : TextBrush, Margin = new(6, 0), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(label, i); row.Children.Add(label);
         }
-        var tags = new SceneTagSummaryPanel(scene.Tags.Select(tag => BuildFavoriteTagChip(tag, false)), SecondaryBrush)
-        { VerticalAlignment = VerticalAlignment.Center, Margin = new(6, 0) };
-        ToolTip.SetTip(tags, string.Join(", ", scene.Tags));
-        Grid.SetColumn(tags, 4); row.Children.Add(tags);
         string identity = $"Scene {scene.Index + 1}: {text[0]}. Preset {text[3]}: {text[2]}. Tags: {string.Join(", ", scene.Tags)}";
         AutomationProperties.SetName(row, identity); ToolTip.SetTip(row, identity);
         var activeAccent = BuildIndexActiveAccent(row, scene.Preset.Slot, scene.Index + 1, -3);
-        Grid.SetColumnSpan(activeAccent, 5); row.Children.Add(activeAccent);
+        Grid.SetColumnSpan(activeAccent, 4); row.Children.Add(activeAccent);
         row.AttachedToVisualTree += (_, _) =>
         {
             if (row.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault() is { } item)
@@ -295,8 +297,8 @@ public partial class MainWindow
         if (!_indexScanning)
         {
             int count = scenes.Select(s => s.Preset.Slot).Distinct().Count();
-            _indexStatus!.Text = $"{scenes.Length} {(scenes.Length == 1 ? "scene" : "scenes")} across {count} {(count == 1 ? "preset" : "presets")}." +
-                (_indexCache?.Committed is not null && _indexCache.LastAttempt is { Status: not "Complete" } ? " Showing the last complete index; an unfinished scan is available to resume." : " Details or Enter opens the pane. SEND, double-click or Go to loads the scene.");
+            SetIndexStatus($"{scenes.Length} {(scenes.Length == 1 ? "scene" : "scenes")} across {count} {(count == 1 ? "preset" : "presets")}." +
+                (_indexCache?.Committed is not null && _indexCache.LastAttempt is { Status: not "Complete" } ? " Showing the last complete index; an unfinished scan is available to resume." : " Details or Enter opens the pane. SEND, double-click or Go to loads the scene."));
         }
         RenderIndexInspector();
     }

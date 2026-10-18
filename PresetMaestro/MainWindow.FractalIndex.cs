@@ -198,9 +198,16 @@ public partial class MainWindow
 
     private void SetIndexMessage(string message)
     {
-        if (_indexStatus is not null) { _indexStatus.Text = message; }
+        SetIndexStatus(message);
         if (_indexConfigStatus is not null) { _indexConfigStatus.Text = message; }
         if (_libraryManagementStatus is not null) { _libraryManagementStatus.Text = message; }
+    }
+
+    private void SetIndexStatus(string message)
+    {
+        if (_indexStatus is null) { return; }
+        _indexStatus.Text = message;
+        _indexStatus.IsVisible = !string.IsNullOrEmpty(message);
     }
 
     private bool IndexDeviceMatchesProfile(FractalDeviceVariant variant)
@@ -218,6 +225,7 @@ public partial class MainWindow
 
     partial void UpdateIndexButtons()
     {
+        UpdateIndexResyncButtons();
         if (_indexResumeButton is null) { return; }
         UpdateIndexSendControls();
         _indexResumeButton.IsEnabled = CanSyncIndex && _indexCache?.LastAttempt is { Status: not "Complete" };

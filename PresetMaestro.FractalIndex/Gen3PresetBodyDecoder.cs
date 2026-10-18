@@ -117,6 +117,9 @@ public static class Gen3PresetBodyDecoder
         }
         return new PresetSnapshot(image.Scenes.Slot, image.Scenes.PresetName, image.Scenes.Names,
             [.. amps], Convert.ToHexString(SHA256.HashData(image.RawImage)))
-        { BypassIgnoredSha256 = BypassIgnoredFingerprint.Compute(image, chainStart, hasPlacedBlocks) };
+        {
+            BypassIgnoredSha256 = BypassIgnoredFingerprint.Compute(image, chainStart, hasPlacedBlocks),
+            SceneContentSha256 = SceneContentFingerprint.Compute(image, chainStart),
+        };
     }
 }

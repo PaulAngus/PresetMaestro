@@ -90,7 +90,7 @@ public sealed partial class DeviceNavigationTests
             IndexView(window, 0); IndexView(window, 1); Assert.Single(list.Items);
             var item = (ListBoxItem)list.ContainerFromIndex(0)!; item.Focus(); Press(window, PhysicalKey.Enter);
             Assert.Equal(1, ((IndexedScene)list.SelectedItem!).Index); Assert.Empty(midi.Writes);
-            Click(Find<Button>(window, "IndexScene2Tags")); var dialog = Assert.Single(window.OwnedWindows);
+            Click(Find<Button>(window, "IndexPresetTags")); var dialog = Assert.Single(window.OwnedWindows);
             Find<AutoCompleteBox>(dialog, "IndexTagEditorInput").Text = "Shared scene tag";
             Click(Find<Button>(dialog, "IndexSaveTags"));
             var saved = IndexJson.ReadProfile(new ProfileStore(_directory).LoadProfile("Default").FractalIndex);

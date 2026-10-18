@@ -30,3 +30,6 @@ TestResults/
 
 # Pinned first-party MIDI packages keep this checkout independently buildable.
 !dependencies/midi/*.nupkg
+
+# Repository-local NuGet cache.
+.build/

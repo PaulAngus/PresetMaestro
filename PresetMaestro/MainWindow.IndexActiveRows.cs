@@ -11,8 +11,9 @@ public partial class MainWindow
 {
     private readonly List<(Border Accent, Control Owner, int Slot, int? Scene)> _indexPresetActiveRows = [];
     private readonly List<(Border Accent, Control Owner, int Slot, int? Scene)> _indexSceneActiveRows = [];
+    private readonly List<(Border Accent, Control Owner, int Slot, int? Scene)> _indexInspectorActiveRows = [];
 
-    private Border BuildIndexActiveAccent(Control owner, int slot, int? scene, double leadingMargin)
+    private Border BuildIndexActiveAccent(Control owner, int slot, int? scene, double leadingMargin, bool inspector = false)
     {
         var accent = new Border
         {
@@ -24,14 +25,14 @@ public partial class MainWindow
             IsHitTestVisible = false,
             IsVisible = false,
         };
-        (scene is null ? _indexPresetActiveRows : _indexSceneActiveRows).Add((accent, owner, slot, scene));
+        (inspector ? _indexInspectorActiveRows : scene is null ? _indexPresetActiveRows : _indexSceneActiveRows).Add((accent, owner, slot, scene));
         UpdateIndexActiveRow(accent, owner, slot, scene);
         return accent;
     }
 
     partial void UpdateIndexActiveRows()
     {
-        foreach (var (accent, owner, slot, scene) in _indexPresetActiveRows.Concat(_indexSceneActiveRows))
+        foreach (var (accent, owner, slot, scene) in _indexPresetActiveRows.Concat(_indexSceneActiveRows).Concat(_indexInspectorActiveRows))
         {
             UpdateIndexActiveRow(accent, owner, slot, scene);
         }

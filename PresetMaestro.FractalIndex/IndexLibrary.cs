@@ -254,6 +254,7 @@ public static class IndexJson
                     p.Value.Variant != cache.Device.Variant || p.Value.Name is null || p.Value.ContentSha256 is null ||
                     p.Value.NameOnlyEmpty && (p.Value.Name.Trim() != "<EMPTY>" || p.Value.ContentSha256.Length != 0 || p.Value.Amps is null || p.Value.Amps.Length != 0) ||
                     p.Value.SceneNames is null || p.Value.SceneNames.Length != 8 || p.Value.SceneNames.Any(n => n is null) ||
+                    p.Value.SceneContentSha256 is { } fingerprints && (fingerprints.Length != 8 || fingerprints.Any(string.IsNullOrWhiteSpace)) ||
                     p.Value.Amps is null || p.Value.Amps.Length > definition.MaxAmpBlocks || p.Value.Amps.Any(a => a is null ||
                         a.BlockNumber < 1 || a.BlockNumber > definition.MaxAmpBlocks ||
                         a.Channels is null || a.Channels.Length != 4 || a.Channels.Where((c, i) => c is null || c.Channel != i || c.Model is null || c.Model.DisplayName is null).Any() ||

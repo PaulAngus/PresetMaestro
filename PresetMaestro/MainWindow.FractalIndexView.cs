@@ -43,6 +43,7 @@ public partial class MainWindow
     private TextBlock? _indexConnectionSyncTitle, _indexConnectionSyncSummary;
     private ToggleButton? _indexTagMatchAny, _indexTagMatchAll;
     private Border? _indexTagMatchThumb;
+    private Action? _indexInspectorRefreshTagAction;
 
     private static Button IndexButton(string text, string? name = null) => new()
     {
@@ -169,7 +170,7 @@ public partial class MainWindow
             if (e.Key == Key.Escape) { CloseIndexInspector(); e.Handled = true; }
         };
         Grid.SetRow(_indexInspectorFrame, 2); _indexResultsPane.Children.Add(_indexInspectorFrame);
-        _indexStatus = new TextBlock { Name = "IndexStatus", FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush, Margin = new Thickness(0, 10, 0, 0) };
+        _indexStatus = new TextBlock { Name = "IndexStatus", FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = SecondaryBrush, Margin = new Thickness(0, 10, 0, 0), IsVisible = false };
         Grid.SetRow(_indexStatus, 5); content.Children.Add(_indexStatus);
         card.Child = content; page.Children.Add(card);
         RenderIndexResults(); UpdateIndexButtons();
@@ -442,9 +443,9 @@ public partial class MainWindow
         {
             _indexProgress!.Value = scan?.Presets.Count ?? 0;
             _indexProgress.Maximum = _indexCache is null ? 512 : FractalDeviceDefinition.For(_indexCache.Device).PresetSlots;
-            _indexStatus!.Text = _indexCache?.Committed is not null && _indexCache.LastAttempt is { Status: not "Complete" }
+            SetIndexStatus(_indexCache?.Committed is not null && _indexCache.LastAttempt is { Status: not "Complete" }
                 ? "Showing the last complete index. An unfinished scan is available to resume."
-                : "Select a preset to see its scenes and amp models. Double-click or choose Go to to load it on the connected device.";
+                : "");
         }
         PaintIndexSelection(); RenderIndexInspector();
     }
@@ -473,6 +474,9 @@ public partial class MainWindow
         UpdateIndexSendControls();
         UpdateIndexSceneDetailsButton();
         _indexInspector.Children.Clear();
+        _indexInspectorActiveRows.Clear();
+        _indexResyncScenes = null;
+        _indexInspectorRefreshTagAction = null;
         _indexInspectorHeader!.Children.Clear();
         _indexInspectorScroll!.Offset = default;
         _indexInspectorFrame!.IsVisible = false;
@@ -506,16 +510,26 @@ public partial class MainWindow
         ToolTip.SetTip(close, "Close details (Esc)");
         close.Click += (_, _) => CloseIndexInspector();
         Grid.SetColumn(close, 8);
-        var model = _indexCache.Device.Variant.ToDeviceModel();
-        var goTo = new DeviceGoToButton("Go to preset", "IndexGoToPreset", () => preset.Slot,
-            selected => GoToDevice(selected, null, model), () => DeviceNavigationUnavailable(model))
-        { MinHeight = 28, FontSize = 12, Padding = new(8, 2) };
-        Grid.SetColumn(goTo, 4); header.Children.Add(goTo);
-        var editTags = IndexButton(annotation?.Tags.Count > 0 ? "Edit tags" : "+ Add tag", "IndexPresetTags");
+        _indexResyncScenes = IndexButton("Resync Scenes", "IndexResyncScenes");
+        _indexResyncScenes.VerticalAlignment = VerticalAlignment.Center;
+        _indexResyncScenes.Click += async (_, _) => await ResyncIndexAsync(preset.Slot);
+        AutomationProperties.SetName(_indexResyncScenes, $"Resync scenes for preset {slot + _settings.DisplayOffset:D3}: {preset.Name}");
+        Grid.SetColumn(_indexResyncScenes, 4); header.Children.Add(_indexResyncScenes);
+        UpdateIndexResyncButtons();
+        var editTags = IndexButton("+ Add tag", "IndexPresetTags");
         editTags.VerticalAlignment = VerticalAlignment.Center;
         editTags.IsEnabled = !preset.NameOnlyEmpty;
-        AutomationProperties.SetName(editTags, $"Edit tags for preset {preset.Name}");
-        editTags.Click += async (_, _) => await EditIndexTagsAsync(preset, null);
+        _indexInspectorRefreshTagAction = () =>
+        {
+            int? scene = _indexSelectedScene;
+            var tags = scene is int index ? annotation?.SceneTags.GetValueOrDefault(index) : annotation?.Tags;
+            editTags.Content = tags?.Count > 0 ? "Edit tags" : "+ Add tag";
+            string target = scene is int selected ? $"scene {selected + 1}: {preset.SceneNames[selected]}" : $"preset {preset.Name}";
+            AutomationProperties.SetName(editTags, "Edit tags for " + target);
+            ToolTip.SetTip(editTags, "Edit tags for " + target + ". Select a scene row to edit its tags.");
+        };
+        _indexInspectorRefreshTagAction();
+        editTags.Click += async (_, _) => await EditIndexTagsAsync(preset, _indexSelectedScene);
         Grid.SetColumn(editTags, 6); header.Children.Add(editTags);
         if (preset.NameOnlyEmpty)
         {
@@ -541,7 +555,7 @@ public partial class MainWindow
             HeadingForeground = SecondaryBrush,
             HeadingBackground = InsetBrush,
             Spacing = 0,
-            Children = { headings, scenes, new TextBlock { Text = "A–D = amp channel · Off = bypassed · Go to loads the preset and scene on your device.", FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap, Margin = new(6, 6, 0, 0) } },
+            Children = { headings, scenes },
         };
         var ampSection = new StackPanel { Name = "IndexAmpSection" };
         ampSection.Spacing = 8; ampSection.IsVisible = false;
@@ -599,6 +613,8 @@ public partial class MainWindow
         var row = new Grid { Name = $"IndexScene{number}Row", MinHeight = 32, ColumnDefinitions = IndexSceneSectionPanel.CellColumns(), Background = _indexSelectedScene == scene ? ThemeBrush("SelectedBrush") : SurfaceBrush, Focusable = true };
         var divider = new Border { Height = 1, Background = ThemeBrush("RowSeparatorBrush"), VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false };
         Grid.SetColumnSpan(divider, 4); row.Children.Add(divider);
+        var activeAccent = BuildIndexActiveAccent(row, preset.Slot, number, 0, inspector: true);
+        Grid.SetColumnSpan(activeAccent, 4); row.Children.Add(activeAccent);
         row.Children.Add(new TextBlock { Text = number.ToString(), FontSize = 12, Foreground = SecondaryBrush, Margin = new(6, 0), VerticalAlignment = VerticalAlignment.Center });
         var tagPanel = new StackPanel { Orientation = Orientation.Horizontal, ClipToBounds = true, VerticalAlignment = VerticalAlignment.Center };
         foreach (var tag in tags) { tagPanel.Children.Add(BuildFavoriteTagChip(tag, false)); }
@@ -621,11 +637,6 @@ public partial class MainWindow
         var summary = new TextBlock { Name = $"IndexScene{number}AmpSummary", Text = ampSummary, FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap, Margin = new(6, 2), VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(summary, 2); row.Children.Add(summary);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new(0, 2, 6, 2), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-        var edit = IndexButton("Tags…", $"IndexScene{number}Tags");
-        AutomationProperties.SetName(edit, $"Edit tags for scene {number}: {preset.SceneNames[scene]}");
-        edit.Padding = new(6, 2); ToolTip.SetTip(edit, tags.Any() ? string.Join(", ", tags) : "Add tags to this scene.");
-        edit.Click += async (_, _) => await EditIndexTagsAsync(preset, scene);
-        actions.Children.Add(edit);
         var model = _indexCache!.Device.Variant.ToDeviceModel();
         var goTo = new DeviceGoToButton("Go to", $"IndexScene{number}GoTo", () => number,
             selected => GoToDevice(preset.Slot, selected, model), () => DeviceNavigationUnavailable(model))
@@ -636,6 +647,7 @@ public partial class MainWindow
         {
             _indexSelectedScene = scene;
             UpdateIndexSendControls();
+            _indexInspectorRefreshTagAction?.Invoke();
             foreach (var other in row.Parent is Grid scenes ? scenes.Children.OfType<Grid>() : []) { other.Background = other == row ? ThemeBrush("SelectedBrush") : SurfaceBrush; }
         }
         // DoubleTapped requires identical child controls for both presses. A scene is one
@@ -838,7 +850,7 @@ internal sealed class IndexSceneSectionPanel(Grid headings, Grid scenes) : Stack
     private int _columns;
     internal IBrush HeadingForeground { get; init; } = Brushes.Gray;
     internal IBrush HeadingBackground { get; init; } = Brushes.Transparent;
-    internal static ColumnDefinitions CellColumns() => new("24,*,*,112");
+    internal static ColumnDefinitions CellColumns() => new("24,*,*,58");
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -860,7 +872,7 @@ internal sealed class IndexSceneSectionPanel(Grid headings, Grid scenes) : Stack
                 headings.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
                 scenes.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
                 var heading = new Grid { ColumnDefinitions = CellColumns(), Background = HeadingBackground };
-                foreach (var (text, cell) in new[] { ("#", 0), ("Scene", 1), ("Saved amp", 2) })
+                foreach (var (text, cell) in new[] { ("#", 0), ("Scene", 1), ("Amp / Channel", 2) })
                 {
                     var label = new TextBlock { Text = text, FontSize = 11, Foreground = HeadingForeground, Margin = new(6, 0), VerticalAlignment = VerticalAlignment.Center };
                     Grid.SetColumn(label, cell); heading.Children.Add(label);

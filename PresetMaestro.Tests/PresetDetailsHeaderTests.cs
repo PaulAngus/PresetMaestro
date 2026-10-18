@@ -54,7 +54,7 @@ public sealed class PresetDetailsHeaderTests : IDisposable
                 var tabs = Find<TabStrip>(window, "IndexDetailTabs");
                 var close = Find<Button>(window, "IndexCloseInspector");
                 var header = Find<Grid>(window, "IndexInspectorToolbar");
-                Control[] controls = [Find<Panel>(window, "IndexInspectorIdentity"), tabs, Find<Button>(window, "IndexGoToPreset"), Find<Button>(window, "IndexPresetTags"), close];
+                Control[] controls = [Find<Panel>(window, "IndexInspectorIdentity"), tabs, Find<Button>(window, "IndexResyncScenes"), Find<Button>(window, "IndexPresetTags"), close];
                 double previousRight = 0;
                 foreach (var control in controls)
                 {
@@ -75,7 +75,7 @@ public sealed class PresetDetailsHeaderTests : IDisposable
                 Assert.True(Find<StackPanel>(window, "IndexAmpSection").IsVisible);
                 Snapshot(index, "amps");
                 window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
-                Assert.Same(controls[3], window.FocusManager?.GetFocusedElement()); // Offline Go to is skipped.
+                Assert.Same(controls[3], window.FocusManager?.GetFocusedElement());
                 window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
                 Assert.Same(close, window.FocusManager?.GetFocusedElement());
                 window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();

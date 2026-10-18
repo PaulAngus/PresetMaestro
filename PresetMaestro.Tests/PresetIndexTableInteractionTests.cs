@@ -97,14 +97,14 @@ public sealed class PresetIndexTableInteractionTests : IDisposable
 
             var selected = (ListBoxItem)list.SelectedItem!;
             var close = Find<Button>(window, "IndexCloseInspector");
-            var closePosition = close.TranslatePoint(default, window);
+            var closePosition = close.TranslatePoint(default, dock);
             var tabs = Find<TabStrip>(window, "IndexDetailTabs");
             tabs.SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
             Assert.True(Find<StackPanel>(window, "IndexAmpSection").IsVisible);
-            Assert.Equal(closePosition, close.TranslatePoint(default, window));
+            Assert.Equal(closePosition, close.TranslatePoint(default, dock));
             tabs.SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
             var lastScene = Find<Grid>(window, "IndexScene8Row"); lastScene.BringIntoView(); Dispatcher.UIThread.RunJobs();
-            Assert.Equal(closePosition, close.TranslatePoint(default, window));
+            Assert.Equal(closePosition, close.TranslatePoint(default, dock));
             Assert.True(close.IsEffectivelyVisible);
             Assert.True(close.TranslatePoint(default, window)!.Value.Y + close.Bounds.Height <= window.Bounds.Height);
             lastScene.Focus();
