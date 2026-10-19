@@ -1,0 +1,61 @@
+{
+  "applicationId": "preset-maestro",
+  "applicationName": "PresetMaestro",
+  "runner": {
+    "project": "tools/PresetMaestro.Lab/PresetMaestro.Lab.csproj",
+    "destination": "bin/lab",
+    "executable": "bin/lab/PresetMaestro.Lab"
+  },
+  "platforms": {
+    "win": {
+      "tests": [
+        {
+          "project": "tools/PresetMaestro.LabTests/PresetMaestro.LabTests.csproj",
+          "destination": "bin/tests"
+        },
+        {
+          "project": "tools/PresetMaestro.Pilot/PresetMaestro.Pilot.csproj",
+          "destination": "bin/pilot"
+        },
+        {
+          "project": "PresetMaestro/PresetMaestro.csproj",
+          "destination": "bin/app"
+        }
+      ],
+      "properties": [
+        "-p:MaestroPlatform=Windows"
+      ]
+    },
+    "osx": {
+      "tests": [
+        {
+          "project": "tools/PresetMaestro.LabTests/PresetMaestro.LabTests.csproj",
+          "destination": "bin/tests"
+        },
+        {
+          "project": "tools/PresetMaestro.Pilot/PresetMaestro.Pilot.csproj",
+          "destination": "bin/Maestro Desktop Tests.app/Contents/MacOS",
+          "macApplication": {
+            "executable": "PresetMaestro.Pilot",
+            "name": "Maestro Desktop Tests",
+            "identifier": "com.mightbeuseful.presetmaestro.desktoptests",
+            "runtimeFromExecutable": "../../../maestro-pilot-runtime"
+          }
+        },
+        {
+          "project": "PresetMaestro/PresetMaestro.csproj",
+          "destination": "bin/app"
+        }
+      ],
+      "properties": [
+        "-p:MaestroPlatform=macOS"
+      ]
+    }
+  },
+  "appVersionFile": "PresetMaestro/Version.txt",
+  "agentVersion": "0.2.5",
+  "macUpgradeRetainedPaths": [
+    "bin/Maestro Desktop Tests.app",
+    "bin/app"
+  ]
+}

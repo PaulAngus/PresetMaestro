@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup Condition="'$(TestLabProfile)' == 'OfflineWindows'"><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
+  <Import Project="../packaging/offline-windows-sources.props" Condition="'$(TestLabProfile)' == 'OfflineWindows'" />
+  <ItemGroup Condition="'$(TestLabProfile)' != 'OfflineWindows'"><Compile Remove="OfflineMidiBoundaryTests.cs" /></ItemGroup>
+
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

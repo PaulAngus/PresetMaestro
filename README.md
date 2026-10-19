@@ -1,5 +1,7 @@
 # Preset Maestro
 
+Current source release: [1.2.26](docs/releases/1.2.26.md).
+
 Shared MIDI implementation: see [dependency and setup notes](dependencies/midi/README.md). Current and legacy backends come from the `MightBeUseful.Midi` packages maintained in [MIDIHelperLibrary](https://github.com/PaulAngus/MIDIHelperLibrary); earlier implementation/package details below describe the pre-migration builds.
 
 For loopMIDI on older Windows, see the [setup instructions](#loopmidi-setup-on-older-windows).
@@ -199,3 +201,7 @@ The solution-level test command runs the maintained application and shared-proto
 
 - [Scene-name behavior, troubleshooting, and protocol details](SCENE-NAMES.md)
 - [Shared protocol code and integration rules](PresetNameSync.Core/README.md)
+
+## Application Test Lab
+
+Portable dashboard integration and build instructions: [Test Lab adapter](docs/test-lab.md).

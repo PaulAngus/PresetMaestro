@@ -3,3 +3,6 @@
 # The existing C# formatter requires CRLF; make Mac checkouts obey it too.
 *.cs text eol=crlf
 *.csx text eol=crlf
+
+# Preserve exact bytes covered by the vendored Test Lab checksum manifest.
+dependencies/test-lab/** -text

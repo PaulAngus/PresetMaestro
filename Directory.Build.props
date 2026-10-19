@@ -5,7 +5,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
   </PropertyGroup>
-  <Import Project="build/DesktopPlatform.props" Condition="'$(MSBuildProjectName)' == 'PresetMaestro' or '$(MSBuildProjectName)' == 'PresetMaestro.Tests'" />
-  <ItemGroup Condition="'$(MSBuildProjectName)' == 'PresetMaestro' or '$(MSBuildProjectName)' == 'PresetMaestro.Tests'"><Using Include="MightBeUseful.Midi" /></ItemGroup>
+  <Import Project="build/DesktopPlatform.props" Condition="'$(MSBuildProjectName)' == 'PresetMaestro' or '$(MSBuildProjectName)' == 'PresetMaestro.Tests' or '$(MSBuildProjectName)' == 'PresetMaestro.LabTests' or '$(MSBuildProjectName)' == 'PresetMaestro.Pilot'" />
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'PresetMaestro' or '$(MSBuildProjectName)' == 'PresetMaestro.Tests' or '$(MSBuildProjectName)' == 'PresetMaestro.LabTests' or '$(MSBuildProjectName)' == 'PresetMaestro.Pilot'"><Using Include="MightBeUseful.Midi" /></ItemGroup>
   <Import Project="dependencies/midi/MidiVersion.props" />
 </Project>

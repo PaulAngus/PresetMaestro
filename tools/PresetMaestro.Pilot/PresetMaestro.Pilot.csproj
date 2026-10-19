@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../PresetMaestro/PresetMaestro.csproj" /></ItemGroup>
+  <ItemGroup Condition="'$(MaestroPlatform)' == 'Windows'"><PackageReference Include="FlaUI.UIA3" Version="5.0.0" /><Compile Remove="MacDesktop.cs" /></ItemGroup>
+  <ItemGroup Condition="'$(MaestroPlatform)' == 'macOS'"><Compile Remove="WindowsDesktop.cs" /></ItemGroup>
+  <PropertyGroup Condition="'$(MaestroTestProfile)' == 'PhysicalMac'"><DefineConstants>$(DefineConstants);MAESTRO_PHYSICAL_MAC</DefineConstants></PropertyGroup>
+  <PropertyGroup Condition="'$(MaestroTestProfile)' == 'PhysicalMac' or '$(MaestroTestProfile)' == 'PhysicalWindows'"><DefineConstants>$(DefineConstants);MAESTRO_PHYSICAL_HARDWARE</DefineConstants></PropertyGroup>
+  <ItemGroup Condition="'$(MaestroTestProfile)' == 'PhysicalMac' or '$(MaestroTestProfile)' == 'PhysicalWindows'"><Compile Remove="Native.cs;MidiPeer.cs;DesktopScenario.cs" /></ItemGroup>
+  <ItemGroup Condition="'$(MaestroTestProfile)' != 'PhysicalMac' and '$(MaestroTestProfile)' != 'PhysicalWindows'"><Compile Remove="NoMidiDesktopScenario.cs" /></ItemGroup>
+</Project>

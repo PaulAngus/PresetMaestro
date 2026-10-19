@@ -6,8 +6,9 @@ namespace PresetMaestro.Core;
 public static class SettingsManager
 {
     public static readonly string SettingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "PresetMaestro", "settings.json");
+        (Environment.GetEnvironmentVariable("PRESET_MAESTRO_DATA_DIRECTORY") is { Length: > 0 } directory
+            ? Path.GetFullPath(directory)
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PresetMaestro")), "settings.json");
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 

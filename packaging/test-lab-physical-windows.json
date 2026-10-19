@@ -1,0 +1,34 @@
+{
+  "applicationId": "preset-maestro",
+  "applicationName": "PresetMaestro",
+  "testProfile": "physical-windows-existing-midi-only",
+  "runner": {
+    "project": "tools/PresetMaestro.Lab/PresetMaestro.Lab.csproj",
+    "destination": "bin/lab",
+    "executable": "bin/lab/PresetMaestro.Lab"
+  },
+  "platforms": {
+    "win": {
+      "tests": [
+        {
+          "project": "tools/PresetMaestro.LabTests/PresetMaestro.LabTests.csproj",
+          "destination": "bin/tests"
+        },
+        {
+          "project": "tools/PresetMaestro.Pilot/PresetMaestro.Pilot.csproj",
+          "destination": "bin/pilot"
+        },
+        {
+          "project": "PresetMaestro/PresetMaestro.csproj",
+          "destination": "bin/app"
+        }
+      ],
+      "properties": [
+        "-p:MaestroPlatform=Windows",
+        "-p:MaestroTestProfile=PhysicalWindows"
+      ]
+    }
+  },
+  "appVersionFile": "PresetMaestro/Version.txt",
+  "agentVersion": "0.2.5"
+}

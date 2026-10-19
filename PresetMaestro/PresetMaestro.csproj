@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup Condition="'$(TestLabProfile)' == 'OfflineWindows'">
+    <DefineConstants>$(DefineConstants);MAESTRO_OFFLINE_NO_MIDI</DefineConstants>
+  </PropertyGroup>
+
   <PropertyGroup>
     <EnableFractalIndex Condition="'$(EnableFractalIndex)' == ''">true</EnableFractalIndex>
     <OutputType>WinExe</OutputType>

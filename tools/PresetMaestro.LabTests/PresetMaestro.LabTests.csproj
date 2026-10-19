@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Condition="'$(TestLabProfile)' == 'OfflineWindows'"><DefineConstants>$(DefineConstants);MAESTRO_OFFLINE_NO_MIDI</DefineConstants></PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>$(TargetFramework)</TargetFramework><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../PresetMaestro.Tests/PresetMaestro.Tests.csproj" />
+    <Compile Include="../../dependencies/test-lab/PortableXunit.cs" Link="PortableXunit.cs" />
+    <PackageReference Include="xunit.runner.utility" Version="2.9.3" />
+  </ItemGroup>
+</Project>

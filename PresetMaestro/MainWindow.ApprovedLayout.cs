@@ -277,7 +277,7 @@ public partial class MainWindow
 
     private Control ApprovedDisplay()
     {
-        _displayLabel = new TextBlock { Text = "---", FontFamily = AppFonts.Display, FontSize = 56, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, LetterSpacing = 2 };
+        _displayLabel = new TextBlock { Name = "ProgramDisplay", Text = "---", FontFamily = AppFonts.Display, FontSize = 56, FontWeight = FontWeight.Bold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, LetterSpacing = 2 };
         _currentPresetNameLabel = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = SecondaryBrush };
         _currentSceneNameLabel = new TextBlock { FontSize = 13, Foreground = SecondaryBrush };
         var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto") };
@@ -309,6 +309,7 @@ public partial class MainWindow
         grid.Children.Add(new TextBlock { Text = label, Foreground = send ? Brushes.White : label == "CLR" ? DangerBrush : TextBrush, FontFamily = command ? AppFonts.Command : AppFonts.Display, FontSize = command ? 12 : send ? 16 : 20, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
         var hit = new Button
         {
+            Name = "Key" + label,
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
             Padding = new Thickness(0),
@@ -316,6 +317,7 @@ public partial class MainWindow
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
         };
+        AutomationProperties.SetName(hit, label);
         hit.Click += (_, _) => action(); grid.Children.Add(hit); face.Child = grid; housing.Child = face; return housing;
     }
 
