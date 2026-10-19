@@ -514,3 +514,14 @@ Both cancellation buttons use the same cancellation path. A cancellation request
 Primary guidance: [Fluent 2 Dialog](https://fluent2.microsoft.design/components/web/react/core/dialog/usage) recommends specific action labels, persistent footer actions, and focus return to the originating control; [Windows dialogs and flyouts](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/dialogs-and-flyouts/) distinguishes dismissal of transient UI from tasks. Keeping stopping and dismissal separate follows the repository guidance. Continuing an assigned-device read after dismissal and the Hide progress label are product choices, explicitly explained in the dialog. The user could not identify which previous control was used, so the original reported sequence was not reproduced conclusively; cancellation and dismissal are independently covered.
 
 Verification: 50 relevant Release cases pass across setup/recovery, names-only reads, device checks, cancellation checkpoints and navigation. Four new cases stop from Config or Presets while a read is pending, navigate during cancellation cleanup, verify no further preset requests, retain three completed reads and the previous baseline, and reopen the cancelled outcome. Rendered dialogs at 480 / 650 pixels and main windows at 1000x640 / 1440x850 were inspected in light/dark themes for action labels, stopping/cancelled status and reflow. Captures are under TestResults/sync-cancellation. The index-disabled Release build also passes.
+
+## Mac scene-tag gutter correction (18 October 2026)
+
+The scene summary counts the six-pixel gutter between pills, but no longer reserves
+a trailing gutter after its final pill. At the two-table transition (1166 px), Mac
+font metrics produce 128 px of visible pills in a 130 px space; counting the unused
+gutter previously hid the second tag. Complete pills, the nine-pixel title gap,
+column alignment and the overflow count remain the layout rules. The regression
+checks both exact fit and one-pixel overflow, plus real light/dark scene tables.
+This retains the existing native list interaction and accessible full scene identity,
+consistent with [Fluent list guidance](https://fluent2.microsoft.design/components/web/react/core/list/usage/).

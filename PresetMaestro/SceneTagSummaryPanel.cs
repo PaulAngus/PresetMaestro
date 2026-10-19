@@ -14,7 +14,10 @@ internal sealed class SceneTagSummaryPanel : Panel
     private readonly Control[] _tags;
     private readonly TextBlock[] _overflow;
     internal int VisibleTagCount { get; private set; }
-    internal double NaturalWidth => _tags.Sum(tag => tag.DesiredSize.Width);
+    // A chip's trailing margin separates it from another chip/overflow label.
+    // The final chip needs no gutter beyond its painted bounds.
+    internal double NaturalWidth => _tags.Sum(tag => tag.DesiredSize.Width)
+        - (_tags.LastOrDefault()?.Margin.Right ?? 0);
 
     public SceneTagSummaryPanel(IEnumerable<Control> tags, IBrush foreground)
     {

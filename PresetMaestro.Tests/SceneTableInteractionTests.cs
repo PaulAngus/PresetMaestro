@@ -14,6 +14,23 @@ namespace PresetMaestro.Tests;
 
 public sealed partial class DeviceNavigationTests
 {
+    [AvaloniaFact]
+    public void SceneTagsFitCompletePillsWithoutReservingAnUnusedTrailingGutter()
+    {
+        var first = new Border { Width = 58, Height = 20, Margin = new(0, 0, 6, 0) };
+        var second = new Border { Width = 64, Height = 20, Margin = new(0, 0, 6, 0) };
+        var tags = new SceneTagSummaryPanel([first, second], Avalonia.Media.Brushes.Black);
+        tags.Measure(new Size(128, 20));
+        tags.Arrange(new Rect(0, 0, 128, 20));
+        Assert.Equal(2, tags.VisibleTagCount);
+        Assert.Equal(6, second.Bounds.Left - first.Bounds.Right);
+        Assert.Equal(128, second.Bounds.Right);
+        tags.Arrange(new Rect(0, 0, 127, 20));
+        Assert.Equal(1, tags.VisibleTagCount);
+        Assert.Contains(tags.Children.OfType<TextBlock>(), label =>
+            label.Text == "+1" && label.Bounds.Left >= first.Bounds.Right && label.Bounds.Right <= tags.Bounds.Width);
+    }
+
     [AvaloniaTheory]
     [InlineData("Light")]
     [InlineData("Dark")]
@@ -63,7 +80,13 @@ public sealed partial class DeviceNavigationTests
                     Assert.InRange(Math.Abs(headings[0].TranslatePoint(default, list)!.Value.X -
                         nameTags.TranslatePoint(default, list)!.Value.X), 0, 1);
                     Assert.InRange(Math.Abs(headings[0].Bounds.Width - nameTags.Bounds.Width), 0, 1);
-                    if (index == 10) { Assert.Equal(2, tags.VisibleTagCount); }
+                    if (index == 10)
+                    {
+                        Assert.True(tags.VisibleTagCount == 2,
+                            $"At window width {width}, expected two tags, got {tags.VisibleTagCount}. " +
+                            $"Name/tag field: {nameTags.Bounds.Width}; title: {title.Bounds.Width}; " +
+                            $"tags: {tags.Bounds.Width}; natural tags: {tags.NaturalWidth}; font: {title.FontFamily}.");
+                    }
                     if (index == 11) { Assert.True(tags.VisibleTagCount < 4); }
                     if (index != 8)
                     {
