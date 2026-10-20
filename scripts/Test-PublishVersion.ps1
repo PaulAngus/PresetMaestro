@@ -95,6 +95,8 @@ try {
     $helperFolder = New-Item -ItemType Directory -Path (Join-Path $results.FullName 'helper') -Force
     $helper = Join-Path $helperFolder.FullName 'Publish-App.ps1'
     Copy-Item -LiteralPath (Join-Path $projectRoot 'Publish-App.ps1') -Destination $helper
+    $dependencyFolder = New-Item -ItemType Directory -Path (Join-Path $helperFolder.FullName 'dependencies/midi') -Force
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'dependencies/midi/Sign-WindowsExecutable.ps1') -Destination $dependencyFolder.FullName
     $copyMarker = Join-Path $helperFolder.FullName 'distributed.txt'
     if (Test-Path -LiteralPath $copyMarker) { Remove-Item -LiteralPath $copyMarker }
     Set-Content -LiteralPath (Join-Path $helperFolder.FullName 'Copy-PublishedExe.ps1') -Value 'Set-Content -LiteralPath (Join-Path $PSScriptRoot "distributed.txt") -Value "copied"'
@@ -106,7 +108,7 @@ try {
     Set-Item -LiteralPath Function:\dotnet -Value $dotnetStub
     try {
         $failedAsExpected = $false
-        try { & $helper -Version '2.2.0' -Distribute }
+        try { & $helper -Version '2.2.0' -Distribute -SigningCertificateThumbprint '' }
         catch {
             if ($_.Exception.Message -notmatch 'Publishing failed') { throw }
             $failedAsExpected = $true
@@ -114,10 +116,10 @@ try {
         if (-not $failedAsExpected -or (Test-Path -LiteralPath $copyMarker)) { throw 'A failed publish reached distribution.' }
         if ($dotnetStubState.Arguments -notcontains '-p:PublishVersion=2.2.0') { throw 'Explicit version was not forwarded.' }
         $dotnetStubState.ExitCode = 0
-        & $helper -NoDistribute
+        & $helper -NoDistribute -SigningCertificateThumbprint ''
         if (Test-Path -LiteralPath $copyMarker) { throw '-NoDistribute invoked the copy helper.' }
         if ($dotnetStubState.Arguments -match 'PublishVersion') { throw 'Automatic publishing passed an explicit version.' }
-        & $helper -Version '2.2.0' -Distribute
+        & $helper -Version '2.2.0' -Distribute -SigningCertificateThumbprint ''
         if (-not (Test-Path -LiteralPath $copyMarker)) { throw 'Successful publishing did not invoke distribution.' }
     }
     finally { Remove-Item -LiteralPath Function:\dotnet }
