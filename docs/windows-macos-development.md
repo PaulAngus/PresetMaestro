@@ -30,13 +30,18 @@ Primary library references: [device ownership and disposal](https://melanchall.g
 
 ## Build and verify on Windows
 
+Run validation locally from the repository root with the .NET 10 SDK and PowerShell 7. GitHub Actions is disabled for this repository and no hosted workflows are used.
+
 ```powershell
 dotnet build PresetMaestro.slnx -c Release
-dotnet test PresetMaestro.slnx -c Release
+dotnet test PresetMaestro.slnx -c Release --no-build --filter 'Category!=Hardware&Category!=Compatibility' --collect:"XPlat Code Coverage" --logger trx --results-directory TestResults
 dotnet format PresetMaestro.slnx --verify-no-changes --no-restore
 ./scripts/Test-PublishVersion.ps1
 ./scripts/Test-PlatformBuilds.ps1
+dotnet build PresetMaestro/PresetMaestro.csproj -c Release -p:EnableFractalIndex=false --artifacts-path build_test/no-index
 ```
+
+Test results and coverage stay in `TestResults`; build and packaging checks use local output directories. Run the commands individually and stop if one fails. Physical MIDI tests are separate: follow [hardware testing](hardware-tests.md) with an explicitly selected device, MIDI channel and Scene CC.
 
 The platform script publishes real Windows and Mac artifacts into an isolated test directory, checks architecture and ZIP permissions, deliberately injects wrong-platform libraries to prove both publish guards fail, and checks unsupported/mismatched targets. It preserves the source version and never invokes the local Windows distribution helper.
 
@@ -48,7 +53,7 @@ dotnet test PresetMaestro.slnx -c Release -p:MaestroPlatform=macOS -p:PlatformTa
 
 `AnyCPU` here lets Windows execute the managed test code; it does not validate Mac native binaries. The native CoreMIDI smoke test explicitly skips on Windows. Native Mac builds need no such override. Tests based on Windows mandatory file-sharing locks explicitly skip on macOS, whose file-replacement semantics differ; other shared persistence and rollback checks run normally.
 
-The GitHub workflow contains separate Windows and Apple Silicon `macos-15` jobs. The Mac job runs the same `scripts/Test-MacReadiness.ps1` command used locally: it builds, tests, loads/enumerates CoreMIDI without sending to hardware, formats, packages, locally signs, verifies signatures and retains the testing ZIP. Physical MIDI test categories are explicitly excluded even if diagnostic environment variables are set. CI requires a pushed commit/PR to execute. Runner selection follows [GitHub's current architecture table](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+On the Apple Silicon Mac, run `pwsh ./scripts/Test-MacReadiness.ps1` locally. It builds, tests, loads/enumerates CoreMIDI without sending to hardware, formats, packages, locally signs and verifies signatures. Test results, coverage, the readiness log and the testing ZIP remain on that Mac. Physical MIDI test categories are explicitly excluded even if diagnostic environment variables are set. Also run the optional-module build locally: `dotnet build PresetMaestro/PresetMaestro.csproj -c Release -p:EnableFractalIndex=false --artifacts-path build_test/no-index`.
 
 ## First setup on the M2
 

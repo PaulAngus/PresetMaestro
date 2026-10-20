@@ -1,5 +1,7 @@
 # GitHub application releases
 
+Build, validate, sign and package releases locally on Windows and Mac. GitHub Actions is disabled. Run the [local validation checks](windows-macos-development.md#build-and-verify-on-windows) before uploading the resulting archives to GitHub Releases.
+
 Use a clean checkout of the selected release commit and PowerShell 7. Set the
 same explicit release version on Windows and macOS; the examples use `$version`.
 Use a short checkout path on Windows. Existing restore/build paths are relative

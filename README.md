@@ -12,6 +12,8 @@ The standalone **Preset Sender** utility moved to [its own Preset-Forwarder repo
 
 Windows MIDI input uses NAudio's WinRT backend so long-running systems are not exposed to the legacy WinMM signed timestamp overflow; output continues to use WinMM. The Mac backend uses CoreMIDI through DryWetMIDI. See [Windows and macOS development](docs/windows-macos-development.md) for builds, Mac setup, signing and the remaining acceptance checks.
 
+Builds, tests and release packaging run locally on Windows and Mac. GitHub Actions is disabled; use the [local validation commands](docs/windows-macos-development.md#build-and-verify-on-windows) and [release instructions](docs/github-releases.md).
+
 FM9 preset and scene name reads are supported by the current protocol code. FM3 and Axe-Fx III can be identified and used for numeric preset sending, but name reads and scene-state tracking are disabled for those models until their device transactions are verified. The Axe-Fx III picker still offers all 1024 numeric preset slots; names for those slots cannot currently be synchronized.
 
 ## Start here when you have forgotten how it works
