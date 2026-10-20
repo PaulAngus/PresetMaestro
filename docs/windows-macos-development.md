@@ -96,7 +96,7 @@ The current 1.2.13 working tree, including uncommitted preset/scene/search chang
 - Actual Windows and Apple Silicon publishes pass payload isolation. Injected other-OS files, Linux and mismatched targets, wrong native architecture, a Windows native MIDI DLL in the Mac app, and missing ZIP execute permissions are rejected.
 - The current Windows EXE is **76,189,566 bytes**, the same size as the existing current Windows release. The Mac ZIP is **45,076,248 bytes**. Neither dependency graph contains the other OS's MIDI/UI packages or the separate Preset Sender utility's Windows MIDI Services preview package.
 - Inspected current Mac-managed headless preset/scene views on Windows at 1000/1440 logical pixels in Light/Dark, including selected scenes, details and sync actions. Actual Mac fonts, window chrome, Retina behavior and hardware remain pending.
-- The new readiness script parses successfully, rejects a Windows host, and its test filter excludes physical tests even when opt-in hardware environment variables are set. Its native Mac execution and the updated Mac CI job remain pending.
+- The new readiness script parses successfully, rejects a Windows host, and its test filter excludes physical tests even when opt-in hardware environment variables are set. Native Mac execution remained pending at this preparation stage; validation now runs locally.
 - Source version and the existing Windows release retain their original hashes. Results, screenshots and the starting-worktree record are under `build_test/macos-refresh-20261011/`.
 
 The transfer includes a source snapshot of the current working tree, rather than only Git HEAD. Its `HANDOFF.json` records the base commit, changed/untracked main-app paths and hashes of the included files. See [the first-day guide](mac-first-day.md).
@@ -114,7 +114,7 @@ Performed on Windows with .NET SDK 10.0.303:
 - The Windows restored dependency set exactly matches the original. The new production EXE is **76,137,517 bytes**, versus the existing 76,131,558-byte release: **5,959 bytes larger**, with no Mac platform dependencies.
 - Inspected Windows headless renders in Light/Dark at 1000/1440 logical pixels, including Config, numeric input, Favorites confirmation and the preset picker. No clipping or font regression was observed in those views. Images and TRX results are under `build_test/macos-prep/`.
 
-The native Mac CI job is configured but has not run in this local preparation session. No physical MIDI tests were enabled.
+Native Mac validation had not run in this preparation session. Run the local Mac readiness command for current evidence. No physical MIDI tests were enabled.
 
 ## M2 acceptance checklist — pending
 
