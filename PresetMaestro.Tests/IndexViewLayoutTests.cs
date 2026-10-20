@@ -30,10 +30,14 @@ public sealed class IndexViewLayoutTests : IDisposable
         var device = new IndexDevice(Guid.NewGuid(), "Stage rig", FractalDeviceVariant.AxeFxIIIMarkII, "12.00");
         var presets = Enumerable.Range(0, 1024).ToDictionary(i => i, i => FractalIndexWorkflowTests.Preset(i, device.Variant));
         presets[0] = presets[0] with { Name = "A very long preset name with repeated clean scenes", SceneNames = ["Clean", "Clean", "Warm clean", "Lead", "Rhythm", "Solo", "Ambient", ""] };
+        presets[2] = presets[2] with { Name = "Vox AC15" };
         var cache = new DeviceIndex { Device = device, Committed = new IndexScan { Status = "Complete", Firmware = "12.00", FinishedAt = DateTimeOffset.UtcNow, Presets = presets } };
         new IndexLibrary(Path.Combine(_directory, "FractalIndex")).Save(cache);
         var profile = new IndexProfile { Devices = [device], SelectedDeviceId = device.Id };
         profile.GetOrCreate(device.Id, presets[0], "12.00").SceneTags[0] = ["Clean", "Stage"];
+        // Keep preset and scene pills together in the light/dark, normal/narrow renders.
+        profile.GetOrCreate(device.Id, presets[2], "12.00").Tags = ["Clean"];
+        profile.GetOrCreate(device.Id, presets[2], "12.00").SceneTags[0] = ["Crunch"];
         // Deliberately keep a review action visible, as well as a four-digit selected preset.
         profile.Annotations.Add(new PresetAnnotation { DeviceId = device.Id, Slot = 1, Name = "Previous", ContentSha256 = "old", Firmware = "12.00", Tags = ["Review"] });
         settings.FractalIndex = IndexJson.ToElement(profile); store.SaveSettings(settings);

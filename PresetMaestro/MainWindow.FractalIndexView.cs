@@ -461,12 +461,8 @@ public partial class MainWindow
         }
     }
 
-    private Border BuildIndexSceneChip(int scene, string tag)
-    {
-        var chip = BuildFavoriteTagChip($"S{scene + 1} {tag}", false);
-        chip.Background = InsetBrush;
-        return chip;
-    }
+    private Border BuildIndexSceneChip(int scene, string tag) =>
+        BuildFavoriteTagChip($"S{scene + 1} {tag}", false);
 
     private void RenderIndexInspector()
     {

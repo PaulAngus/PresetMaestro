@@ -1,5 +1,15 @@
 # Fractal preset index and Amps page: user experience research
 
+## Scene summary pills match preset tags (2026-10-19)
+
+Scene tags in preset rows now use the preset tag pill factory without overriding its background: the same theme-aware tag background/text brushes, 20-pixel height, 12-pixel regular text, 8-pixel horizontal padding and 6-pixel gap. The existing `S1`–`S8` prefix identifies the scene. Matching emphasis and retaining the prefix are the user's product choices; Microsoft does not prescribe these exact dimensions.
+
+Primary guidance consulted: [Fluent 2 Tag usage](https://fluent2.microsoft.design/components/web/react/core/tag/usage) covers static, non-dismissible tags and consistent compact spacing; [Color in Windows](https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/color) recommends restrained emphasis and theme-aware contrast. The existing compact Avalonia pills and row interaction model remain the application adaptation; there are no new focus stops or interaction changes.
+
+Verification: visually inspected Avalonia/Skia renders at 1440×850 and the supported narrow 1000×640 size in light and dark themes, with preset and scene tags beside each other. Both use identical pill height, text styling, spacing and colors; the scene prefix stays readable. The four existing layout cases and the scene tag search/editing interaction case pass. Captures are under `build_test/scene-pill-style`.
+
+Platform verification: Windows and macOS Release builds pass with zero warnings/errors. The Windows suite passes 893 tests; the Mac-managed suite on Windows passes 901 with its native CoreMIDI check skipped. Native Apple Silicon macOS 27.0.1 also passes all four layout cases; light/dark renders at both sizes were inspected with Mac fonts. Platform publishing checks pass for payload isolation, architecture, executable permissions and rejected invalid packages. Evidence and native renders are under `build_test/scene-pill-platforms`.
+
 ## Preset and scene resync (2026-10-18)
 
 The agreed first design places a compact **Resync Presets** immediately after **SEND**, with 26-pixel minimum height, readable 12-pixel text and reduced horizontal padding. **Resync Scenes** belongs to the non-scrolling details header, before the contextual tag action and separate trailing **× Close**. Both retain existing Avalonia buttons/theme brushes, accessible text, tooltips and keyboard traversal. The redundant per-scene **Tags…** buttons are removed: selecting a scene makes the existing header tag action edit that scene, with a tooltip and accessible name identifying the target. With no selected scene it edits preset tags. Close, Escape dismissal and focus return remain separate from these tasks.
