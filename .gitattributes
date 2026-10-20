@@ -4,5 +4,8 @@
 *.cs text eol=crlf
 *.csx text eol=crlf
 
+# Preserve compressed PDF streams and byte offsets on every checkout.
+*.pdf binary
+
 # Preserve exact bytes covered by the vendored Test Lab checksum manifest.
 dependencies/test-lab/** -text

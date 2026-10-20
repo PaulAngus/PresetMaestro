@@ -16,6 +16,8 @@ FM9 preset and scene name reads are supported by the current protocol code. FM3 
 
 ## Start here when you have forgotten how it works
 
+Read the [user manual](docs/user-manual.md), or download the [manual PDF](output/pdf/Preset-Maestro-User-Manual.pdf) and the shorter [quick guide PDF](output/pdf/Preset-Maestro-Quick-Guide.pdf). The manual covers version 1.2.29; both guides are drafts for feedback.
+
 1. Connect your device over USB, or connect both MIDI directions through a MIDI interface.
 2. Open **Config**, select the MIDI input and output, and click **Connect**. If a port is busy, close device editor or another MIDI application using it.
 3. Open **Config → Device for this profile → Manage devices**. Select your device, check **MIDI Channel**, **Display Offset**, and **Scene CC#**, then **Save changes**. These settings are shared by profiles assigned to that device. Scene CC defaults to **34**; the device's Scene Select assignment must match it. Incoming note assignments are under **Config → Entry Options → MIDI note mapping**.
