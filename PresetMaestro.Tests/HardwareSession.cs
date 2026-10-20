@@ -20,10 +20,10 @@ internal sealed class HardwareSession : IMidiManager
     private volatile bool _dropReplies;
     public bool DropReplies { get => _dropReplies; set => _dropReplies = value; }
     public string DirectoryPath { get; }
-    public HardwareSession(ITestOutputHelper output, FractalDeviceDefinition? definition = null, bool allowNavigation = false, int? ampTypeParameter = null)
+    public HardwareSession(ITestOutputHelper output, FractalDeviceDefinition? definition = null, bool allowNavigation = false, int? ampTypeParameter = null, int? sceneCc = null)
     {
         _definition = definition ?? FractalDeviceDefinition.For(FractalDeviceVariant.FM9);
-        _policy = new(_definition, allowNavigation, ampTypeParameter);
+        _policy = new(_definition, allowNavigation, ampTypeParameter, sceneCc);
         DirectoryPath = Path.Combine(Environment.GetEnvironmentVariable("PRESET_MAESTRO_HARDWARE_RESULTS") ?? Path.Combine(Path.GetTempPath(), "PresetMaestro-hardware"), DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(DirectoryPath);
         _trace = new StreamWriter(Path.Combine(DirectoryPath, "trace.jsonl")) { AutoFlush = true };
@@ -94,11 +94,27 @@ internal sealed class HardwareSession : IMidiManager
     public bool SendBankAndPC(int bank, int pc, int midiChannel)
     {
         _policy.ValidateProgramChange(bank, pc, midiChannel);
+        NavigationCommands++; PresetCommands++;
         Record("program-change", new { bank, pc, midiChannel });
         return _midi.SendBankAndPC(bank, pc, midiChannel);
     }
-    public bool SendFavorite(int bank, int pc, int scene, int sceneCc, int midiChannel) => throw new NotSupportedException();
-    public bool SendScene(int scene, int sceneCc, int midiChannel) => throw new NotSupportedException();
+    public int NavigationCommands { get; private set; }
+    public int PresetCommands { get; private set; }
+    public bool SendFavorite(int bank, int pc, int scene, int sceneCc, int midiChannel)
+    {
+        _policy.ValidateProgramChange(bank, pc, midiChannel);
+        _policy.ValidateScene(scene, sceneCc, midiChannel);
+        NavigationCommands++; PresetCommands++;
+        Record("favorite", new { bank, pc, scene, sceneCc, midiChannel });
+        return _midi.SendFavorite(bank, pc, scene, sceneCc, midiChannel);
+    }
+    public bool SendScene(int scene, int sceneCc, int midiChannel)
+    {
+        _policy.ValidateScene(scene, sceneCc, midiChannel);
+        NavigationCommands++;
+        Record("scene-cc", new { scene, sceneCc, midiChannel });
+        return _midi.SendScene(scene, sceneCc, midiChannel);
+    }
     public void Dispose()
     {
         _midi.SysexMessageReceived -= Receive;

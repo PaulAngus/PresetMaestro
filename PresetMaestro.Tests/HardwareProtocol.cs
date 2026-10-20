@@ -9,13 +9,19 @@ internal sealed class HardwareRequestPolicy
 {
     private readonly FractalDeviceDefinition _device;
     private readonly bool _navigation;
+    private readonly int? _sceneCc;
     public HashSet<string> AllowedReads { get; }
-    public HardwareRequestPolicy(FractalDeviceDefinition device, bool navigation = false, int? ampTypeParameter = null)
+    public HardwareRequestPolicy(FractalDeviceDefinition device, bool navigation = false, int? ampTypeParameter = null, int? sceneCc = null)
     {
-        _device = device; _navigation = navigation;
+        if (sceneCc is < 0 or > 127) { throw new ArgumentOutOfRangeException(nameof(sceneCc)); }
+        _device = device; _navigation = navigation; _sceneCc = sceneCc;
         byte model = device.ModelByte;
         var frames = new List<byte[]> { FractalDeviceInformationClient.BuildDeviceInformationRequest(), FractalDeviceInformationClient.BuildFirmwareRequest(model), HardwareProtocol.PresetQuery(model), SysexProtocol.Frame(model, 0x0c, [0x7f]) };
-        if (model == 0x12) { frames.Add(FractalDeviceInformationClient.BuildDeviceNameRequest(model)); }
+        if (model == 0x12)
+        {
+            frames.Add(FractalDeviceInformationClient.BuildDeviceNameRequest(model));
+            frames.Add(Fm9ActivePreset.BuildQuery());
+        }
         frames.AddRange(Enumerable.Range(0, 8).Select(i => SysexProtocol.Frame(model, 0x0e, [(byte)i])));
         frames.AddRange(Enumerable.Range(0, device.PresetSlots).Select(i => HardwareProtocol.PresetQuery(model, i)));
         frames.AddRange(Enumerable.Range(0, device.PresetSlots).Select(i => StoredPresetDecoder.BuildQuery(i, model, device.PresetSlots - 1)));
@@ -34,6 +40,14 @@ internal sealed class HardwareRequestPolicy
         if (!_navigation) { throw new InvalidOperationException("Preset navigation requires -AllowNavigation."); }
         if (bank < 0 || bank >= _device.PresetSlots / 128 || pc is < 0 or > 127 || channel is < 1 or > 16)
         { throw new ArgumentOutOfRangeException(nameof(bank), "Program address or MIDI channel is outside the selected device's range."); }
+    }
+
+    public void ValidateScene(int scene, int sceneCc, int channel)
+    {
+        if (!_navigation || _sceneCc is null || sceneCc != _sceneCc)
+        { throw new InvalidOperationException("Scene CC navigation requires the explicitly configured Scene CC and -AllowNavigation."); }
+        if (scene is < 1 or > 8 || channel is < 1 or > 16)
+        { throw new ArgumentOutOfRangeException(nameof(scene), "Scene or MIDI channel is outside the supported range."); }
     }
 }
 

@@ -6,6 +6,48 @@ namespace PresetMaestro.Tests;
 
 public sealed class HardwareHarnessTests
 {
+    [Fact]
+    public void SceneCcNavigationRequiresExplicitPermissionAndAnExactAssignment()
+    {
+        var device = FractalDeviceDefinition.For(FractalDeviceVariant.FM9);
+        Assert.Throws<InvalidOperationException>(() => new HardwareRequestPolicy(device, sceneCc: 34).ValidateScene(1, 34, 1));
+        Assert.Throws<InvalidOperationException>(() => new HardwareRequestPolicy(device, navigation: true).ValidateScene(1, 34, 1));
+        var enabled = new HardwareRequestPolicy(device, navigation: true, sceneCc: 34);
+        Assert.Throws<InvalidOperationException>(() => enabled.ValidateScene(1, 35, 1));
+        enabled.ValidateScene(1, 34, 1);
+        enabled.ValidateScene(8, 34, 16);
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(9, 1)]
+    [InlineData(1, 0)]
+    [InlineData(1, 17)]
+    public void SceneCcNavigationRejectsInvalidSceneOrChannel(int scene, int channel)
+    {
+        var policy = new HardwareRequestPolicy(FractalDeviceDefinition.For(FractalDeviceVariant.FM9), navigation: true, sceneCc: 34);
+        Assert.Throws<ArgumentOutOfRangeException>(() => policy.ValidateScene(scene, 34, channel));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(128)]
+    public void SceneCcAssignmentRejectsValuesOutsideMidiRange(int cc)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new HardwareRequestPolicy(FractalDeviceDefinition.For(FractalDeviceVariant.FM9), sceneCc: cc));
+    }
+
+    [Fact]
+    public void EditedStatePreflightIsAnFm9OnlyReadAndDoesNotPermitOtherEditorRequests()
+    {
+        var policy = new HardwareRequestPolicy(FractalDeviceDefinition.For(FractalDeviceVariant.FM9));
+        policy.ValidateSysEx(Fm9ActivePreset.BuildQuery());
+        var modified = Fm9ActivePreset.BuildQuery(); modified[7] = 1;
+        Assert.Throws<InvalidOperationException>(() => policy.ValidateSysEx(modified));
+        var fm3 = new HardwareRequestPolicy(FractalDeviceDefinition.For(FractalDeviceVariant.FM3));
+        Assert.Throws<InvalidOperationException>(() => fm3.ValidateSysEx(Fm9ActivePreset.BuildQuery()));
+    }
+
     [Theory]
     [InlineData(FractalDeviceVariant.FM9)]
     [InlineData(FractalDeviceVariant.FM3)]
