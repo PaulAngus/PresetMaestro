@@ -6,6 +6,7 @@ obj/
 publish/
 publish-macos/
 build_test/
+/tmp/
 .test-results/
 
 # User-specific files
