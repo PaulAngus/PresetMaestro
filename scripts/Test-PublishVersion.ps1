@@ -91,15 +91,12 @@ try {
     Assert-SavedVersion '1.2.65534'
     Write-Host 'PASS: unprepared publishes and assembly version overflow are rejected.'
 
-    # Isolate the wrapper to verify command forwarding and failure handling without copying a real release.
+    # Isolate the wrapper to verify command forwarding and failure handling without running a real build.
     $helperFolder = New-Item -ItemType Directory -Path (Join-Path $results.FullName 'helper') -Force
     $helper = Join-Path $helperFolder.FullName 'Publish-App.ps1'
     Copy-Item -LiteralPath (Join-Path $projectRoot 'Publish-App.ps1') -Destination $helper
     $dependencyFolder = New-Item -ItemType Directory -Path (Join-Path $helperFolder.FullName 'dependencies/midi') -Force
     Copy-Item -LiteralPath (Join-Path $projectRoot 'dependencies/midi/Sign-WindowsExecutable.ps1') -Destination $dependencyFolder.FullName
-    $copyMarker = Join-Path $helperFolder.FullName 'distributed.txt'
-    if (Test-Path -LiteralPath $copyMarker) { Remove-Item -LiteralPath $copyMarker }
-    Set-Content -LiteralPath (Join-Path $helperFolder.FullName 'Copy-PublishedExe.ps1') -Value 'Set-Content -LiteralPath (Join-Path $PSScriptRoot "distributed.txt") -Value "copied"'
     $dotnetStubState = [pscustomobject]@{ ExitCode = 42; Arguments = @() }
     $dotnetStub = {
         $dotnetStubState.Arguments = $args
@@ -108,22 +105,20 @@ try {
     Set-Item -LiteralPath Function:\dotnet -Value $dotnetStub
     try {
         $failedAsExpected = $false
-        try { & $helper -Version '2.2.0' -Distribute -SigningCertificateThumbprint '' }
+        try { & $helper -Version '2.2.0' -SigningCertificateThumbprint '' }
         catch {
             if ($_.Exception.Message -notmatch 'Publishing failed') { throw }
             $failedAsExpected = $true
         }
-        if (-not $failedAsExpected -or (Test-Path -LiteralPath $copyMarker)) { throw 'A failed publish reached distribution.' }
+        if (-not $failedAsExpected) { throw 'A failed publish was not rejected.' }
         if ($dotnetStubState.Arguments -notcontains '-p:PublishVersion=2.2.0') { throw 'Explicit version was not forwarded.' }
         $dotnetStubState.ExitCode = 0
-        & $helper -NoDistribute -SigningCertificateThumbprint ''
-        if (Test-Path -LiteralPath $copyMarker) { throw '-NoDistribute invoked the copy helper.' }
+        & $helper -SigningCertificateThumbprint ''
         if ($dotnetStubState.Arguments -match 'PublishVersion') { throw 'Automatic publishing passed an explicit version.' }
-        & $helper -Version '2.2.0' -Distribute -SigningCertificateThumbprint ''
-        if (-not (Test-Path -LiteralPath $copyMarker)) { throw 'Successful publishing did not invoke distribution.' }
+        & $helper -Version '2.2.0' -SigningCertificateThumbprint ''
     }
     finally { Remove-Item -LiteralPath Function:\dotnet }
-    Write-Host 'PASS: helper forwards overrides and distributes only after successful publishing.'
+    Write-Host 'PASS: helper forwards overrides and rejects failed publishing.'
 }
 finally {
     if ((Get-Content -LiteralPath $realVersionFile -Raw) -ne $originalVersion) { throw 'The real version file changed during isolated checks.' }
