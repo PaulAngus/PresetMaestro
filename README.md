@@ -1,6 +1,6 @@
 # Preset Maestro
 
-Current source release: [1.2.26](docs/releases/1.2.26.md).
+Current source release: [1.2.29](docs/releases/1.2.29.md).
 
 Shared MIDI implementation: see [dependency and setup notes](dependencies/midi/README.md). Current and legacy backends come from the `MightBeUseful.Midi` packages maintained in [MIDIHelperLibrary](https://github.com/PaulAngus/MIDIHelperLibrary); earlier implementation/package details below describe the pre-migration builds.
 

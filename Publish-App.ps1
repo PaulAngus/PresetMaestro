@@ -29,3 +29,9 @@ if ($PSBoundParameters.ContainsKey('Version')) { $publishArguments += "-p:Publis
 if ($LASTEXITCODE -ne 0) { throw 'Publishing failed.' }
 
 & $signScript @signing -ExecutablePath (Join-Path $PSScriptRoot 'publish/PresetMaestro.exe')
+
+& (Join-Path $PSScriptRoot 'dependencies/midi/New-WindowsReleaseArchive.ps1') `
+    -ExecutablePath (Join-Path $PSScriptRoot 'publish/PresetMaestro.exe') -Name 'PresetMaestro' `
+    -OutputDirectory (Join-Path $PSScriptRoot 'publish') `
+    -NoticePath @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'dependencies/midi') -File |
+        Where-Object Name -Match 'LICENSE|NOTICES' | ForEach-Object FullName)

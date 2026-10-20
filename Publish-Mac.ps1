@@ -186,6 +186,12 @@ try {
     if (-not $SkipArchive -or $NotaryProfile) { $validationArgs.ArchivePath = $archive }
     & (Join-Path $PSScriptRoot 'scripts/Test-MacBundle.ps1') @validationArgs
     if ($SkipArchive -and (Test-Path -LiteralPath $releaseArchive)) { Remove-Item -LiteralPath $releaseArchive }
+    if ($SkipArchive) {
+        if (Test-Path -LiteralPath ($releaseArchive + '.sha256')) { Remove-Item -LiteralPath ($releaseArchive + '.sha256') }
+    } else {
+        $hash = (Get-FileHash -LiteralPath $releaseArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+        "$hash  $([IO.Path]::GetFileName($releaseArchive))" | Set-Content -LiteralPath ($releaseArchive + '.sha256') -Encoding utf8NoBOM
+    }
     Write-Host "Mac app: $bundle"
     if (-not $SkipArchive) { Write-Host "Archive: $archive" }
     if (-not $onMac) { Write-Host 'Cross-built preparation artifact: native launch, MIDI and code signing still require macOS validation.' }

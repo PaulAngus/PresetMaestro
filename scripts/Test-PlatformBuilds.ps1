@@ -65,6 +65,8 @@ try {
 
     $bundle = Join-Path $results "macOS/osx-arm64/$version/Preset Maestro.app"
     $archive = Join-Path $results "macOS/osx-arm64/$version/PresetMaestro-$version-osx-arm64.zip"
+    $expectedChecksum = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + [IO.Path]::GetFileName($archive)
+    if ((Get-Content -LiteralPath ($archive + '.sha256') -Raw).Trim() -ne $expectedChecksum) { throw 'Mac archive checksum does not match the published ZIP.' }
     $validator = Join-Path $PSScriptRoot 'Test-MacBundle.ps1'
     if ($IsMacOS) {
         if (@(Get-ChildItem -LiteralPath (Join-Path $results 'macOS') -Directory -Force | Where-Object Name -Like '.build-*').Count) {
@@ -102,6 +104,7 @@ try {
     # App-only publishing must replace a prior archived release without leaving its stale ZIP.
     & (Join-Path $root 'Publish-Mac.ps1') -Version $version -OutputDirectory (Join-Path $results 'macOS') -SkipArchive
     if (Test-Path -LiteralPath $archive) { throw 'App-only publishing left the prior release ZIP.' }
+    if (Test-Path -LiteralPath ($archive + '.sha256')) { throw 'App-only publishing left the prior release checksum.' }
     if (-not (Test-Path -LiteralPath $bundle)) { throw 'App-only publishing did not produce the runnable app.' }
     if (@(Get-ChildItem -LiteralPath (Join-Path $results 'macOS') -Directory -Force | Where-Object Name -Like '.build-*').Count) {
         throw 'App-only publishing left a hidden staging directory.'

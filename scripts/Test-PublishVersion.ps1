@@ -91,12 +91,43 @@ try {
     Assert-SavedVersion '1.2.65534'
     Write-Host 'PASS: unprepared publishes and assembly version overflow are rejected.'
 
+    # The archive must contain the exact published EXE and notices, with a
+    # checksum for the ZIP rather than a stale file from the publish folder.
+    $archiveOutput = New-Item -ItemType Directory -Path (Join-Path $results.FullName 'release archives') -Force
+    $notice = Join-Path $archiveOutput.FullName 'Fixture-NOTICES.txt'
+    Set-Content -LiteralPath $notice -Value 'Dependency notice fixture'
+    Set-Content -LiteralPath (Join-Path $archiveOutput.FullName 'stale.dll') -Value 'Must not be distributed'
+    $archiveScript = Join-Path $projectRoot 'dependencies/midi/New-WindowsReleaseArchive.ps1'
+    $publishedExe = Join-Path $outputFolder 'PresetMaestro.exe'
+    $archive = & $archiveScript -ExecutablePath $publishedExe -Name PresetMaestro -OutputDirectory $archiveOutput.FullName -NoticePath $notice
+    if ([IO.Path]::GetFileName($archive) -ne 'PresetMaestro-2.1.0-win-x64.zip') { throw 'Archive did not use the published executable version.' }
+    $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+    try {
+        $entries = @($zip.Entries.FullName | Sort-Object)
+        if (($entries -join '|') -ne 'Fixture-NOTICES.txt|PresetMaestro.exe') { throw "Unexpected release ZIP entries: $entries" }
+        $entryStream = $zip.GetEntry('PresetMaestro.exe').Open()
+        try { $extractedHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($entryStream)) }
+        finally { $entryStream.Dispose() }
+        if ($extractedHash -ne (Get-FileHash -LiteralPath $publishedExe -Algorithm SHA256).Hash) { throw 'Archived executable differs from the published file.' }
+    }
+    finally { $zip.Dispose() }
+    $expectedChecksum = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + [IO.Path]::GetFileName($archive)
+    if ((Get-Content -LiteralPath ($archive + '.sha256') -Raw).Trim() -ne $expectedChecksum) { throw 'Release checksum does not match the archive.' }
+    $duplicateRejected = $false
+    try { & $archiveScript -ExecutablePath $publishedExe -Name PresetMaestro -OutputDirectory $archiveOutput.FullName -NoticePath @($notice, $notice) }
+    catch { if ($_.Exception.Message -notmatch 'duplicate archive entry') { throw }; $duplicateRejected = $true }
+    if (-not $duplicateRejected) { throw 'Duplicate archive names were accepted.' }
+    if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedChecksum.Split(' ')[0]) { throw 'Rejected archive inputs changed the existing release.' }
+    Write-Host 'PASS: release ZIP uses the binary version, contains exact explicit inputs, has a matching checksum and rejects duplicate names.'
+
     # Isolate the wrapper to verify command forwarding and failure handling without running a real build.
     $helperFolder = New-Item -ItemType Directory -Path (Join-Path $results.FullName 'helper') -Force
     $helper = Join-Path $helperFolder.FullName 'Publish-App.ps1'
     Copy-Item -LiteralPath (Join-Path $projectRoot 'Publish-App.ps1') -Destination $helper
     $dependencyFolder = New-Item -ItemType Directory -Path (Join-Path $helperFolder.FullName 'dependencies/midi') -Force
     Copy-Item -LiteralPath (Join-Path $projectRoot 'dependencies/midi/Sign-WindowsExecutable.ps1') -Destination $dependencyFolder.FullName
+    # This fixture checks wrapper flow; no real EXE is emitted by its dotnet stub.
+    Set-Content -LiteralPath (Join-Path $dependencyFolder.FullName 'New-WindowsReleaseArchive.ps1') -Value 'param($ExecutablePath, $Name, $OutputDirectory, $NoticePath)'
     $dotnetStubState = [pscustomobject]@{ ExitCode = 42; Arguments = @() }
     $dotnetStub = {
         $dotnetStubState.Arguments = $args
