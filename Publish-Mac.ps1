@@ -91,6 +91,7 @@ try {
     Set-Content -LiteralPath $temporaryVersion -Value $Version -NoNewline
     Invoke-Checked 'dotnet' @('publish', (Join-Path $PSScriptRoot 'PresetMaestro/PresetMaestro.csproj'),
         '--configuration', 'Release', '--runtime', $rid, '--self-contained', 'true', '--output', $binaryDirectory,
+        '--artifacts-path', (Join-Path $stage 'build'),
         "-p:PublishVersion=$Version", "-p:AppVersionFile=$temporaryVersion", '-p:DebugType=None', '-p:DebugSymbols=false')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'packaging/macos/PresetMaestro.icns') -Destination $resources
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'packaging/macos/DryWetMidi.LICENSE.txt') -Destination $resources
@@ -106,7 +107,8 @@ try {
   <key>CFBundleShortVersionString</key><string>$Version</string>
   <key>CFBundleVersion</key><string>$Version</string>
   <key>CFBundleIconFile</key><string>PresetMaestro.icns</string>
-  <key>LSMinimumSystemVersion</key><string>15.0</string>
+  <key>LSMinimumSystemVersion</key><string>26.0</string>
+  <key>NSLocalNetworkUsageDescription</key><string>Connect to MIDI devices and MIDI Forwarder on your local network.</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
@@ -117,7 +119,7 @@ try {
     if ($onMac) {
         # Apple treats regular files in MacOS as nested code. Managed assemblies and
         # runtime metadata belong in Resources; relative links retain .NET's paths.
-        foreach ($file in @(Get-ChildItem -LiteralPath $binaryDirectory -File -Recurse -Force)) {
+        foreach ($file in @(Get-ChildItem -LiteralPath $binaryDirectory -File -Force)) {
             $relative = [IO.Path]::GetRelativePath($binaryDirectory, $file.FullName)
             $resourcePath = Join-Path (Join-Path $resources 'Managed') $relative
             New-Item -ItemType Directory -Path (Split-Path $resourcePath -Parent) -Force | Out-Null
@@ -134,6 +136,12 @@ try {
             Invoke-Checked '/bin/chmod' @('644', $resourcePath)
             $target = [IO.Path]::GetRelativePath($file.DirectoryName, $resourcePath)
             Invoke-Checked '/bin/ln' @('-s', $target, $file.FullName)
+        }
+        # Data directories must not be mistaken for unsigned nested bundles.
+        foreach ($directory in @(Get-ChildItem -LiteralPath $binaryDirectory -Directory)) {
+            $resourceDirectory = Join-Path (Join-Path $resources 'Managed') $directory.Name
+            Move-Item -LiteralPath $directory.FullName -Destination $resourceDirectory
+            Invoke-Checked '/bin/ln' @('-s', ('../Resources/Managed/' + $directory.Name), $directory.FullName)
         }
     }
     & (Join-Path $PSScriptRoot 'scripts/Test-MacBundle.ps1') -BundlePath $stagedApp -Architecture $Architecture -ExpectedVersion $Version

@@ -17,7 +17,8 @@ if ($PSBoundParameters.ContainsKey('Version') -and [string]::IsNullOrWhiteSpace(
 }
 
 $csproj = Join-Path $PSScriptRoot 'PresetMaestro\PresetMaestro.csproj'
-$publishArguments = @('publish', $csproj, '--configuration', 'Release', '--runtime', 'win-x64')
+$buildRoot = Join-Path $PSScriptRoot ('artifacts/publish-' + [guid]::NewGuid().ToString('N'))
+$publishArguments = @('publish', $csproj, '--configuration', 'Release', '--runtime', 'win-x64', '--artifacts-path', $buildRoot)
 if ($PSBoundParameters.ContainsKey('Version')) { $publishArguments += "-p:PublishVersion=$($Version.Trim())" }
 & dotnet @publishArguments
 if ($LASTEXITCODE -ne 0) { throw 'Publishing failed; nothing was distributed.' }

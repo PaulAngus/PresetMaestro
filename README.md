@@ -4,9 +4,9 @@ Current source release: [1.2.26](docs/releases/1.2.26.md).
 
 Shared MIDI implementation: see [dependency and setup notes](dependencies/midi/README.md). Current and legacy backends come from the `MightBeUseful.Midi` packages maintained in [MIDIHelperLibrary](https://github.com/PaulAngus/MIDIHelperLibrary); earlier implementation/package details below describe the pre-migration builds.
 
-For loopMIDI on older Windows, see the [setup instructions](#loopmidi-setup-on-older-windows).
+Published Windows EXEs contain .NET, UI libraries, the Windows MIDI API and its private C++ runtime dependencies. Install the signed Mac `.app` without separate runtime or helper installation. Optional legacy virtual-cable guidance below is outside Windows 10 virtual-presentation support.
 
-A desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10 and Avalonia. The established Windows build targets Windows 10 version 2004 or later. macOS preparation targets Apple Silicon (including M2) on macOS 15 or later, with native launch and MIDI hardware acceptance still pending. Windows and Mac packages include only their own desktop and MIDI backends; Linux is not a target.
+A desktop controller for selecting presets and scenes, saving favorites, and reading preset/scene names from the device. Built with .NET 10 and Avalonia. The established Windows build targets Windows 10 version 2004 or later. The supported OS policy is Windows 10, Windows 11, macOS 26 and macOS 27; existing Mac build targets are Apple Silicon and Intel. Clean-host qualification for the current packages remains incomplete. Virtual MIDI presentation is not supported on Windows 10. Windows and Mac packages include only their own desktop and MIDI backends; Linux is not a target.
 
 The standalone **Preset Sender** utility moved to [its own Preset-Forwarder repository](https://github.com/PaulAngus/Preset-Forwarder) on 12 October 2026. It builds independently and has its own tests and releases. PresetMaestro's built-in Preset Sender page remains part of this application.
 
@@ -28,7 +28,7 @@ You do **not** need to scan all presets before using scenes. For everyday use, j
 
 ## loopMIDI setup on older Windows
 
-Use this on supported Windows versions when connecting PresetMaestro through another MIDI application or MIDI-Forwarder. A direct USB/MIDI connection to the hardware does not need loopMIDI. The app normally selects its legacy MIDI backend automatically on older Windows; Windows MIDI Services and the optional current API installer are not required for this route.
+Use this on supported Windows versions when connecting PresetMaestro through another MIDI application or MIDI-Forwarder. A direct USB/MIDI connection to the hardware does not need loopMIDI. The app normally selects its legacy MIDI backend automatically on older Windows; No MIDI API installer is required by current releases.
 
 1. Download and install [loopMIDI from Tobias Erichsen](https://www.tobias-erichsen.de/software/loopmidi.html), then start it on the PC running PresetMaestro.
 2. Create two ports named `MIDI Fwd From App` and `MIDI Fwd To App`. These example names match the MIDI-Forwarder guide. Each port appears as an input and an output; its direction depends on which application selects it.

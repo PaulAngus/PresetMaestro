@@ -12,7 +12,7 @@ One UI, profile format and device-protocol implementation serve both systems. `b
 | Apple Silicon | .NET 10, `osx-arm64` | Avalonia.Native | DryWetMIDI 8.0.3 / CoreMIDI | Self-contained `.app` in ZIP |
 | Intel Mac | .NET 10, `osx-x64` | Avalonia.Native | Same Mac backend | Separate `.app` in ZIP |
 
-The Mac bundle declares macOS 15 minimum, matching the oldest currently supported macOS in [.NET 10's support table](https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md), reviewed 8 October 2026. Actual compatibility remains to be validated. The Windows API minimum is unchanged; use a Windows release supported by Microsoft for deployment.
+The Mac bundle declares macOS 26 minimum. The product support policy is macOS 26 and 27, Windows 10 and Windows 11; the framework's broader compatibility table does not define the application's supported OS policy. Clean-host qualification remains incomplete. Windows 10 virtual MIDI presentation is unsupported.
 
 Platform source files and package references are conditional. Neither release references `Avalonia.Desktop`, the NAudio umbrella package, or a Linux UI backend. Windows does not reference DryWetMIDI or Avalonia.Native; macOS does not reference NAudio, Avalonia.Win32 or the Windows SDK projection. Some shared NuGet packages contain assets for multiple systems; the SDK selects only the requested RID for publication. Downloaded package contents are not the shipped payload.
 
@@ -52,7 +52,7 @@ The GitHub workflow contains separate Windows and Apple Silicon `macos-15` jobs.
 
 ## First setup on the M2
 
-1. Use macOS 15 or newer and install the [.NET 10 Arm64 SDK](https://learn.microsoft.com/en-us/dotnet/core/install/macos).
+1. On the development/signing Mac, use macOS 26 or 27 and install the [.NET 10 Arm64 SDK](https://learn.microsoft.com/en-us/dotnet/core/install/macos). These are build tools; application users do not install them.
 2. Install Apple's command-line tools with `xcode-select --install`, and [PowerShell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-macos). PowerShell is only a developer packaging tool; app users do not need it.
 3. Extract the current source snapshot (or clone a commit that includes all the latest changes), open Terminal in it and run:
 

@@ -7,6 +7,13 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+#if MAESTRO_WINDOWS
+        if (args.Contains("--dependency-report", StringComparer.Ordinal))
+        {
+            Environment.ExitCode = MightBeUseful.Midi.Windows.WindowsMidiDependencyReport.Write(Console.Out);
+            return;
+        }
+#endif
         if (args.Contains("--midi-backend", StringComparer.Ordinal))
         {
 #if MAESTRO_WINDOWS
