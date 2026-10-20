@@ -5,6 +5,91 @@ namespace PresetMaestro.Tests;
 
 public class SceneClientTests
 {
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(4, false)]
+    [InlineData(0, true)]
+    [InlineData(4, true)]
+    public async Task CancelledDumpDrainsToItsValidatedEndThenAllowsFreshReads(int prefixFrames, bool readSameSlot)
+    {
+        var midi = new FakeMidi(); using var client = new PresetNameClient(midi);
+        var oldFrames = StoredSceneTests.Fixture();
+        midi.Send = _ => { foreach (var frame in oldFrames[..prefixFrames]) { midi.Reply(frame); } };
+        using var cancelled = new CancellationTokenSource();
+        var oldRead = client.StoredScenesAsync(152, cancelled.Token);
+        cancelled.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => oldRead);
+
+        midi.Send = request =>
+        {
+            if (request[5] == 0x03)
+            { foreach (var frame in StoredSceneTests.Fixture(presetName: "Fresh saved preset")) { midi.Reply(frame); } }
+            else if (request[5] == 0x0d) { midi.Reply(SceneProtocolTests.Response(0x0d, [5, 0], "Current preset")); }
+            else { midi.Reply(SysexProtocol.Frame(0x0c, [3])); }
+        };
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        if (readSameSlot)
+        {
+            var next = client.StoredScenesAsync(152, deadline.Token);
+            Assert.Single(midi.Sent);
+            foreach (var frame in oldFrames[prefixFrames..]) { midi.Reply(frame); }
+            var saved = await next;
+            Assert.Equal("Fresh saved preset", saved.PresetName);
+        }
+        else
+        {
+            var next = client.CurrentStateAsync(deadline.Token);
+            Assert.Single(midi.Sent);
+            foreach (var frame in oldFrames[prefixFrames..]) { midi.Reply(frame); }
+            var state = await next;
+            Assert.Equal(5, state.Preset.Slot); Assert.Equal(3, state.Scene.Index);
+        }
+        Assert.True(midi.Sent.Count > 1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancelledDumpWithoutAValidEndRemainsQuarantined(bool corruptFooter)
+    {
+        var midi = new FakeMidi(); using var client = new PresetNameClient(midi);
+        var frames = StoredSceneTests.Fixture();
+        midi.Send = _ => { foreach (var frame in frames[..4]) { midi.Reply(frame); } };
+        using var cancelled = new CancellationTokenSource();
+        var old = client.StoredScenesAsync(152, cancelled.Token);
+        cancelled.Cancel(); await Assert.ThrowsAnyAsync<OperationCanceledException>(() => old);
+        midi.Send = _ => throw new InvalidOperationException("A new query must wait for the incomplete or corrupt dump.");
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        var next = client.CurrentStateAsync(deadline.Token);
+        foreach (var frame in frames[4..^1]) { midi.Reply(frame); }
+        if (corruptFooter) { frames[^1][^2] ^= 1; midi.Reply(frames[^1]); }
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => next);
+        Assert.Single(midi.Sent);
+    }
+
+    [Fact]
+    public async Task CurrentStateRejectsPresetChangeAwayAndBackAndAllowsRetry()
+    {
+        var midi = new FakeMidi(); using var client = new PresetNameClient(midi);
+        bool changeDuringRead = true;
+        midi.Send = frame =>
+        {
+            if (frame[5] == 0x0d) { midi.Reply(SceneProtocolTests.Response(0x0d, [5, 0], "Preset")); }
+            else
+            {
+                if (changeDuringRead) { midi.Changed(); midi.Changed(); }
+                midi.Reply(SysexProtocol.Frame(0x0c, [3]));
+            }
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.CurrentStateAsync(CancellationToken.None));
+        changeDuringRead = false;
+        var state = await client.CurrentStateAsync(CancellationToken.None);
+        Assert.Equal(5, state.Preset.Slot);
+        Assert.Equal(3, state.Scene.Index);
+        Assert.All(midi.Sent, frame => Assert.Contains(frame[5], new byte[] { 0x0d, 0x0c }));
+    }
+
     [Fact]
     public async Task CurrentStateReadsPresetAndSceneAsOneQueuedSnapshot()
     {

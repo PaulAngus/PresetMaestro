@@ -16,7 +16,7 @@ public partial class MainWindow
     private void HandleDigit(int digit)
     {
         HideSendFeedback();
-        int digitLimit = _currentPage == AppPage.PresetIndex ? Math.Max(3, EffectiveMaximum.ToString().Length) : 3;
+        int digitLimit = _mode == EntryMode.Preset ? Math.Max(3, EffectiveMaximum.ToString().Length) : 3;
         if (_enteredDigits.Length >= digitLimit)
         {
             _autoSendTimer.Stop();

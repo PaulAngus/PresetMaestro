@@ -21,6 +21,7 @@ public sealed class PresetNameClient : IDisposable
     private readonly SysexAssembler _assembler = new();
     private readonly CancellationTokenSource _lifetime = new();
     private long _quietUntil;
+    private Func<byte[], bool>? _drainCancelledDump;
     private long? _lastQueryStarted;
     private static readonly TimeSpan MinimumQueryInterval = TimeSpan.FromMilliseconds(10);
     private bool _disposed;
@@ -45,11 +46,12 @@ public sealed class PresetNameClient : IDisposable
     /// <summary>Reads a stable preset/scene snapshot without allowing another queued read between requests.</summary>
     public Task<(PresetNameResult Preset, SceneNameResult Scene)> CurrentStateAsync(CancellationToken token) => Locked(async ct =>
     {
+        long revision = Interlocked.Read(ref _presetRevision);
         var before = await CurrentPreset(ct);
         var scene = await Exchange(SysexProtocol.BuildCurrentSceneQuery(), f => SysexProtocol.ValidFrame(f, 0x0c, 9) && f[6] < 8
             ? new SceneNameResult(f[6], "") : null, TimeSpan.FromSeconds(1.5), ct);
         var after = await CurrentPreset(ct);
-        if (before.Slot != after.Slot)
+        if (before.Slot != after.Slot || revision != Interlocked.Read(ref _presetRevision))
         {
             throw new InvalidOperationException("Active preset changed while reading the current scene.");
         }
@@ -176,7 +178,7 @@ public sealed class PresetNameClient : IDisposable
         if (remainingQuiet > 0)
         {
             await ReadDiagnostics.MeasureAsync("midi.quiet", slot, async () =>
-            { await Task.Delay(TimeSpan.FromMilliseconds(remainingQuiet), token).ConfigureAwait(false); return true; }).ConfigureAwait(false);
+            { await DrainQuietPeriodAsync(token).ConfigureAwait(false); return true; }).ConfigureAwait(false);
         }
 
         // Fast USB replies can arrive in ~1 ms. Avoid immediately issuing hundreds
@@ -235,7 +237,7 @@ public sealed class PresetNameClient : IDisposable
                             if (!SysexProtocol.ValidFrame(frame, request[4], request[5], frame.Length)) { invalid++; }
                         }
                         T? result = parse(frame);
-                        if (result != null) { token.ThrowIfCancellationRequested(); completed = true; receiveOutcome = "complete"; return result; }
+                        if (result != null) { completed = true; token.ThrowIfCancellationRequested(); receiveOutcome = "complete"; return result; }
                         if (matches) { rejected++; }
                     }
                 }
@@ -261,8 +263,47 @@ public sealed class PresetNameClient : IDisposable
             if (!completed)
             {
                 _quietUntil = Environment.TickCount64 + (long)timeout.TotalMilliseconds;
+                // A cancelled multipart read can finish arriving after its caller has
+                // moved on. Consume it with the same decoder: only its fully validated
+                // end permits early release, never an uncorrelated footer alone.
+                _drainCancelledDump = request[5] == 0x03 && token.IsCancellationRequested
+                    ? frame => parse(frame) is not null : null;
             }
         }
+    }
+    private async Task DrainQuietPeriodAsync(CancellationToken token)
+    {
+        long remaining = _quietUntil - Environment.TickCount64;
+        if (remaining <= 0) { _drainCancelledDump = null; return; }
+        var complete = _drainCancelledDump;
+        if (complete is null)
+        { await Task.Delay(TimeSpan.FromMilliseconds(remaining), token).ConfigureAwait(false); return; }
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(TimeSpan.FromMilliseconds(remaining));
+        try
+        {
+            while (true)
+            {
+                var frame = await _frames.Reader.ReadAsync(deadline.Token).ConfigureAwait(false);
+                try
+                {
+                    if (!complete(frame)) { continue; }
+                    _quietUntil = 0; _drainCancelledDump = null; return;
+                }
+                catch (InvalidDataException)
+                {
+                    // An incomplete/corrupt dump proves no safe transaction boundary.
+                    // Retain the original deadline and discard its remaining frames
+                    // before issuing another request.
+                    _drainCancelledDump = null;
+                    remaining = _quietUntil - Environment.TickCount64;
+                    if (remaining > 0) { await Task.Delay(TimeSpan.FromMilliseconds(remaining), token).ConfigureAwait(false); }
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        { _drainCancelledDump = null; }
     }
     private void OnSysexMessageReceived(object? sender, byte[] data)
     {

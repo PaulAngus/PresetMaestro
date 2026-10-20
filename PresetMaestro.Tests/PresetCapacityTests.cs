@@ -84,7 +84,7 @@ public sealed partial class ConnectionLibrarySetupTests
             await window.SyncIndexAsync();
             Assert.Equal(1, source.CapacityChecks);
             Assert.Equal(2048, source.Inner.NameReads.Count);
-            Assert.DoesNotContain(midi.Sent, frame => frame[0] is >= 0xc0 and <= 0xcf);
+            Assert.Empty(midi.Writes);
         }
         finally { window.Close(); }
     }
@@ -129,7 +129,7 @@ public sealed partial class ConnectionLibrarySetupTests
                 capacity: FractalDeviceDefinition.For(saved.Device).PresetSlots).Count);
             await window.SyncIndexAsync(); Assert.Equal(1, source.CapacityChecks);
             Assert.Empty(window.OwnedWindows);
-            Assert.DoesNotContain(midi.Sent, frame => frame[0] is >= 0xc0 and <= 0xcf);
+            Assert.Equal(("Preset", (capacity - 1) / 128, 127, 0, 0, settings.MidiChannel), Assert.Single(midi.Writes));
             Click(Find<Button>(window, "NavConfig")); Click(Find<Button>(window, "ManageLibraries"));
             Assert.Equal(width, window.Bounds.Width);
             Capture(window, $"saved-capacity-device-{width}-{theme}");

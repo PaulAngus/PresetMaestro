@@ -1,5 +1,13 @@
 # Config numeric inputs
 
+## Auto-send number length (2026-10-20)
+
+The adversarial review found that Preset Sender discarded the first three digits of a four-digit Axe-Fx III preset number. Both preset entry pages now accept the digit count required by the device capacity. Auto-send waits for that count; Favorites retains its existing three-digit entry. The Config label is now **Auto-send full numbers**, with tooltip and automation help explaining three/four digits and leading zeros.
+
+Current [Fluent 2 checkbox guidance](https://fluent2.microsoft.design/components/web/react/core/checkbox/usage) calls for concise, affirmative labels describing the result. [Windows checkbox guidance](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/checkbox) asks for a clear purpose/state and consideration of surrounding layout when text changes. This correction uses the existing Avalonia control, placement and theme. Retaining an immediately applied checkbox is an existing product deviation from Fluent's preference for switches for immediate effects; this review does not redesign the settings controls. Three/four-digit completion is an application policy, not a Microsoft requirement.
+
+Keyboard tests toggle the option without sending MIDI. Four-digit entry, auto-send delay and clearing a pending send have outcome tests. Config renders are checked at 1000×850 and 1440×850 in Light and Dark.
+
 Current device wording is documented in [Device terminology](device-terminology-ux.md). From 2026-10-07, user-facing “library” labels use “device”; earlier research below retains its historical wording.
 
 Reviewed 2026-10-04.

@@ -1,6 +1,7 @@
 <Project>
   <!-- Audited offline sources; new tests require explicit inclusion. -->
   <ItemGroup>
+    <Compile Include="AdversarialOutcomeTests.cs" />
     <Compile Include="AmpBrowserTests.cs" />
     <Compile Include="AmpCompatibilityRow.cs" />
     <Compile Include="AmpModelTableTests.cs" />

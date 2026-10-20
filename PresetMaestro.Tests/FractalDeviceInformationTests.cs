@@ -245,7 +245,8 @@ internal sealed class DeviceMidi : IMidiManager
     public event EventHandler<byte[]>? SysexMessageReceived;
     public event EventHandler<string>? LogMessage;
     public event EventHandler<int>? PresetChangeReceived { add { } remove { } }
-    public event EventHandler<NoteOnEventArgs>? NoteOnReceived { add { } remove { } }
+    public event EventHandler<NoteOnEventArgs>? NoteOnReceived;
+    public void EmitNote(NoteOnEventArgs note) => NoteOnReceived?.Invoke(this, note);
     public bool InputOpen { get; set; } = true;
     public bool OutputOpen { get; set; } = true;
     public bool FailInput { get; set; }

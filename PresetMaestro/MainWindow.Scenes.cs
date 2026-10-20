@@ -24,6 +24,7 @@ public partial class MainWindow
     private string _sceneCacheKey = "";
     private TextBlock _favoriteSceneDisplay = null!;
     private CancellationTokenSource? _favoriteSceneCts;
+    private CancellationTokenSource? _favoriteCurrentCts;
     private Button _favoriteUseCurrentButton = null!;
 
     private Dictionary<int, SceneCacheEntry> SceneCache
@@ -51,7 +52,7 @@ public partial class MainWindow
     {
         if (_favoriteUseCurrentButton is not null)
         {
-            _favoriteUseCurrentButton.IsEnabled = CanReadDeviceNames && _midi.InputOpen && _midi.OutputOpen;
+            _favoriteUseCurrentButton.IsEnabled = _favoriteCurrentCts is null && CanReadDeviceNames && _midi.InputOpen && _midi.OutputOpen;
             ToolTip.SetTip(_favoriteUseCurrentButton, CanReadDeviceNames ? null : UnsupportedNameReads);
         }
     }
@@ -140,18 +141,24 @@ public partial class MainWindow
     private async Task UseCurrentFavoriteStateAsync()
     {
         if (!CanReadDeviceNames) { AppendLog($"SCENES: {UnsupportedNameReads}"); return; }
-        if (_connectionCts is not null || _favEditingId == null || !_midi.InputOpen || !_midi.OutputOpen)
+        if (_connectionCts is not null || _favoriteCurrentCts is not null || _favEditingId == null || !_midi.InputOpen || !_midi.OutputOpen)
         {
             AppendLog("SCENES: connect both MIDI ports to use the current preset and scene.");
             return;
         }
 
-        _favoriteUseCurrentButton.IsEnabled = false;
+        using var cts = new CancellationTokenSource();
+        _favoriteCurrentCts = cts;
+        UpdateFavoriteSceneReadButton();
         int profileGeneration = _profileGeneration;
+        long connectionGeneration = _connectionGeneration;
+        decimal? draftPreset = _favPresetSpinner.Value, draftScene = _favSceneSpinner.Value;
         try
         {
-            var state = await _presetNameClient.CurrentStateAsync(CancellationToken.None);
-            if (_connectionCts is not null || _favEditingId == null || _sceneClosing || profileGeneration != _profileGeneration)
+            var state = await _presetNameClient.CurrentStateAsync(cts.Token);
+            if (cts.IsCancellationRequested || _connectionCts is not null || _favEditingId == null || _sceneClosing ||
+                profileGeneration != _profileGeneration || connectionGeneration != _connectionGeneration ||
+                !_midi.InputOpen || !_midi.OutputOpen || _favPresetSpinner.Value != draftPreset || _favSceneSpinner.Value != draftScene)
             {
                 return;
             }
@@ -174,9 +181,10 @@ public partial class MainWindow
         }
         finally
         {
-            if (_favoriteUseCurrentButton != null)
+            if (ReferenceEquals(_favoriteCurrentCts, cts))
             {
-                _favoriteUseCurrentButton.IsEnabled = CanReadDeviceNames;
+                _favoriteCurrentCts = null;
+                UpdateFavoriteSceneReadButton();
             }
         }
     }
@@ -405,7 +413,7 @@ public partial class MainWindow
     }
     private void StopSceneTracking()
     {
-        _scenePoll.Stop(); _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _favoriteSceneCts?.Cancel();
+        _scenePoll.Stop(); _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _favoriteSceneCts?.Cancel(); _favoriteCurrentCts?.Cancel();
         _savedSceneChanges.Reset(); _activeNamesRetryAt = _savedNamesRetryAt = 0; _savedSceneDecisionWaitingForFocus = false;
         _sceneGeneration++; _sceneSlot = null; _activeScene = null;
         _detectedPresetSlot = _detectedScene = null;

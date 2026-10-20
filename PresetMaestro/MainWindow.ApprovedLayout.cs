@@ -328,7 +328,10 @@ public partial class MainWindow
         var stack = new StackPanel { Spacing = 8 };
 
         var auto = new Grid { Name = "AutoSendOptions" };
-        _autoSendCheck = new CheckBox { Name = "AutoSend", Content = "Auto-send after 3 digits", VerticalAlignment = VerticalAlignment.Bottom };
+        _autoSendCheck = new CheckBox { Name = "AutoSend", Content = "Auto-send full numbers", VerticalAlignment = VerticalAlignment.Bottom };
+        const string autoSendHelp = "Send after 3 digits, or 4 for a 1024-slot device. Favorites use 3 digits. Use leading zeros for shorter numbers.";
+        ToolTip.SetTip(_autoSendCheck, autoSendHelp);
+        AutomationProperties.SetHelpText(_autoSendCheck, autoSendHelp);
         _autoSendCheck.IsCheckedChanged += (_, _) => _settings.AutoSend = _autoSendCheck.IsChecked == true;
         auto.Children.Add(_autoSendCheck);
         _autoSendDelaySpinner = new CompactNumericUpDown { Name = "AutoSendDelay", Minimum = 10, Maximum = 2000, Value = 35, FormatString = "0", MinWidth = 110 };

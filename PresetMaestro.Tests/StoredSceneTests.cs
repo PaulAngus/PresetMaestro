@@ -56,7 +56,7 @@ public class StoredSceneTests
     }
 
     // Independent synthetic encoder: balanced 256-symbol tree, fixed eight-bit codes.
-    internal static byte[][] Fixture(byte[]? presetBody = null)
+    internal static byte[][] Fixture(byte[]? presetBody = null, string presetName = "Test preset")
     {
         var body = presetBody ?? new byte[260];
         string[] names = ["Clean", "Drive", "Lead", "", "Five", "Six", "Seven", "Eight"];
@@ -85,7 +85,7 @@ public class StoredSceneTests
 
         var raw = new byte[16384];
         BinaryPrimitives.WriteUInt16LittleEndian(raw.AsSpan(2), 0xaa55);
-        System.Text.Encoding.ASCII.GetBytes("Test preset").CopyTo(raw, 8);
+        System.Text.Encoding.ASCII.GetBytes(presetName).CopyTo(raw, 8);
         BinaryPrimitives.WriteUInt16LittleEndian(raw.AsSpan(0x48), (ushort)body.Length);
         BinaryPrimitives.WriteUInt16LittleEndian(raw.AsSpan(0x4a), (ushort)packed.Length);
         packed.CopyTo(raw, 0x4c);

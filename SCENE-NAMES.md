@@ -39,7 +39,7 @@ All controller reads share one request queue. Live snapshots check the preset be
 | Port cannot be opened | Close device editor/other applications that hold the same port. |
 | Names do not change after an external rename | Save on the FM9 first. Automatic FM9 checks refresh observed changes; use Resync Scenes for changes missed between polls, older data or an unavailable extended query. |
 | Bulk scan stops | Completed entries remain. Read the status, check the MIDI connection, then retry or resume from Preset Index. |
-| A read waits after cancellation | The request queue deliberately waits for possible late replies: up to the previous request timeout (1.5 seconds for a name read, 15 seconds for a stored dump). |
+| A read waits after cancellation | The queue quarantines possible late replies for up to the previous request timeout (1.5 seconds for a name read, 15 seconds for a stored dump). A cancelled stored dump releases quarantine sooner when its complete image, checksums and CRC have been validated and discarded. Missing or corrupt completion retains the wait. |
 | Names from another device appear | Clear the scene-name cache after changing to a unit with the same MIDI port names. |
 
 Bulk sync starts at slot 0 each time; there is no resume-from-last-slot feature. It does not start automatically on connection. Clearing the cache does not immediately re-read the current preset; use Refresh afterward. The favorite editor uses cached names when its preset field changes; use Read names for this preset when those names are missing or stale.

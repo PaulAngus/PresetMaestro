@@ -869,9 +869,10 @@ public partial class FavoriteEditorTests
             Assert.Equal("Syncing…", sync.Content);
 
             firstQuery.SetResult(true);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             while (queryCount < 512 || !sync.IsEnabled)
             {
-                await Task.Delay(1);
+                await Task.Delay(1, deadline.Token);
             }
 
             Assert.Equal(512, queryCount);

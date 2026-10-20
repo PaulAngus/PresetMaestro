@@ -479,7 +479,7 @@ public partial class MainWindow
 
     internal void ShowFavoriteEditor(Favorite fav, bool isNew)
     {
-
+        _favoriteCurrentCts?.Cancel();
         _favEditingId = isNew ? 0 : fav.Id;
         _favInitializingEditor = true;
         _favEditorTitle.Text = isNew ? "New Favorite" : $"Edit: {(fav.IsEmpty ? "— Empty —" : fav.Name)}";
@@ -523,6 +523,7 @@ public partial class MainWindow
 
     private void HideFavoriteEditor()
     {
+        _favoriteCurrentCts?.Cancel();
         if (_favPreviousMinWidth is double previousMinWidth)
         {
             MinWidth = previousMinWidth;
