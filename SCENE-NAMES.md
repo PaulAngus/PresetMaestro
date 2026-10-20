@@ -2,7 +2,7 @@
 
 For the everyday button-by-button guide, start with the [main README](README.md). This document describes the behavior and implementation in more detail.
 
-The approved layout does not currently expose standalone scene buttons. Scene names are used by the favorite editor and selected-favorite detail display. Loading a preset refreshes cached names using read-only `0x0E` queries, while sending a favorite selects its saved scene using the configured scene CC.
+The approved layout does not currently expose standalone scene buttons. Scene names are used by the favorite editor and selected-favorite detail display. Automatic FM9 name checks use the captured editor-status transaction described below, and cached browsing names come from saved preset reads. Sending a favorite selects its saved scene using the configured scene CC.
 
 ## User manual note: required device Scene Select assignment
 
@@ -15,15 +15,17 @@ Scene selection requires configuration on both sides; choosing a Scene CC in the
 
 The device may have **Scene Select = None**. In that state, preset Bank Select and Program Change messages still work, but the device ignores the subsequent scene CC. This can look like an app timing fault even when the MIDI log shows the correct messages. Physical device testing on 2026-09-18 confirmed that changing Scene Select from **None** to **34** resolved this exact symptom; no artificial delay between the MIDI messages was required.
 
-`Sync all stored scene names` reads slots 0–511 with `0x03` and extracts their names without selecting any preset. It is explicit because a DIN scan transfers roughly 12.6 MB and can take over an hour. Cancellation keeps completed entries; a failed/unsupported dump stops the scan and preserves the cache. A preset change cancels background sync so foreground actions take priority. Saved-dump names never replace the current live names during a scan.
+`Sync all stored scene names` reads slots 0–511 with `0x03` and extracts their names without selecting any preset. It is explicit because a DIN scan transfers roughly 12.6 MB and can take over an hour. Cancellation keeps completed entries; a failed/unsupported dump stops the scan and preserves the cache. A preset change cancels background sync so foreground actions take priority. The cache receives complete saved reads; unsaved live names are not committed to it.
 
-The favorite editor shows cached scene names for its preset. `Read names for this preset` reads the active preset's live names, or that slot's stored dump if it is not active. It never loads a preset merely to populate the picker.
+The favorite editor shows cached saved scene names for its preset. `Read names for this preset` reads that slot's stored dump, including when it is active. It never loads a preset merely to populate the picker or copies an unsaved name into the saved cache.
 
-Caches persist in the existing settings file, keyed by MIDI input/output port pair and zero-based preset slot, with source and retrieval time. Display offset does not change keys. Two physical units with identical port names cannot be distinguished: use Clear scene-name cache when changing such units. Saved dumps contain saved names; live queries may reflect unsaved edits. Refresh current scene names after editing names externally.
+Caches persist in the existing settings file, keyed by MIDI input/output port pair and zero-based preset slot, with source and retrieval time. Display offset does not change keys. Two physical units with identical port names cannot be distinguished: use Clear scene-name cache when changing such units. Saved dumps contain saved names; live queries may reflect unsaved edits and are used only to schedule saved reads. Legacy live-cache entries are replaced with saved names when that preset is checked.
 
 ## Connections and change detection
 
-Use the existing app MIDI connection. For DIN, connect both directions and enable Send MIDI PC on the device. USB MIDI is also supported. PC notifications trigger a current-preset query (not a guessed bank); a two-second current-preset/current-scene poll covers changes without notifications. The current scene indicator updates without re-fetching names. Polling pauses during name scans.
+Use the existing app MIDI connection. For DIN, connect both directions and enable Send MIDI PC on the device. USB MIDI is also supported. PC notifications trigger a current-preset query (not a guessed bank); a two-second state poll covers changes without notifications. On a detected FM9 it uses the observed private `01/2E` query for active slot, edited flag and all eight live names, plus the existing `0C` query for scene selection (the private response's scene-index candidate is not used). Polling pauses during name scans. An unavailable extended status query falls back to ordinary selection reads and retries after 30 seconds.
+
+Live replies never commit browsing names or tags. An edited-to-clean observation or departure from an observed edited preset schedules a bounded read of that saved slot. Saved reads distinguish Save from discard/navigation; only the saved content is published. An indexed refresh reuses conservative scene fingerprints and the existing name-only confirmation, with the existing atomic profile/Favorites/library save. Other profiles retain their own assignments. Cancellation, disconnect, profile/device changes and failed reads cannot publish late data. Failed stored reads back off for 30 seconds. A name change saved entirely between polls can be detected from a different clean name snapshot; unobserved history and inactive-slot changes are not comprehensively tracked. See [captured evidence and limits](docs/fm9-active-state-capture-findings.md) and [user-facing behavior](docs/fractal-index-usage.md#automatic-saved-changes-on-fm9).
 
 All controller reads share one request queue. Live snapshots check the preset before and after, track PC notifications (including away-and-back changes), and use cancellation/generation guards. Cancelled or timed-out requests have a response quarantine before the next query. SysEx has no transaction IDs: arbitrary late replies or an unreported away-and-back hardware change cannot be perfectly identified. Names update atomically only after a complete, consistent snapshot. Missing replies retain cached names instead of inventing an empty scene.
 
@@ -35,7 +37,7 @@ All controller reads share one request queue. Live snapshots check the preset be
 | Cached names remain after a failed refresh | Verify both MIDI directions, then click Refresh. A failed read does not erase previously known names. |
 | A Favorite loads the correct preset but never changes scene | Check **SETUP → MIDI/Remote → Other → Scene Select** on the device. It must not be **None** and must match Config → Scene CC# in the app. |
 | Port cannot be opened | Close device editor/other applications that hold the same port. |
-| Names do not change after an external rename | Use Refresh current scene names. Polling tracks preset and scene selection, not name edits. |
+| Names do not change after an external rename | Save on the FM9 first. Automatic FM9 checks refresh observed changes; use Resync Scenes for changes missed between polls, older data or an unavailable extended query. |
 | Bulk scan stops | Completed entries remain. Read the status, check the MIDI connection, then retry or resume from Preset Index. |
 | A read waits after cancellation | The request queue deliberately waits for possible late replies: up to the previous request timeout (1.5 seconds for a name read, 15 seconds for a stored dump). |
 | Names from another device appear | Clear the scene-name cache after changing to a unit with the same MIDI port names. |

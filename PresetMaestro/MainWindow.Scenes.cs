@@ -62,11 +62,7 @@ public partial class MainWindow
         {
             _settings.SceneNameCaches[key] = cache = [];
         }
-        // A stored dump must not replace the live edit-buffer names currently on screen.
-        if (!(source == "stored" && result.Slot == _sceneSlot && cache.TryGetValue(result.Slot, out var old) && old.Source == "live"))
-        {
-            cache[result.Slot] = new SceneCacheEntry { Names = result.Names, Source = source, RetrievedAt = DateTimeOffset.UtcNow };
-        }
+        cache[result.Slot] = new SceneCacheEntry { Names = result.Names.ToArray(), Source = source, RetrievedAt = DateTimeOffset.UtcNow };
 
         _settings.PresetNameCache[result.Slot] = result.PresetName;
         UpdateFavoritePresetDisplay();
@@ -167,7 +163,6 @@ public partial class MainWindow
             _currentPreset = state.Preset.Slot + _settings.DisplayOffset;
             _currentFavoriteName = null;
             _currentFavoriteScene = null;
-            _settings.PresetNameCache[state.Preset.Slot] = state.Preset.PresetName;
             UpdateFavoritePresetDisplay();
             PopulateFavoriteScenes();
             UpdateDisplay();
@@ -251,11 +246,9 @@ public partial class MainWindow
         try
         {
             // A browse/edit operation never loads that preset on the device.
-            var result = slot == _sceneSlot
-                ? await _presetNameClient.SceneNamesAsync(slot, cts.Token)
-                : await _presetNameClient.StoredScenesAsync(slot, cts.Token);
+            var result = await _presetNameClient.StoredScenesAsync(slot, cts.Token);
             cts.Token.ThrowIfCancellationRequested();
-            CacheScenes(result, slot == _sceneSlot ? "live" : "stored", key);
+            CacheScenes(result, "stored", key);
             _saveSettings(_settings); PopulateFavoriteScenes();
         }
         catch (OperationCanceledException) { }
@@ -281,13 +274,13 @@ public partial class MainWindow
         try
         {
             await Task.Delay(180, cts.Token); // coalesce rapid selection and allow device preset load
-            var result = await _presetNameClient.SceneNamesAsync(slot, cts.Token);
+            var result = await _presetNameClient.StoredScenesAsync(slot, cts.Token);
             if (generation != _sceneGeneration || cts.IsCancellationRequested || _sceneClosing)
             {
                 return;
             }
 
-            CacheScenes(result, "live", key); _saveSettings(_settings);
+            CacheScenes(result, "stored", key); _saveSettings(_settings);
             AppendLog($"SCENES: {result.PresetName} · eight scenes · refreshed");
         }
         catch (OperationCanceledException) { }
@@ -307,7 +300,7 @@ public partial class MainWindow
         }
     }
 
-    private async Task PollSceneStateAsync()
+    internal async Task PollSceneStateAsync()
     {
         if (!CanReadDeviceNames) { return; }
         if (_changingProfile || _connectionCts is not null || _pollBusy || _sceneCts != null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen || _sceneClosing)
@@ -320,10 +313,23 @@ public partial class MainWindow
         using var timingCapture = PresetNameSync.Core.ReadDiagnostics.Capture(timings.Add);
         using var cts = new CancellationTokenSource(); _scenePollCts = cts;
         int generation = _sceneGeneration;
+        int profile = _profileGeneration;
+        long connection = _connectionGeneration;
         try
         {
-            var preset = await _presetNameClient.CurrentPresetAsync(cts.Token);
-            if (cts.IsCancellationRequested || generation != _sceneGeneration)
+            Fm9ActivePreset? live = null;
+            if (_detectedDevice?.Model == DeviceModel.FM9 && Environment.TickCount64 >= _activeNamesRetryAt)
+            {
+                try { live = await _presetNameClient.ActivePresetAsync(cts.Token); }
+                catch (TimeoutException)
+                {
+                    _activeNamesRetryAt = Environment.TickCount64 + 30_000;
+                    AppendLog("SCENES: automatic saved-name checks unavailable; retrying shortly. Saved names and tags kept.");
+                }
+            }
+            var preset = live is not null ? new PresetNameResult(live.Slot, live.PresetName)
+                : await _presetNameClient.CurrentPresetAsync(cts.Token);
+            if (cts.IsCancellationRequested || generation != _sceneGeneration || profile != _profileGeneration || connection != _connectionGeneration)
             {
                 return;
             }
@@ -335,17 +341,19 @@ public partial class MainWindow
                 _currentPreset = preset.Slot + _settings.DisplayOffset;
                 _currentFavoriteName = null; _currentFavoriteScene = null;
                 UpdateDisplay(); UpdateFavoriteRowStates(); UpdateIndexActiveRows();
-                await RefreshScenesAsync(preset.Slot);
+                if (live is null) { await RefreshScenesAsync(preset.Slot); }
             }
             int sceneGeneration = _sceneGeneration;
             var scene = await PresetNameSync.Core.ReadDiagnostics.MeasureAsync("state.scene", null,
                 () => _presetNameClient.CurrentSceneAsync(cts.Token));
-            if (!cts.IsCancellationRequested && sceneGeneration == _sceneGeneration && _sceneSlot == preset.Slot)
+            if (!cts.IsCancellationRequested && sceneGeneration == _sceneGeneration && _sceneSlot == preset.Slot &&
+                profile == _profileGeneration && connection == _connectionGeneration)
             {
                 _activeScene = scene.Index + 1;
                 _detectedPresetSlot = preset.Slot;
                 _detectedScene = _activeScene;
                 UpdateDisplay(); UpdateFavoriteRowStates(); UpdateIndexActiveRows();
+                if (live is not null) { await CheckSavedSceneChangesAsync(live, cts.Token); }
             }
         }
         catch (OperationCanceledException) { }
@@ -398,6 +406,7 @@ public partial class MainWindow
     private void StopSceneTracking()
     {
         _scenePoll.Stop(); _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _favoriteSceneCts?.Cancel();
+        _savedSceneChanges.Reset(); _activeNamesRetryAt = _savedNamesRetryAt = 0; _savedSceneDecisionWaitingForFocus = false;
         _sceneGeneration++; _sceneSlot = null; _activeScene = null;
         _detectedPresetSlot = _detectedScene = null;
         UpdateFavoriteRowStates();

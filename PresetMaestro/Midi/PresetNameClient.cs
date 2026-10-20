@@ -39,6 +39,9 @@ public sealed class PresetNameClient : IDisposable
         Locked(ct => Exchange(SysexProtocol.BuildPresetNameQuery(slot), f =>
             SysexProtocol.TryParsePresetNameResponse(f, out var r, out _) && r!.Slot == slot ? r : null, timeout, ct), token);
     public Task<PresetNameResult> CurrentPresetAsync(CancellationToken token) => Locked(CurrentPreset, token);
+    public Task<Fm9ActivePreset> ActivePresetAsync(CancellationToken token) => Locked(ct =>
+        Exchange(Fm9ActivePreset.BuildQuery(), frame => Fm9ActivePreset.TryParse(frame, out var state) ? state : null,
+            TimeSpan.FromSeconds(1.5), ct), token);
     /// <summary>Reads a stable preset/scene snapshot without allowing another queued read between requests.</summary>
     public Task<(PresetNameResult Preset, SceneNameResult Scene)> CurrentStateAsync(CancellationToken token) => Locked(async ct =>
     {

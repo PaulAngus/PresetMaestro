@@ -134,3 +134,46 @@ This follows [Apple TN2206's code/resource placement and inside-out signing rule
 Verified on Apple Silicon, macOS 27.0.1, .NET SDK 10.0.401 and PowerShell 7.6.6: local ad-hoc signing and strict verification pass, including ZIP extraction. A temporary startup hook initializes the published app's native Avalonia and enumerates CoreMIDI, then exits before starting the UI or opening profiles. This checks the packaged runtime paths without altering user data. The source version remains 1.2.13. The testing artifacts are `publish-macos/osx-arm64/1.2.13/Preset Maestro.app` and its ZIP. Public Developer ID signing, notarization and downloaded/quarantined acceptance still require release credentials and a separate run; local ad-hoc validation does not establish those results.
 
 The final platform publishing regression script passed Windows and Mac production publishes, both platform payload guards, Linux/mismatched-target rejection, wrong-architecture/library checks, ZIP execute permissions, signed-resource/ZIP tampering rejection and staging cleanup. Evidence: `build_test/macos-signing-final.log`. No Developer ID identity or notarization credentials were used.
+
+## MacBook Air through MIDI Forwarder — 20 October 2026
+
+Verified the real Preset Maestro workflow on the Apple Silicon MacBook Air,
+macOS 27.0.1, using `Network RTP Session 1` for both MIDI directions through the
+running MIDI Forwarder client and its Windows server to **FM9 · Paul's**, firmware
+**12.00**. The app's normal Connect, Sync device, Sync names and Resync Scenes
+button handlers were exercised by an in-process .NET startup-hook harness against
+the published application, with native Avalonia renders and structured sync logs.
+This did not use a synthetic MIDI peer or replace the application's MIDI backend.
+
+The first run exposed a cache-scoping defect: when MIDI ports were selected after
+launch, initial library sync preceded scene tracking and cached scene labels under
+the old port pair. The complete device library was saved correctly, but Favorites
+could lack labels for the selected ports. Connection now establishes the scene
+cache key immediately after device validation, before any initial sync. The new
+first-connection persistence regression fails on the previous code and passes with
+the fix. All 48 focused connection, scene-client and scene-search checks pass on
+both Windows and the Mac-managed dependency graph.
+
+Version **1.2.29** passed the repeated native workflow: **512 slots checked,
+254 populated presets, 258 empty slots skipped and 2,032 scene entries**, with all
+eight scene entries present for each populated preset. The full read took about
+**115 seconds**, with no sync errors, MIDI timeouts/failures or dropped diagnostic
+records. All 512 preset names refreshed separately, and the selected preset's
+eight saved scenes refreshed through Resync Scenes. Disk verification confirms
+the complete library and all 512 scene-cache records under the active relay port
+pair. The hardware stayed at slot 169, scene index 0 throughout these reads.
+
+The corrected Windows EXE and ready-to-run Mac `.app` are published to the
+MightBeUseful network directory. The Mac bundle uses the SDK-selected matching
+self-contained runtime and ARM64-compatible native libraries; its managed-resource
+links and local signatures were prepared and verified on the Air. Universal
+third-party native libraries were retained rather than thinned. The network app
+is checked again after publication by reconnecting and comparing a sample of
+saved presets and scenes. Local ad-hoc signing is used for this network-folder
+deployment; no archive or developer-tool installation is required to run it.
+
+Evidence, the narrowly scoped regression logs, workflow harness and native UI
+renders are under `build_test/macbook-sync-20261020/`. The original Air profile
+was backed up before testing. The application assembly and transport were real;
+physical mouse/keyboard input and OS Accessibility interaction were outside this
+in-process workflow check.

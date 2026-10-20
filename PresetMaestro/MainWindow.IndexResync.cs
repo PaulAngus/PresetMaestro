@@ -149,8 +149,9 @@ public partial class MainWindow
             _indexCache?.Device.Id == expected.Device.Id;
     }
 
-    internal async Task<bool?> ConfirmSceneTagMovesAsync(IndexedPreset preset, SceneTagMovePlan plan)
+    internal async Task<bool?> ConfirmSceneTagMovesAsync(IndexedPreset preset, SceneTagMovePlan plan, CancellationToken token = default)
     {
+        token.ThrowIfCancellationRequested();
         var dialog = new Window
         {
             Name = "SceneTagMoveDialog",
@@ -192,8 +193,14 @@ public partial class MainWindow
         var layout = new Grid { RowDefinitions = new("*,Auto"), MaxHeight = Math.Max(300, Bounds.Height - 80) };
         layout.Children.Add(new ScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
         Grid.SetRow(actions, 1); layout.Children.Add(actions); dialog.Content = layout;
-        dialog.Opened += (_, _) => follow.Focus();
+        dialog.Opened += (_, _) => { if (token.IsCancellationRequested) { dialog.Close((bool?)null); } else { follow.Focus(); } };
         dialog.KeyDown += (_, e) => { if (e.Key == Key.Escape) { dialog.Close((bool?)null); e.Handled = true; } };
+        void CloseCancelled() { if (dialog.IsVisible) { dialog.Close((bool?)null); } }
+        using var registration = token.Register(() =>
+        {
+            if (Dispatcher.UIThread.CheckAccess()) { CloseCancelled(); }
+            else { Dispatcher.UIThread.Post(CloseCancelled); }
+        });
         return await dialog.ShowDialog<bool?>(this);
     }
 }

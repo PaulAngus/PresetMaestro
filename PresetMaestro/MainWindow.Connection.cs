@@ -78,6 +78,8 @@ public partial class MainWindow
                 return;
             }
 
+            // Initial library sync can run before scene tracking starts.
+            _sceneCacheKey = System.Text.Json.JsonSerializer.Serialize(new[] { input, output });
             ConnectionState.Device = device;
             _presetNameClient.SetDeviceModel(device.Model);
             _settings.DeviceModel = device.Model;

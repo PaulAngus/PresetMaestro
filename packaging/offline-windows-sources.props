@@ -22,6 +22,7 @@
     <Compile Include="FavoriteTableInteractionTests.cs" />
     <Compile Include="FavoritesManagerTests.cs" />
     <Compile Include="Fm9CaptureReplayTests.cs" />
+    <Compile Include="Fm9ActivePresetTests.cs" />
     <Compile Include="FractalConnectionTests.cs" />
     <Compile Include="FractalDeviceInformationTests.cs" />
     <Compile Include="FractalIndexCoreTests.cs" />
@@ -65,6 +66,7 @@
     <Compile Include="ProfileValidationTests.cs" />
     <Compile Include="ProfileWindowTests.cs" />
     <Compile Include="SceneClientTests.cs" />
+    <Compile Include="SavedScenePollingTests.cs" />
     <Compile Include="SceneProtocolTests.cs" />
     <Compile Include="SceneSearchTests.cs" />
     <Compile Include="SceneSelectionWindowTests.cs" />

@@ -50,11 +50,11 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
     private static string Json(DeviceIndex cache) => System.Text.Json.JsonSerializer.Serialize(cache, IndexJson.Options);
 
     private (MainWindow Window, AppSettings Settings, DeviceMidi Midi, ProfileStore Store) CreateWindow(WaitingSource source, DeviceIndex? existing = null, string theme = "Light",
-        Func<string, string, string, string, Task<bool>>? confirm = null, DeviceModel model = DeviceModel.FM9, bool assigned = false, int width = 1200)
+        Func<string, string, string, string, Task<bool>>? confirm = null, DeviceModel model = DeviceModel.FM9, bool assigned = false, int width = 1200, bool portsConfigured = true)
     {
         var store = new ProfileStore(_directory);
         var settings = store.LoadSettings(); settings.Theme = theme;
-        settings.MidiInputPort = "FM9"; settings.MidiOutputPort = "FM9";
+        settings.MidiInputPort = portsConfigured ? "FM9" : ""; settings.MidiOutputPort = settings.MidiInputPort;
         settings.PresetNameCache = Enumerable.Range(0, 512).ToDictionary(s => s, s => "Cached " + s);
         settings.FractalIndex = IndexJson.ToElement(assigned && existing is not null
             ? new IndexProfile { Devices = [existing.Device], SelectedDeviceId = existing.Device.Id } : new IndexProfile());
@@ -75,6 +75,31 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
             .SetValue(window, new PresetIndexReader(source, AmpModelCatalogRegistry.CreateStarter()));
         window.Show();
         return (window, settings, midi, store);
+    }
+
+    [AvaloniaFact]
+    public async Task FirstSyncAfterSelectingPortsPersistsScenesForTheConnectedPortPair()
+    {
+        var source = new WaitingSource();
+        var (window, settings, _, store) = CreateWindow(source, portsConfigured: false);
+        try
+        {
+            Find<ComboBox>(window, "MidiInput").SelectedItem = "FM9";
+            Find<ComboBox>(window, "MidiOutput").SelectedItem = "FM9";
+            await window.ConnectAsync();
+            source.Release.SetResult();
+            await window.SyncIndexAsync();
+            string key = System.Text.Json.JsonSerializer.Serialize(new[] { "FM9", "FM9" });
+            var saved = store.LoadSettings();
+            var scenes = saved.SceneNameCaches[key];
+            Assert.Equal(512, scenes.Count);
+            var device = Assert.Single(Library.ListDevices());
+            var scan = Library.Load(device.Id)!.Committed!;
+            Assert.Equal(scan.Presets[0].SceneNames, scenes[0].Names);
+            Assert.Equal("stored", scenes[0].Source);
+            Assert.Equal("FM9", settings.MidiInputPort);
+        }
+        finally { window.Close(); }
     }
 
     [AvaloniaFact]
@@ -143,7 +168,7 @@ public sealed partial class ConnectionLibrarySetupTests : IDisposable
             Assert.Contains(saved.Committed.Presets[0].Amps, a => a.Channels.Length == 4);
             Assert.Empty(window.OwnedWindows);
             Assert.True(Find<Control>(window, "PresetIndexPage").IsEffectivelyVisible);
-            Assert.DoesNotContain(midi.Sent, frame => frame[0] is >= 0xc0 and <= 0xcf);
+            Assert.Empty(midi.Writes);
             Click(Find<Button>(window, "NavConfig"));
             Click(Find<Button>(window, "ConfigSyncOptions"));
             dialog = Assert.Single(window.OwnedWindows);
