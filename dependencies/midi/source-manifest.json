@@ -1,13 +1,13 @@
 {
-  "version": "0.3.10",
-  "head": "c7c553e0321d38b863e25301e8a92a29c076604d",
+  "version": "0.3.12",
+  "head": "2ef5e04e3ea0eb4ea298c26645f2e880e4737033",
   "workingTree": true,
   "sourceFiles": {
     "src/MightBeUseful.Midi/AssemblyInfo.cs": "25a53f9c9034f53d4de9b91531049c18e7a07fe2fb24ec2b6cc9f2c8ce4b9e30",
     "src/MightBeUseful.Midi/IMidiDuplexPort.cs": "62d26a829778cd926593e9ab4348142372fbb54f4d92792d88c76d40f672b0a5",
     "src/MightBeUseful.Midi/Midi1CompatiblePort.cs": "547934702fa3f34a028a31886041a9a617b8103d159e5a10a2c16a3f8c0d752c",
     "src/MightBeUseful.Midi/Midi1DuplexPort.cs": "2c6c76a8b97ced8f428beb1d46d3ab6266dc82240ccd1ce08ce131315e979b93",
-    "src/MightBeUseful.Midi/Midi1PacketDecoder.cs": "8f01fb0c4cf4678beefa74cf769c5571c60141e0ba657f98fcd98c18dd58c36e",
+    "src/MightBeUseful.Midi/Midi1PacketDecoder.cs": "045989b878ba9803c073e5a6f799abcdaa9ed391f04f802c72047df2551b271c",
     "src/MightBeUseful.Midi/Midi1ShortMessageCodec.cs": "8ae204d5a16f3c6bde9f6a568ae02c68d7ae2f69983ec83929e7aeaf20919175",
     "src/MightBeUseful.Midi/MidiBackendPolicy.cs": "0df5761780dcb82fd734fc46db55701caa61bbf8c293fef6f6528773e0c4d668",
     "src/MightBeUseful.Midi/MidiFrame.cs": "f0bfb45584f6c2ad26e56cde9f0ad4ec05127d7b14057606acc8674edd05a469",
@@ -16,7 +16,7 @@
     "src/MightBeUseful.Midi/MidiServiceProbe.cs": "9424366672ac67007d5a7f6deebc74aa5d10429b0603ce098f063b1fc66320a8",
     "src/MightBeUseful.Midi/MightBeUseful.Midi.csproj": "8d654c44b7bebb6b31a9f2f606927f45b5072193adc4eef8cce3f3cf3b278df3",
     "src/MightBeUseful.Midi/SerializedMidiOutputPort.cs": "b3cbadc83f96b86cc81bc157539110d4064bff7497ef810317f68929ec0e46a6",
-    "src/MightBeUseful.Midi/UmpMidi1Codec.cs": "d6d210ba6fc3d115ff9995897782d9ae51347c6f2a4fbd9175772a806a5d64f4",
+    "src/MightBeUseful.Midi/UmpMidi1Codec.cs": "86b0fee9c6e1b06e6382ff35e17d8937ca86dfdb7caf19a1f4d33110cb4b3b72",
     "src/MightBeUseful.Midi.CoreMidi/AssemblyInfo.cs": "c4739da7585f2770263d398562f91acdd90cc44c4a6a1432229946628c738bc6",
     "src/MightBeUseful.Midi.CoreMidi/CoreMidiBackend.cs": "1c44f8c43b58d844a1da0248e339bc167284a915821e4aea4b45def79aee2567",
     "src/MightBeUseful.Midi.CoreMidi/CoreMidiDuplexPort.cs": "d2dd64dfd7d3d105171b1c0b74adeeabca9c8f60c7ac7029ff12a575a76ed372",
@@ -38,8 +38,8 @@
     "src/MightBeUseful.Midi.Windows/LegacyMidiPortCatalog.cs": "7a34dae4f5f99fdda328c9fb13105edb820d3af3f5bfba93f7cea15b6ebfa7ce",
     "src/MightBeUseful.Midi.Windows/MightBeUseful.Midi.Windows.csproj": "a9dbf789429095be3937f34f1fd094d41db92b5baaee724411e2f00bbf33df6e",
     "src/MightBeUseful.Midi.Windows/PhysicalMidiEndpointCatalog.cs": "c28fb04740f3bf123784cea4a07eefadf38ddb610d7dbff358baa61c24dc16d6",
-    "src/MightBeUseful.Midi.Windows/PhysicalMidiEndpointDuplexPort.cs": "16b022841e5152056a2d8fcfa7c83d59114502a4526c83640e7d370027e8b6a0",
-    "src/MightBeUseful.Midi.Windows/ServicesMidiPorts.cs": "c4912c639714d05890565312dbe463c7e95d12d7892daf739ddbff65c7bd9e1e",
+    "src/MightBeUseful.Midi.Windows/PhysicalMidiEndpointDuplexPort.cs": "36e2e548c4a2d194a48354e85ecea887814f4f4c94677713c91789b5fba1666c",
+    "src/MightBeUseful.Midi.Windows/ServicesMidiPorts.cs": "59f9d8d1aceee43f39d1d0d8964111d637af137a07e4bafa3e9a5813ec04f5cb",
     "src/MightBeUseful.Midi.Windows/WindowsLegacyMidiBackend.cs": "768e5d7420c329ed87c76266b6e240335460530237bc0efdd9fa6e98b657bb62",
     "src/MightBeUseful.Midi.Windows/WindowsMidiApiLoader.cs": "b2d84f087d1911f3067b848cb129a9474a4b33d39b5e729cae0e5e0b96e1e3ce",
     "src/MightBeUseful.Midi.Windows/WindowsMidiBackend.cs": "84e84af476c29e4b8f897f479a0a054a9dc7a816b345e06e98606f4399ad9a85",
@@ -56,7 +56,9 @@
     "src/MightBeUseful.Midi.Windows/native/win-x64/vcruntime140.dll": "d1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7",
     "src/MightBeUseful.Midi.Windows/native/win-x64/vcruntime140_1.dll": "a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e",
     "src/MightBeUseful.Midi.CoreMidi/native/osx-arm64/librtmidi.7.dylib": "d8d17982fa524366253dd6f47b50cb7a0e09cf7a30a45ff46b93e0e51d6c82e0",
-    "src/MightBeUseful.Midi/Midi/MidiTransport.cs": "abbc68ff43e6b6f1d264e72d638040a2243e694e9d293e0f411da91ca46c2562"
+    "src/MightBeUseful.Midi/Midi/MidiTransport.cs": "abbc68ff43e6b6f1d264e72d638040a2243e694e9d293e0f411da91ca46c2562",
+    "Directory.Build.props": "a2dcad4d7693b9a1e48f816c92b5090a3b6c258d18527a76c53752fb2b45dcf7",
+    "src/MightBeUseful.Midi/UmpSysEx7SendBuffer.cs": "2e6d7b766fdba4194c3c5d74a7b161b9e563521023e6aacec38b4230a2583b76"
   },
-  "verification": "51 audited offline core tests plus published Windows EXE dependency/repair verification; clean OS and full workflow qualification incomplete"
+  "verification": "82 shared-library tests, 162 Forwarder tests, three native concurrent raw-UMP/legacy checks and one native complete-MIDI-message check passed. See docs/releases/1.0.6.md for physical FM9 acceptance; clean OS and macOS qualification incomplete."
 }
