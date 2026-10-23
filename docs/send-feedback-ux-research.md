@@ -1,5 +1,42 @@
 # Send confirmations
 
+## Scene confirmation extension — 23 October 2026
+
+Rechecked the official Fluent and Windows links below for this extension. A
+favorite or scene Go to now uses **Confirming preset and scene** followed by
+**Preset and scene confirmed** after both values are read back consistently.
+Wrong scenes use **Scene did not change**, with requested and actual scene
+numbers; missing replies use **No scene confirmation**. Preset-only wording is
+unchanged. The text column wraps the longer messages at the existing 360-pixel
+width. Pending/confirmed/error colors, accessible announcements, focus, hover,
+durations and overlay position retain the existing documented product choices
+and deliberate deviations. No new task or dismissal controls are introduced.
+Native acceptance remains with the shared platform's unchanged installed
+release; headless render checks are component evidence only.
+
+## Device confirmation update — 23 October 2026
+
+Preset, favorite and Go to sends now use neutral **Confirming preset** feedback
+until active-preset readback matches, then show **Preset confirmed**. Wrong
+presets and missing replies use explicit error text and theme-aware red styling.
+The existing overlay geometry, wrapping, accessible announcement and focus
+behavior are retained. Pending feedback stays visible until resolved; confirmed
+feedback retains the user's two-second duration and errors retain the existing
+eight-second warning duration. Later sends replace pending work.
+
+Rechecked [Fluent 2 message-bar guidance](https://fluent2.microsoft.design/components/web/react/core/messagebar/usage)
+and [Windows InfoBar guidance](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/infobar).
+Documented guidance supports readable descriptive titles/body text, severity
+that matches the outcome, theme-aware colors and accessible announcements.
+Product choices retain the existing transient overlay and retry through the
+original send action, rather than adding the message-bar pattern's embedded
+action/dismiss buttons or a persistent inline notification. This is a deliberate
+deviation to preserve the established stable layout. Confirmation titles now use
+sentence case and identify the confirmed state. Scene requests now use the
+combined confirmation described above. The historical SENT-only description below is superseded for these
+three routes. Native visual acceptance stays with the shared platform; headless
+renders are component development evidence only.
+
 Reviewed 2026-10-04; dismissal guidance rechecked 2026-10-05.
 
 [Fluent 2 toast guidance](https://fluent2.microsoft.design/components/web/react/core/toast/usage) supports brief confirmation feedback at a predictable location, a seven-second timeout for confirmations without actions, pausing on pointer hover, and preserving keyboard focus. [Windows InfoBar guidance](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/infobar) warns that inline notifications can substantially move other page content, and recommends other surfaces for transient feedback.

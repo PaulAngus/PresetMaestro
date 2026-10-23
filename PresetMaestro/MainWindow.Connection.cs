@@ -170,7 +170,7 @@ public partial class MainWindow
             if (!_midi.InputOpen || !_midi.OutputOpen || !ports.Inputs.Contains(input) || !ports.Outputs.Contains(output))
             {
                 AppendLog("CONNECT: selected MIDI device removed; disconnected.");
-                Disconnect();
+                DisconnectAfterTransportFailure();
                 return;
             }
 

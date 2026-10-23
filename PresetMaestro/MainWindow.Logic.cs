@@ -165,6 +165,7 @@ public partial class MainWindow
 
     private void SendFavoriteBySlot(int slot)
     {
+        CancelPresetConfirmation();
         HideSendFeedback();
         var fav = _favorites.FirstOrDefault(f => f.Slot == slot && !f.IsEmpty);
         if (fav == null)
@@ -180,6 +181,7 @@ public partial class MainWindow
     private void SendFavorite(Favorite fav)
     {
         if (_connectionCts is not null) { return; }
+        CancelPresetConfirmation();
         HideSendFeedback();
         if (!PresetTranslation.IsValid(fav.Preset, _settings.DisplayOffset, EffectiveMaximum))
         {
@@ -212,16 +214,17 @@ public partial class MainWindow
                 _currentPreset = fav.Preset;
                 _currentFavoriteName = fav.Name;
                 _currentFavoriteScene = fav.Scene;
-                PresetSent(t.MidiPreset, fav.Scene);
-                ShowSendFeedback("SENT", $"Favorite {fav.Slot} · {fav.Name} sent.");
+                PresetSent(t.MidiPreset, fav.Scene, $"Favorite {fav.Slot} · {fav.Name} sent.");
                 AppendLog($"RESULT: Favorite '{fav.Name}' -> device display {t.DisplayedPreset}, " +
                           $"Bank {t.Bank}, PC {t.ProgramChange}, Scene {fav.Scene}");
             }
+            else { ShowSendFeedback("Could not send favorite", "Check the MIDI connection and try again.", warning: true); }
         }
         else
         {
             string sel = _outputPortCombo.SelectedItem as string ?? "(none selected)";
             AppendLog($"WARNING: No MIDI output connected — selected port: '{sel}'. Click Connect.");
+            ShowSendFeedback("Could not send favorite", "Connect the Fractal device and try again.", warning: true);
         }
 
         _enteredDigits = string.Empty;
@@ -231,6 +234,7 @@ public partial class MainWindow
     private void SendPreset(int displayed)
     {
         if (_connectionCts is not null) { return; }
+        CancelPresetConfirmation();
         HideSendFeedback();
         if (!PresetTranslation.IsValid(displayed, _settings.DisplayOffset, EffectiveMaximum))
         {
@@ -255,16 +259,17 @@ public partial class MainWindow
                 _currentPreset = displayed;
                 _currentFavoriteName = null;
                 _currentFavoriteScene = null;
-                PresetSent(t.MidiPreset, null);
-                ShowSendFeedback("SENT", $"Preset {displayed} sent.");
+                PresetSent(t.MidiPreset, null, $"Preset {displayed} sent.");
                 AppendLog($"RESULT: device display {t.DisplayedPreset} <- " +
                           $"MIDI preset {t.MidiPreset}, Bank {t.Bank}, PC {t.ProgramChange}");
             }
+            else { ShowSendFeedback("Could not send preset", "Check the MIDI connection and try again.", warning: true); }
         }
         else
         {
             string sel = _outputPortCombo.SelectedItem as string ?? "(none selected)";
             AppendLog($"WARNING: No MIDI output connected — selected port: '{sel}'. Click Connect.");
+            ShowSendFeedback("Could not send preset", "Connect the Fractal device and try again.", warning: true);
         }
 
         _enteredDigits = string.Empty;
@@ -274,6 +279,7 @@ public partial class MainWindow
     // ── UI update ────────────────────────────────────────────────
     private void ShowSendFeedback(string title, string detail, bool warning = false)
     {
+        _sendFeedbackPending = false;
         _sendFeedbackTimer.Stop();
         _sendFeedbackHover.Reset();
         _sendFeedbackWarning = warning;
@@ -491,7 +497,7 @@ public partial class MainWindow
             msg.StartsWith("SCENE ERROR:", StringComparison.Ordinal) || msg.StartsWith("THRU ERROR:", StringComparison.Ordinal))
         {
             long generation = _connectionGeneration;
-            Dispatcher.UIThread.Post(() => { if (generation == _connectionGeneration && _connectionCts is null) { Disconnect(); } });
+            Dispatcher.UIThread.Post(() => { if (generation == _connectionGeneration && _connectionCts is null) { DisconnectAfterTransportFailure(); } });
         }
     }
 

@@ -244,7 +244,8 @@ internal sealed class DeviceMidi : IMidiManager
     public Task<MidiPorts> DiscoverPortsAsync() => Discover?.Invoke() ?? Task.FromResult(new MidiPorts(GetInputPortNames(), GetOutputPortNames()));
     public event EventHandler<byte[]>? SysexMessageReceived;
     public event EventHandler<string>? LogMessage;
-    public event EventHandler<int>? PresetChangeReceived { add { } remove { } }
+    public event EventHandler<int>? PresetChangeReceived;
+    public void EmitPresetChange() => PresetChangeReceived?.Invoke(this, 1);
     public event EventHandler<NoteOnEventArgs>? NoteOnReceived;
     public void EmitNote(NoteOnEventArgs note) => NoteOnReceived?.Invoke(this, note);
     public bool InputOpen { get; set; } = true;

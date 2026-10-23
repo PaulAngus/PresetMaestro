@@ -57,6 +57,8 @@ public partial class MainWindow
         resources["SendSuccessForegroundBrush"] = Brush(light ? "#08734C" : "#55D5A3");
         resources["SendWarningBackgroundBrush"] = Brush(light ? "#FFF1D7" : "#543A1B");
         resources["SendWarningForegroundBrush"] = Brush(light ? "#8C4F00" : "#FFCB76");
+        resources["SendErrorBackgroundBrush"] = Brush(light ? "#FDE7E9" : "#4C2025");
+        resources["SendErrorForegroundBrush"] = Brush(light ? "#A4262C" : "#FFB3BA");
         resources["HoverBrush"] = Brush(light ? "#F3F7FB" : "#202936");
         resources["SelectedBrush"] = Brush(light ? "#EAF4FE" : "#244D87");
         resources["BadgeBrush"] = Brush(light ? "#EDF1F5" : "#3B4653");
@@ -234,7 +236,7 @@ public partial class MainWindow
             _sendFeedbackHover.Reset();
             if (!panel.IsVisible) { return; }
             if (dismiss) { HideSendFeedback(); }
-            else { _sendFeedbackTimer.Start(); }
+            else if (!_sendFeedbackPending) { _sendFeedbackTimer.Start(); }
         };
         return panel;
     }

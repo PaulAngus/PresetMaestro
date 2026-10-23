@@ -16,8 +16,7 @@ public partial class MainWindow
     private CancellationTokenSource? _scenePollCts;
     private int _sceneGeneration;
     private int? _sceneSlot, _activeScene;
-    // These are written only by the existing hardware-state poll.  Sending a
-    // preset or scene therefore does not optimistically mark a Favourite active.
+    // Only verified readback (polling or send confirmation) marks a Favourite active.
     private int? _detectedPresetSlot, _detectedScene;
     partial void UpdateIndexActiveRows();
     private bool _sceneClosing, _pollBusy;
@@ -70,11 +69,25 @@ public partial class MainWindow
         UpdateDisplay();
     }
 
-    private void PresetSent(int slot, int? scene)
+    private void PresetSent(int slot, int? scene, string sentDetail, bool refreshScenes = true)
     {
-        _presetNamesCts?.Cancel(); _scenePollCts?.Cancel();
-        _sceneSlot = slot; _activeScene = scene;
-        _ = RefreshScenesAsync(slot);
+        CancelPresetConfirmation();
+        _presetNamesCts?.Cancel(); _sceneCts?.Cancel(); _scenePollCts?.Cancel();
+        _sceneGeneration++;
+        _sceneSlot = slot; _activeScene = null;
+        _detectedPresetSlot = _detectedScene = null;
+        UpdateFavoriteRowStates(); UpdateIndexActiveRows();
+        ShowSendFeedback(scene.HasValue ? "Confirming preset and scene" : "Confirming preset", sentDetail, warning: true);
+        _sendFeedbackPending = true;
+        _sendFeedbackPanel.Background = InsetBrush;
+        _sendFeedbackPanel.BorderBrush = _sendFeedbackIcon.Foreground = _sendFeedbackTitle.Foreground =
+            _sendFeedbackDetail.Foreground = TextBrush;
+        _sendFeedbackIcon.Text = "…";
+        _sendFeedbackTimer.Stop();
+        var cts = new CancellationTokenSource();
+        _presetConfirmationCts = cts;
+        _presetConfirmationScene = scene;
+        PresetConfirmationTask = ConfirmPresetSelectionAsync(slot, scene, sentDetail, refreshScenes, cts);
     }
 
     private void AttachFavoriteScenePicker()
@@ -311,7 +324,7 @@ public partial class MainWindow
     internal async Task PollSceneStateAsync()
     {
         if (!CanReadDeviceNames) { return; }
-        if (_changingProfile || _connectionCts is not null || _pollBusy || _sceneCts != null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen || _sceneClosing)
+        if (_presetConfirmationCts is not null || _changingProfile || _connectionCts is not null || _pollBusy || _sceneCts != null || _presetNamesCts != null || !_midi.InputOpen || !_midi.OutputOpen || _sceneClosing)
         {
             return;
         }
@@ -413,6 +426,7 @@ public partial class MainWindow
     }
     private void StopSceneTracking()
     {
+        CancelPresetConfirmation();
         _scenePoll.Stop(); _sceneCts?.Cancel(); _scenePollCts?.Cancel(); _favoriteSceneCts?.Cancel(); _favoriteCurrentCts?.Cancel();
         _savedSceneChanges.Reset(); _activeNamesRetryAt = _savedNamesRetryAt = 0; _savedSceneDecisionWaitingForFocus = false;
         _sceneGeneration++; _sceneSlot = null; _activeScene = null;

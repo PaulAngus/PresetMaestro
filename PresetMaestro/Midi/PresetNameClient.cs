@@ -40,6 +40,40 @@ public sealed class PresetNameClient : IDisposable
         Locked(ct => Exchange(SysexProtocol.BuildPresetNameQuery(slot), f =>
             SysexProtocol.TryParsePresetNameResponse(f, out var r, out _) && r!.Slot == slot ? r : null, timeout, ct), token);
     public Task<PresetNameResult> CurrentPresetAsync(CancellationToken token) => Locked(CurrentPreset, token);
+    /// <summary>Reads the active slot, never the name of a requested stored slot.</summary>
+    public Task<PresetNameResult> ReadPresetConfirmationAsync(CancellationToken token) =>
+        Locked(ReadPresetConfirmation, token, allowIndexRead: true);
+    /// <summary>Associates scene readback with a stable active preset under one request gate.</summary>
+    public Task<(PresetNameResult Preset, SceneNameResult? Scene)> ReadSceneConfirmationAsync(int expectedSlot, CancellationToken token) => Locked(async ct =>
+    {
+        long revision = Interlocked.Read(ref _presetRevision);
+        var before = await ReadPresetConfirmation(ct).ConfigureAwait(false);
+        if (before.Slot != expectedSlot) { return (before, (SceneNameResult?)null); }
+        byte model = ConfirmationModelByte;
+        var scene = await Exchange(SysexProtocol.Frame(model, 0x0c, [0x7f]), frame =>
+            SysexProtocol.ValidFrame(frame, model, 0x0c, 9) && frame[6] < 8
+                ? new SceneNameResult(frame[6], "") : null,
+            TimeSpan.FromMilliseconds(750), ct).ConfigureAwait(false);
+        var after = await ReadPresetConfirmation(ct).ConfigureAwait(false);
+        // An interrupted snapshot cannot confirm a scene, even if its index matched.
+        return (after, before.Slot == after.Slot && revision == Interlocked.Read(ref _presetRevision) ? scene : null);
+    }, token, allowIndexRead: true);
+    private byte ConfirmationModelByte => _deviceModel switch
+    {
+        DeviceModel.FM9 => 0x12,
+        DeviceModel.FM3 => 0x11,
+        DeviceModel.AxeFxIII => 0x10,
+        _ => throw new NotSupportedException("Unsupported Fractal device.")
+    };
+    private Task<PresetNameResult> ReadPresetConfirmation(CancellationToken token)
+    {
+        byte model = ConfirmationModelByte;
+        int capacity = DevicePresets.Capacity(_deviceModel);
+        return Exchange(SysexProtocol.Frame(model, 0x0d, [0x7f, 0x7f]), frame =>
+            SysexProtocol.ValidFrame(frame, model, 0x0d, 42) && (frame[6] | frame[7] << 7) < capacity
+                ? new PresetNameResult(frame[6] | frame[7] << 7, SysexProtocol.ReadName(frame.AsSpan(8, 32))) : null,
+            TimeSpan.FromMilliseconds(750), token);
+    }
     public Task<Fm9ActivePreset> ActivePresetAsync(CancellationToken token) => Locked(ct =>
         Exchange(Fm9ActivePreset.BuildQuery(), frame => Fm9ActivePreset.TryParse(frame, out var state) ? state : null,
             TimeSpan.FromSeconds(1.5), ct), token);

@@ -31,7 +31,7 @@ public partial class FavoriteEditorTests
             Assert.Equal(1, midi.FavoriteSendCount);
             var feedback = Find<Border>(window, "SendFeedback");
             Assert.True(feedback.IsVisible);
-            Assert.Equal("SENT", Find<TextBlock>(window, "SendFeedbackTitle").Text);
+            Assert.Equal("Confirming preset and scene", Find<TextBlock>(window, "SendFeedbackTitle").Text);
             Assert.Contains("Favorite 1", Find<TextBlock>(window, "SendFeedbackDetail").Text);
             Assert.Same(send, window.FocusManager!.GetFocusedElement());
             Assert.Equal(positions, controls.Select(c => (Origin: c.TranslatePoint(default, window), Size: c.Bounds.Size)).ToArray());
@@ -107,7 +107,7 @@ public partial class FavoriteEditorTests
         window.Width = width; window.Height = 850;
         try
         {
-            window.Show(); Invoke(window, "HandleDigit", 8); Invoke(window, "HandleSend"); Dispatcher.UIThread.RunJobs();
+            window.Show(); Invoke(window, "ShowSendFeedback", "Preset confirmed", "Preset 8 sent.", false); Dispatcher.UIThread.RunJobs();
             var feedback = Find<Border>(window, "SendFeedback");
             window.MouseMove(feedback.TranslatePoint(new Point(20, 20), window)!.Value); Dispatcher.UIThread.RunJobs();
             await Task.Delay(TimeSpan.FromSeconds(2.2)); Dispatcher.UIThread.RunJobs();
@@ -125,7 +125,7 @@ public partial class FavoriteEditorTests
         var window = CreateWindow(new FakeMidi { OutputOpen = true });
         try
         {
-            window.Show(); Invoke(window, "HandleDigit", 8); Invoke(window, "HandleSend"); Dispatcher.UIThread.RunJobs();
+            window.Show(); Invoke(window, "ShowSendFeedback", "Preset confirmed", "Preset 8 sent.", false); Dispatcher.UIThread.RunJobs();
             var feedback = Find<Border>(window, "SendFeedback");
             window.MouseMove(feedback.TranslatePoint(new Point(20, 20), window)!.Value); Dispatcher.UIThread.RunJobs();
             window.MouseMove(new Point(10, 55)); Dispatcher.UIThread.RunJobs();
@@ -144,7 +144,7 @@ public partial class FavoriteEditorTests
         var window = CreateWindow(new FakeMidi { OutputOpen = true });
         try
         {
-            window.Show(); Invoke(window, "HandleDigit", 8); Invoke(window, "HandleSend"); Dispatcher.UIThread.RunJobs();
+            window.Show(); Invoke(window, "ShowSendFeedback", "Preset confirmed", "Preset 8 sent.", false); Dispatcher.UIThread.RunJobs();
             var feedback = Find<Border>(window, "SendFeedback");
             window.MouseMove(feedback.TranslatePoint(new Point(20, 20), window)!.Value); Dispatcher.UIThread.RunJobs();
             await Task.Delay(TimeSpan.FromSeconds(2.2)); Dispatcher.UIThread.RunJobs();

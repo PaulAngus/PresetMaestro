@@ -18,7 +18,13 @@ public partial class MainWindow
 
     private bool GoToDevice(int slot, int? scene, DeviceModel model)
     {
-        if (DeviceNavigationUnavailable(model) is { } unavailable) { AppendLog("GO TO: " + unavailable); return false; }
+        CancelPresetConfirmation();
+        if (DeviceNavigationUnavailable(model) is { } unavailable)
+        {
+            AppendLog("GO TO: " + unavailable);
+            ShowSendFeedback("Could not go to selection", unavailable, warning: true);
+            return false;
+        }
         int displayed = slot + _settings.DisplayOffset;
         if (!PresetTranslation.IsValid(displayed, _settings.DisplayOffset, EffectiveMaximum) || scene is < 1 or > 8) { return false; }
         int channel = _settings.MidiChannel == 0 ? 1 : _settings.MidiChannel;
@@ -33,11 +39,10 @@ public partial class MainWindow
         {
             _lastPreset = _currentPreset; _currentPreset = displayed;
             _currentFavoriteName = null; _currentFavoriteScene = scene;
-            if (scene is null || !samePreset) { PresetSent(slot, scene); }
-            else { _activeScene = scene; }
+            PresetSent(slot, scene, message, refreshScenes: scene is null || !samePreset);
             _enteredDigits = string.Empty; UpdateDisplay();
         }
-        ShowSendFeedback(sent ? "SENT" : "Could not go to selection", message, warning: !sent);
+        if (!sent) { ShowSendFeedback("Could not go to selection", message, warning: true); }
         AppendLog("GO TO: " + message);
         return sent;
     }
