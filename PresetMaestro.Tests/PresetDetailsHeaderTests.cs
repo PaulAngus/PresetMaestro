@@ -51,10 +51,10 @@ public sealed class PresetDetailsHeaderTests : IDisposable
             {
                 list.SelectedIndex = 142 + index; Dispatcher.UIThread.RunJobs();
                 var origin = (ListBoxItem)list.SelectedItem!;
-                var tabs = Find<TabStrip>(window, "IndexDetailTabs");
+                var toggle = Find<Border>(window, "IndexAmpNameToggle");
                 var close = Find<Button>(window, "IndexCloseInspector");
                 var header = Find<Grid>(window, "IndexInspectorToolbar");
-                Control[] controls = [Find<Panel>(window, "IndexInspectorIdentity"), tabs, Find<Button>(window, "IndexResyncScenes"), Find<Button>(window, "IndexPresetTags"), close];
+                Control[] controls = [Find<Panel>(window, "IndexInspectorIdentity"), toggle, Find<Button>(window, "IndexResyncScenes"), Find<Button>(window, "IndexPresetTags"), close];
                 double previousRight = 0;
                 foreach (var control in controls)
                 {
@@ -64,16 +64,20 @@ public sealed class PresetDetailsHeaderTests : IDisposable
                     Assert.True(position.Y + control.Bounds.Height <= header.Bounds.Height + 1);
                     previousRight = position.X + control.Bounds.Width;
                 }
-                Assert.True(header.Bounds.Height <= 32);
+                Assert.Equal(28, header.Bounds.Height);
                 Assert.Equal("Close details", AutomationProperties.GetName(close));
                 Assert.Equal("Close details (Esc)", ToolTip.GetTip(close));
                 Assert.Contains(index == 0 ? shortName.Name : longName.Name, AutomationProperties.GetName(controls[0]));
                 Snapshot(index, "scenes");
 
-                Find<TabStripItem>(window, "IndexShowScenes").Focus();
+                var frame = Find<Border>(window, "IndexInspectorFrame");
+                var before = frame.Bounds;
+                Find<ToggleButton>(window, "IndexAmpNameFractal").Focus();
                 window.KeyPressQwerty(PhysicalKey.ArrowRight, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
-                Assert.True(Find<StackPanel>(window, "IndexAmpSection").IsVisible);
-                Snapshot(index, "amps");
+                Assert.True(Find<ToggleButton>(window, "IndexAmpNameReal").IsChecked);
+                Assert.True(Find<StackPanel>(window, "IndexSceneSection").IsVisible);
+                Assert.Equal(before, frame.Bounds);
+                Snapshot(index, "real-amp");
                 window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
                 Assert.Same(controls[3], window.FocusManager?.GetFocusedElement());
                 window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
@@ -100,6 +104,7 @@ public sealed class PresetDetailsHeaderTests : IDisposable
             string? output = Environment.GetEnvironmentVariable("PRESET_MAESTRO_SCREENSHOT_DIR");
             if (output is null) { return; }
             Directory.CreateDirectory(output);
+            window.CaptureRenderedFrame()?.Dispose(); Dispatcher.UIThread.RunJobs();
             using var bitmap = window.CaptureRenderedFrame();
             bitmap!.Save(Path.Combine(output, $"compact-preset-header-{width}-{theme.ToLowerInvariant()}-{(index == 0 ? "short" : "long")}-{view}.png"));
         }

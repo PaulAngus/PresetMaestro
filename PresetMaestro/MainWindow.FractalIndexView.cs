@@ -470,6 +470,7 @@ public partial class MainWindow
         UpdateIndexSendControls();
         UpdateIndexSceneDetailsButton();
         _indexInspector.Children.Clear();
+        _indexInspectorRefreshAmpActions.Clear();
         _indexInspectorActiveRows.Clear();
         _indexResyncScenes = null;
         _indexInspectorRefreshTagAction = null;
@@ -553,33 +554,10 @@ public partial class MainWindow
             Spacing = 0,
             Children = { headings, scenes },
         };
-        var ampSection = new StackPanel { Name = "IndexAmpSection" };
-        ampSection.Spacing = 8; ampSection.IsVisible = false;
-        ampSection.Children.Add(BuildIndexAmpTable(preset));
-        var tabs = new TabStrip
-        {
-            Name = "IndexDetailTabs",
-            SelectedIndex = 0,
-            Items = { new TabStripItem { Name = "IndexShowScenes", Content = "Scenes (8)", FontSize = 13, Padding = new(8, 4), MinHeight = 28 }, new TabStripItem { Name = "IndexShowAmpModels", Content = "Amp models", FontSize = 13, Padding = new(8, 4), MinHeight = 28 } }
-        };
-        AutomationProperties.SetName(tabs, "Preset information");
-        tabs.SelectionChanged += (_, _) =>
-        {
-            sceneSection.IsVisible = tabs.SelectedIndex == 0;
-            ampSection.IsVisible = tabs.SelectedIndex == 1;
-            _indexInspectorScroll.Offset = default;
-        };
-        tabs.AddHandler(KeyDownEvent, (_, e) =>
-        {
-            if (e.Key is not (Key.Left or Key.Right or Key.Home or Key.End)) { return; }
-            tabs.SelectedIndex = e.Key is Key.Left or Key.Home ? 0 : 1;
-            (tabs.SelectedItem as TabStripItem)?.Focus();
-            e.Handled = true;
-        }, RoutingStrategies.Tunnel);
-        tabs.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(tabs, 2); header.Children.Insert(1, tabs);
+        var ampNames = BuildIndexAmpNameToggle();
+        Grid.SetColumn(ampNames, 2); header.Children.Insert(1, ampNames);
         header.Children.Add(close); _indexInspectorHeader.Children.Add(header);
-        _indexInspector.Children.Add(sceneSection); _indexInspector.Children.Add(ampSection);
+        _indexInspector.Children.Add(sceneSection);
         if (_indexSelectedScene is int selectedScene)
         {
             var selectedRow = scenes.Children.OfType<Grid>().FirstOrDefault(r => r.Name == $"IndexScene{selectedScene + 1}Row");
@@ -624,13 +602,7 @@ public partial class MainWindow
         }
         };
         Grid.SetColumn(titleTags, 1); row.Children.Add(titleTags);
-        string ampSummary = preset.Amps.Length == 0 ? "No Amp blocks" : string.Join("\n", preset.Amps.Select(amp =>
-        {
-            var state = amp.Scenes[scene];
-            var model = amp.Channels.Single(channel => channel.Channel == state.Channel).Model;
-            return $"{model.DisplayName} · {(char)('A' + state.Channel)}{(state.Bypassed ? " (off)" : "")}";
-        }));
-        var summary = new TextBlock { Name = $"IndexScene{number}AmpSummary", Text = ampSummary, FontSize = 12, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap, Margin = new(6, 2), VerticalAlignment = VerticalAlignment.Center };
+        var summary = new StackPanel { Name = $"IndexScene{number}AmpSummary", Margin = new(6, 2), VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(summary, 2); row.Children.Add(summary);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new(0, 2, 6, 2), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
         var model = _indexCache!.Device.Variant.ToDeviceModel();
@@ -662,59 +634,15 @@ public partial class MainWindow
         var menu = new MenuItem { Header = "Go to scene" }; menu.Click += (_, _) => goTo.Go();
         row.ContextMenu = new ContextMenu { Items = { menu } };
         row.ContextMenu.Opening += (_, _) => { goTo.Refresh(); menu.IsEnabled = goTo.IsEnabled; };
-        string accessibleAmps = preset.Amps.Length == 0 ? "No Amp blocks" : string.Join("; ", preset.Amps.Select(amp =>
+        void RefreshAmpNames()
         {
-            var state = amp.Scenes[scene];
-            var selectedModel = amp.Channels.Single(channel => channel.Channel == state.Channel).Model;
-            return $"Amp {amp.BlockNumber}: {selectedModel.DisplayName}, channel {(char)('A' + state.Channel)}{(state.Bypassed ? ", bypassed" : "")}";
-        }));
-        AutomationProperties.SetName(row, $"Scene {number}: {preset.SceneNames[scene]}. {accessibleAmps}");
-        ToolTip.SetTip(row, string.Join(" · ", new[] { $"{number} {preset.SceneNames[scene]}", accessibleAmps }.Concat(tags)));
+            string accessibleAmps = RefreshIndexSceneAmpSummary(summary, preset, scene);
+            AutomationProperties.SetName(row, $"Scene {number}: {preset.SceneNames[scene]}. {accessibleAmps}");
+            ToolTip.SetTip(row, string.Join(" · ", new[] { $"{number} {preset.SceneNames[scene]}", accessibleAmps }.Concat(tags)));
+        }
+        _indexInspectorRefreshAmpActions.Add(RefreshAmpNames);
+        RefreshAmpNames();
         return row;
-    }
-
-    private Control BuildIndexAmpTable(IndexedPreset preset)
-    {
-        if (preset.Amps.Length == 0)
-        {
-            return new TextBlock { Name = "IndexAmpChannels", Text = "No Amp blocks in this preset.", FontSize = 12, Foreground = SecondaryBrush, Margin = new Thickness(8) };
-        }
-        // Wrapping model names remain readable independently of the preset list's height.
-        var table = new Grid { Name = "IndexAmpChannels", ColumnDefinitions = new ColumnDefinitions("70," + string.Join(',', preset.Amps.Select(_ => "*"))), RowDefinitions = new RowDefinitions("30,Auto,Auto,Auto,Auto") };
-        AutomationProperties.SetName(table, "Saved amp models by channel");
-        for (int row = 0; row < 5; row++)
-        {
-            var stripe = new Border { Background = row % 2 == 0 ? InsetBrush : SurfaceBrush };
-            Grid.SetRow(stripe, row); Grid.SetColumnSpan(stripe, preset.Amps.Length + 1); table.Children.Add(stripe);
-            var label = new TextBlock { Text = row == 0 ? "Channel" : ((char)('A' + row - 1)).ToString(), FontSize = 12, Foreground = SecondaryBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 0) };
-            Grid.SetRow(label, row); table.Children.Add(label);
-        }
-        for (int column = 0; column < preset.Amps.Length; column++)
-        {
-            var amp = preset.Amps[column];
-            var heading = new TextBlock { Text = $"Amp {amp.BlockNumber}", FontSize = 12, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0) };
-            Grid.SetColumn(heading, column + 1); table.Children.Add(heading);
-            foreach (var channel in amp.Channels)
-            {
-                var family = _ampsCatalog?.Families.FirstOrDefault(f => f.Variants.Any(v => v.ModelId == channel.Model.Id));
-                var variant = family?.Variants.First(v => v.ModelId == channel.Model.Id);
-                string realAmp = family is null || family.Family.Confidence == "unmapped" ? "Real amp not mapped"
-                    : variant!.SpecificModel == variant.Name ? $"{family.Family.Manufacturer} {family.Family.Name}" : variant.SpecificModel;
-                var text = new StackPanel
-                {
-                    Spacing = 4,
-                    Margin = new(12, 4),
-                    Children =
-                {
-                    new TextBlock { Text = realAmp, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = "Fractal: " + channel.Model.DisplayName, FontSize = 13, Foreground = SecondaryBrush, TextWrapping = TextWrapping.Wrap },
-                }
-                };
-                ToolTip.SetTip(text, channel.Model.DisplayName);
-                Grid.SetColumn(text, column + 1); Grid.SetRow(text, channel.Channel + 1); table.Children.Add(text);
-            }
-        }
-        return table;
     }
 
     private FavoriteTitleTagsPanel BuildIndexInspectorIdentity(string title, IEnumerable<string> tags)

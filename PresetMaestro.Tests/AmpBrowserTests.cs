@@ -513,8 +513,8 @@ public sealed partial class AmpBrowserTests : IDisposable
             {
                 window.Height = width == 1000 ? 680 : 850;
                 Dispatcher.UIThread.RunJobs();
-                Find<TabStrip>(window, "IndexDetailTabs").SelectedIndex = 1;
-                Capture(window, $"amps-channel-models-{width}-{theme}");
+                Click(Find<ToggleButton>(window, "IndexAmpNameReal"));
+                Capture(window, $"amps-scene-real-names-{width}-{theme}");
                 window.Height = 800;
                 Dispatcher.UIThread.RunJobs();
             }

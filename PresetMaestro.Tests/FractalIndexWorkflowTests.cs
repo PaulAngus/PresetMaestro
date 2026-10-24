@@ -1083,15 +1083,13 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(8, Find<Grid>(window, "IndexScenes").Children.Count);
             Assert.All(Find<Grid>(window, "IndexScenes").Children, row => Assert.True(row.Bounds.Height < 58));
-            Assert.Equal("Plexi 50W Jumped · A\nClass-A 30W Brilliant · A", Find<TextBlock>(window, "IndexScene1AmpSummary").Text);
-            Assert.Equal("Plexi 50W 6CA7 · B\nClass-A 15W TB · B", Find<TextBlock>(window, "IndexScene2AmpSummary").Text);
-            Assert.Equal("Plexi 100W Jumped · D (off)\nMatchbox D-30 EF86 · D (off)", Find<TextBlock>(window, "IndexScene8AmpSummary").Text);
+            Assert.Equal("Plexi 50W Jumped · A\nClass-A 30W Brilliant · A", Avalonia.Automation.AutomationProperties.GetName(Find<StackPanel>(window, "IndexScene1AmpSummary")));
+            Assert.Equal("Plexi 50W 6CA7 · B\nClass-A 15W TB · B", Avalonia.Automation.AutomationProperties.GetName(Find<StackPanel>(window, "IndexScene2AmpSummary")));
+            Assert.Equal("Plexi 100W Jumped · D (off)\nMatchbox D-30 EF86 · D (off)", Avalonia.Automation.AutomationProperties.GetName(Find<StackPanel>(window, "IndexScene8AmpSummary")));
             Assert.Contains("Plexi 50W 6CA7", Avalonia.Automation.AutomationProperties.GetName(Find<Grid>(window, "IndexScene2Row")));
             AssertSceneSummariesFit();
             var sceneSection = Find<StackPanel>(window, "IndexSceneSection");
-            var ampSection = Find<StackPanel>(window, "IndexAmpSection");
             Assert.True(sceneSection.IsVisible);
-            Assert.False(ampSection.IsVisible);
             var sceneScroll = Find<ScrollViewer>(window, "IndexInspectorScroll");
             Assert.True(sceneScroll.Extent.Height <= sceneScroll.Viewport.Height + 1);
             var search = Find<TextBox>(window, "IndexSearchInput");
@@ -1115,15 +1113,13 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             list.SelectedIndex = 125; Dispatcher.UIThread.RunJobs();
             var close = Find<Button>(window, "IndexCloseInspector");
             sceneSection = Find<StackPanel>(window, "IndexSceneSection");
-            ampSection = Find<StackPanel>(window, "IndexAmpSection");
             var frame = Find<Border>(window, "IndexInspectorFrame");
             var closePosition = close.TranslatePoint(default, frame);
-            var backToScenes = Find<TabStripItem>(window, "IndexShowScenes");
+            var backToScenes = Find<ToggleButton>(window, "IndexAmpNameFractal");
             var backPosition = backToScenes.TranslatePoint(default, frame);
-            Find<TabStrip>(window, "IndexDetailTabs").SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
-            Assert.True(ampSection.IsVisible);
-            Assert.False(sceneSection.IsVisible);
-            AssertAmpModelsFit();
+            Click(Find<ToggleButton>(window, "IndexAmpNameReal"));
+            Assert.True(sceneSection.IsVisible);
+            AssertSceneSummariesFit();
             Assert.Equal(closePosition, close.TranslatePoint(default, frame));
             Assert.True(close.IsEffectivelyVisible);
             Assert.Equal(backPosition, backToScenes.TranslatePoint(default, frame));
@@ -1133,7 +1129,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             {
                 using var models = window.CaptureRenderedFrame(); models!.Save(Path.Combine(output, "preset-index-amp-models-" + theme.ToLowerInvariant() + ".png"));
             }
-            Find<TabStrip>(window, "IndexDetailTabs").SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
+            Click(Find<ToggleButton>(window, "IndexAmpNameFractal"));
             Assert.Equal(0, Find<ScrollViewer>(window, "IndexInspectorScroll").Offset.Y);
             if (output is not null)
             {
@@ -1141,11 +1137,10 @@ public sealed class FractalIndexWorkflowTests : IDisposable
                 using var singleAmp = window.CaptureRenderedFrame(); singleAmp!.Save(Path.Combine(output, "preset-index-together-single-amp.png"));
             }
             list.SelectedIndex = 125;
+            Click(Find<ToggleButton>(window, "IndexAmpNameFractal"));
             window.Width = 1000; window.Height = 680; Dispatcher.UIThread.RunJobs();
             sceneSection = Find<StackPanel>(window, "IndexSceneSection");
-            ampSection = Find<StackPanel>(window, "IndexAmpSection");
             Assert.True(sceneSection.IsVisible);
-            Assert.False(ampSection.IsVisible);
             Assert.True(Find<ListBox>(window, "IndexPresetList").Bounds.Height >= 140);
             AssertSceneSummariesFit();
             if (output is not null)
@@ -1154,11 +1149,10 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             }
             close = Find<Button>(window, "IndexCloseInspector");
             closePosition = close.TranslatePoint(default, frame);
-            backToScenes = Find<TabStripItem>(window, "IndexShowScenes");
+            backToScenes = Find<ToggleButton>(window, "IndexAmpNameFractal");
             backPosition = backToScenes.TranslatePoint(default, frame);
-            Find<TabStrip>(window, "IndexDetailTabs").SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
-            Assert.True(ampSection.IsVisible);
-            AssertAmpModelsFit();
+            Click(Find<ToggleButton>(window, "IndexAmpNameReal"));
+            AssertSceneSummariesFit();
             Assert.Equal(closePosition, close.TranslatePoint(default, frame));
             Assert.True(close.IsEffectivelyVisible);
             Assert.Equal(backPosition, backToScenes.TranslatePoint(default, frame));
@@ -1169,7 +1163,7 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             }
             backToScenes.Focus();
             window.KeyPressQwerty(PhysicalKey.ArrowLeft, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
-            Assert.Equal(0, Find<TabStrip>(window, "IndexDetailTabs").SelectedIndex);
+            Assert.True(Find<ToggleButton>(window, "IndexAmpNameFractal").IsChecked);
             Assert.Equal(0, Find<ScrollViewer>(window, "IndexInspectorScroll").Offset.Y);
             window.Width = 1440; Dispatcher.UIThread.RunJobs();
             AssertSceneSummariesFit();
@@ -1200,32 +1194,15 @@ public sealed class FractalIndexWorkflowTests : IDisposable
             for (int scene = 1; scene <= 8; scene++)
             {
                 var row = Find<Grid>(window, $"IndexScene{scene}Row");
-                var summary = Find<TextBlock>(window, $"IndexScene{scene}AmpSummary");
+                var summary = Find<StackPanel>(window, $"IndexScene{scene}AmpSummary");
                 var position = summary.TranslatePoint(default, row)!.Value;
                 Assert.True(position.Y >= 0 && position.Y + summary.Bounds.Height <= row.Bounds.Height);
                 var tags = Find<Button>(window, $"IndexScene{scene}GoTo");
                 Assert.True(position.X + summary.Bounds.Width <= tags.TranslatePoint(default, row)!.Value.X);
-                Assert.True(summary.TextLayout.Height <= summary.Bounds.Height + 1);
+                Assert.All(summary.Children, line => Assert.True(line.Bounds.Bottom <= summary.Bounds.Height + 1));
             }
         }
 
-        void AssertAmpModelsFit()
-        {
-            var table = Find<Grid>(window, "IndexAmpChannels");
-            var cells = table.Children.OfType<StackPanel>().ToArray();
-            Assert.Equal(8, cells.Length);
-            foreach (var cell in cells)
-            {
-                Assert.True(cell.Bounds.Bottom <= table.Bounds.Height);
-                foreach (var label in cell.Children.OfType<TextBlock>())
-                {
-                    Assert.True(label.Bounds.Bottom <= cell.Bounds.Height);
-                    Assert.True(label.TextLayout.Height <= label.Bounds.Height + 1);
-                }
-                var next = cells.SingleOrDefault(other => Grid.GetColumn(other) == Grid.GetColumn(cell) && Grid.GetRow(other) == Grid.GetRow(cell) + 1);
-                if (next is not null) { Assert.True(cell.Bounds.Bottom <= next.Bounds.Top); }
-            }
-        }
     }
 
     [AvaloniaFact]
