@@ -42,6 +42,7 @@ public sealed class MidiManager : IMidiManager
     public event EventHandler<int>? PresetChangeReceived;
 
     public bool InputOpen => _midiIn != null;
+    internal string? InputTransport => _midiIn?.GetType().Name;
     public bool OutputOpen { get { lock (_outLock) { return _midiOut != null; } } }
     public IReadOnlyCollection<string> ThruInputPorts => _thruInputs.Keys.ToArray();
 

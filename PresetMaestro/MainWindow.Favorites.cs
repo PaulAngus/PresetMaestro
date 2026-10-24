@@ -468,15 +468,6 @@ public partial class MainWindow
         ShowFavoriteEditor(new Favorite { Slot = _favorites.Count + 1 }, isNew: true);
     }
 
-    private void OnFavEdit(object? sender, RoutedEventArgs e)
-    {
-        var favorite = SelectedFavorite();
-        if (favorite != null)
-        {
-            ShowFavoriteEditor(favorite, isNew: false);
-        }
-    }
-
     internal void ShowFavoriteEditor(Favorite fav, bool isNew)
     {
         _favoriteCurrentCts?.Cancel();
@@ -992,19 +983,6 @@ public partial class MainWindow
         HandleSend();
     }
 
-    private void OnFavListDoubleClick(object? sender, RoutedEventArgs e)
-    {
-        var item = e.Source as ListBoxItem ?? FavoriteRowFromSource(e.Source);
-        if (item?.Tag is Favorite { IsEmpty: false } favorite)
-        {
-            _favListBox.SelectedItem = item;
-            SendFavorite(favorite);
-            e.Handled = true;
-        }
-    }
-
-    private void OnFavFilterChanged(object? sender, TextChangedEventArgs e) => RefreshFavoritesList();
-
     private void OnFavColumnClick(int column)
     {
         if (_favSortColumn == column)
@@ -1085,34 +1063,4 @@ public partial class MainWindow
         await dialog.ShowDialog(this);
     }
 
-    private async Task<string?> ShowTextEntryAsync(string title, string label, string initialValue)
-    {
-        var result = new TaskCompletionSource<string?>();
-        var input = new TextBox { Text = initialValue };
-        var save = new Button { Content = "Save", Width = 80 };
-        var cancel = new Button { Content = "Cancel", Width = 80 };
-        var dialog = new Window
-        {
-            Title = title,
-            Width = 380,
-            Height = 180,
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(16),
-                Spacing = 12,
-                Children =
-                {
-                    new TextBlock { Text = label },
-                    input,
-                    new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { save, cancel } },
-                },
-            },
-        };
-        save.Click += (_, _) => { result.TrySetResult(input.Text); dialog.Close(); };
-        cancel.Click += (_, _) => { result.TrySetResult(null); dialog.Close(); };
-        await dialog.ShowDialog(this);
-        return await result.Task;
-    }
 }

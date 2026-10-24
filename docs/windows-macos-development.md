@@ -8,7 +8,7 @@ One UI, profile format and device-protocol implementation serve both systems. `b
 
 | Build | Framework | UI backend | MIDI backend | Release |
 |---|---|---|---|---|
-| Windows x64 | .NET 10 / Windows 10 API contract 19041 | Avalonia.Win32 | NAudio WinRT input / WinMM output | Compressed, self-contained EXE with ReadyToRun |
+| Windows x64 | .NET 10 / Windows 10 API contract 19041 | Avalonia.Win32 | Shared Windows MIDI Services provider; supported legacy WinRT/WinMM path | Compressed, self-contained EXE with ReadyToRun |
 | Apple Silicon | .NET 10, `osx-arm64` | Avalonia.Native | DryWetMIDI 8.0.3 / CoreMIDI | Self-contained `.app` in ZIP |
 | Intel Mac | .NET 10, `osx-x64` | Avalonia.Native | Same Mac backend | Separate `.app` in ZIP |
 
@@ -24,7 +24,7 @@ DryWetMIDI 8.0.3's default build target copies both its Windows DLLs and Mac dyl
 
 `IMidiManager` remains the UI/protocol boundary. `MidiManager` owns port lifetime, output serialization, bank/program/scene encoding, note notifications, stale-callback rejection and MIDI thru. The small internal input/output-port interfaces carry complete MIDI 1.0 messages without a platform-library type in their signatures.
 
-The Windows adapter keeps WinRT input and WinMM output. The Mac adapter uses the maintained library's native CoreMIDI implementation, rather than introducing application-owned unmanaged callbacks and packet-layout definitions. It disposes enumeration handles, waits for complete SysEx, uses **device** byte format (not MIDI-file framing), catches exceptions at callback boundaries, and serializes conversion/disposal. Shared routing continues to ignore clock/active-sensing traffic and does not forward SysEx from controller thru inputs. Input parser errors reach the MIDI log.
+The Windows adapter uses the shared library's current/legacy selection policy: Windows MIDI Services on eligible Windows 11 systems and the supported WinRT/WinMM path on older systems. The Mac adapter uses the maintained library's native CoreMIDI implementation. It disposes enumeration handles, waits for complete SysEx, uses **device** byte format (not MIDI-file framing), catches exceptions at callback boundaries, and serializes conversion/disposal. Shared routing continues to ignore clock/active-sensing traffic and does not forward SysEx from controller thru inputs. Input parser errors reach the MIDI log.
 
 Primary library references: [device ownership and disposal](https://melanchall.github.io/drywetmidi/articles/devices/Overview.html), [input lifecycle](https://melanchall.github.io/drywetmidi/articles/devices/Input-device.html), [wire conversion](https://melanchall.github.io/drywetmidi/api/Melanchall.DryWetMidi.Core.BytesFormat.html), and [the exact package's build rules](https://github.com/melanchall/drywetmidi/blob/v8.0.3/DryWetMidi/Melanchall.DryWetMidi.csproj).
 

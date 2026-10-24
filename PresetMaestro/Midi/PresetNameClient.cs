@@ -243,6 +243,7 @@ public sealed class PresetNameClient : IDisposable
         bool completed = false;
         int received = 0, matching = 0, rejected = 0, invalid = 0;
         var opcodes = new Dictionary<string, int>();
+        var resultCodes = new Dictionary<string, int>();
         long dropsBefore = Interlocked.Read(ref _droppedFrames);
         string receiveOutcome = "failed";
         try
@@ -264,6 +265,12 @@ public sealed class PresetNameClient : IDisposable
                         string opcode = frame.Length > 5 && frame[1] == 0 && frame[2] == 1 && frame[3] == 0x74
                             ? $"0x{frame[5]:X2}" : "other";
                         opcodes[opcode] = opcodes.GetValueOrDefault(opcode) + 1;
+                        if (frame.Length is >= 10 and <= 12 &&
+                            SysexProtocol.ValidFrame(frame, request[4], 0x64, frame.Length))
+                        {
+                            string code = $"0x{frame[6]:X2}:0x{frame[7]:X2}";
+                            resultCodes[code] = resultCodes.GetValueOrDefault(code) + 1;
+                        }
                         bool matches = frame.Length > 5 && frame[5] == request[5];
                         if (matches)
                         {
@@ -291,7 +298,7 @@ public sealed class PresetNameClient : IDisposable
             {
                 Receive = new(request[5], received, matching, rejected, invalid, discarded,
                     Interlocked.Read(ref _droppedFrames) - dropsBefore)
-                { OpcodeCounts = opcodes }
+                { OpcodeCounts = opcodes, ResultCodes = resultCodes, InputTransport = (_midi as MidiManager)?.InputTransport }
             });
             // No transaction IDs: quarantine late responses after cancellation/timeout.
             if (!completed)

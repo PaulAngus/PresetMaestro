@@ -12,6 +12,10 @@ public sealed record MidiReadEvidence(int Opcode, int FramesReceived, int Matchi
     int RejectedMatchingFrames, int InvalidMatchingFrames, int DiscardedBeforeSend, long QueueDrops)
 {
     public IReadOnlyDictionary<string, int>? OpcodeCounts { get; init; }
+    // Validated 0x64 result envelopes only: echoed function and raw result byte.
+    // A result can belong to another MIDI client; never infer ownership or success.
+    public IReadOnlyDictionary<string, int>? ResultCodes { get; init; }
+    public string? InputTransport { get; init; }
 }
 
 /// <summary>Async operation scope; logging never blocks or changes a device read.</summary>

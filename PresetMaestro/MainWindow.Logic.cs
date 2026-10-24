@@ -74,19 +74,6 @@ public partial class MainWindow
         UpdateDisplay();
     }
 
-    private void OpenSettingsFile()
-    {
-        try
-        {
-            SaveSettingsFromUI();
-            Process.Start(new ProcessStartInfo(SettingsManager.SettingsPath) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"ERROR: could not open settings file — {ex.Message}");
-        }
-    }
-
     private void HandleNext()
     {
         _autoSendTimer.Stop();

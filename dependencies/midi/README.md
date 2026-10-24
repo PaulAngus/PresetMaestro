@@ -1,6 +1,6 @@
 # Pinned shared MIDI dependency
 
-The exact package family is **0.3.12** (`MidiVersion.props`, `version.txt` and
+The exact package family is **0.3.14** (`MidiVersion.props`, `version.txt` and
 `packages.sha256`). It is built from MIDIHelperLibrary and copied here as a
 build feed; no sibling checkout, user-profile API installation or global runtime
 is required by the published application. `source-manifest.json` records the
@@ -67,3 +67,6 @@ archive bytes and source provenance. Source-development overrides were inactive.
 
 No native MIDI enumeration, device connection or MIDI send was performed.
 Native macOS execution and physical interoperability remain untested.
+
+The exact clean producer publication receipt is retained as `normal-publication.json`.
+This adoption is a separate shared-MIDI change; no earlier acceptance qualifies these bytes.

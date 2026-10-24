@@ -7,6 +7,33 @@ namespace PresetMaestro.Tests;
 public sealed class MidiReadPacingTests
 {
     [Fact]
+    public async Task ResultDiagnosticsRetainValidatedCodesWithoutTreatingOtherClientResultsAsOurReply()
+    {
+        var timings = new List<ReadTiming>();
+        using var capture = ReadDiagnostics.Capture(timings.Add);
+        var midi = new DeviceMidi();
+        midi.Send = _ =>
+        {
+            midi.Reply(SysexProtocol.Frame(0x64, [1, 0]));
+            midi.Reply(SysexProtocol.Frame(0x64, [0x0d, 5]));
+            var corrupt = SysexProtocol.Frame(0x64, [0x0d, 6]);
+            corrupt[^2] ^= 1;
+            midi.Reply(corrupt);
+            midi.Reply(SysexProtocol.Frame(0x11, 0x64, [0x0d, 7]));
+            midi.Reply(SceneProtocolTests.Response(0x0d, [9, 0], "Other preset"));
+            midi.Reply(SceneProtocolTests.Response(0x0d, [3, 0], "Requested preset"));
+        };
+        using var client = new PresetNameClient(midi);
+        Assert.Equal("Requested preset", (await client.QueryAsync(3, TimeSpan.FromSeconds(1), default)).PresetName);
+        var receive = Assert.Single(timings, timing => timing.Phase == "midi.receive").Receive!;
+        Assert.Equal(2, receive.ResultCodes!.Count);
+        Assert.Equal(1, receive.ResultCodes["0x01:0x00"]);
+        Assert.Equal(1, receive.ResultCodes["0x0D:0x05"]);
+        Assert.Equal(1, receive.RejectedMatchingFrames);
+        Assert.DoesNotContain("preset", System.Text.Json.JsonSerializer.Serialize(receive), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task SharedGateSpacesNameAndSceneQueriesForDeviceThatRejectsBursts()
     {
         var midi = new DeviceMidi();

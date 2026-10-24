@@ -873,7 +873,6 @@ public partial class MainWindow
     }
     private static void SetApprovedCardContent(Border card, Control content) => ((ContentControl)card.Tag!).Content = content;
     private static ControlTheme CompactListItemTheme() => new(typeof(ListBoxItem)) { Setters = { new Setter(ListBoxItem.PaddingProperty, new Thickness(0)), new Setter(ListBoxItem.MinHeightProperty, 0d), new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch), new Setter(ListBoxItem.BackgroundProperty, Brushes.Transparent) } };
-    private static Control ApprovedField(string label, Control input) => new StackPanel { Spacing = 5, Children = { new TextBlock { Text = label.ToUpperInvariant(), FontSize = 11, FontWeight = FontWeight.Bold, Foreground = SecondaryBrush }, input } };
     private static Control CompactField(string label, Control input) => new StackPanel { Spacing = 4, Children = { new TextBlock { Text = label, FontSize = 12, Foreground = SecondaryBrush }, input } };
     private static TextBlock Value() => new() { Text = "---", FontFamily = AppFonts.Monospace, FontWeight = FontWeight.SemiBold, Foreground = TextBrush, Margin = new Thickness(0, 7) };
     private static IBrush ThemeBrush(string key) => (IBrush)Application.Current!.Resources[key]!;

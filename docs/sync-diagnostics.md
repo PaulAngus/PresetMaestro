@@ -30,6 +30,11 @@ Detailed timing adds successful per-slot records. It separates:
   validation; other rejected matches can have an unexpected slot, scene value or payload shape. Counts do not
   contain raw MIDI or names. Zero received frames means no complete frame reached this request's reader;
   it does not prove the device sent nothing. The timeout message also shows received/matching/rejected counts.
+  `ResultCodes` counts checksum-validated Fractal `0x64` envelopes by echoed function and raw result byte
+  (`0x01:0x00`, for example). These may belong to another connected MIDI application. They are diagnostic
+  evidence only, never accepted as preset-name replies or interpreted as proof of success, rejection or saving.
+  `InputTransport` records the receive adapter's type name, distinguishing current Windows MIDI Services,
+  legacy Windows and Mac implementations without logging device/port names.
 - `preset.decode`: preset-body decoding.
 - `scan.checkpoint` / `scan.save`: checkpoint writes and full cache saves.
 - `ui.queue` / `ui.update`: delay before the UI runs a posted progress update, and time to update controls.

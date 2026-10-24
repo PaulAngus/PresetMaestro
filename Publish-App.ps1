@@ -22,7 +22,7 @@ $signing = @{ Sign = $Sign; SigningCertificateThumbprint = $SigningCertificateTh
 & $signScript @signing -CheckOnly
 
 $csproj = Join-Path $PSScriptRoot 'PresetMaestro\PresetMaestro.csproj'
-$buildRoot = Join-Path $PSScriptRoot ('artifacts/publish-' + [guid]::NewGuid().ToString('N'))
+$buildRoot = Join-Path ([IO.Path]::GetTempPath()) ('maestro-publish-' + [guid]::NewGuid().ToString('N'))
 $publishArguments = @('publish', $csproj, '--configuration', 'Release', '--runtime', 'win-x64', '--artifacts-path', $buildRoot)
 if ($PSBoundParameters.ContainsKey('Version')) { $publishArguments += "-p:PublishVersion=$($Version.Trim())" }
 & dotnet @publishArguments
